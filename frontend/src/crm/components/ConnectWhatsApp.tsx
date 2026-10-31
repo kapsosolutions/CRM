@@ -12,30 +12,11 @@ import type { CrmApi } from '../api';
 import type { BusinessProfile } from '../types';
 import { useConfirm, useNotify } from './Dialogs';
 import { NUMBER_ACTIVATION_EVENT, SIGNUP_ACTIVATION_KEY } from '../numberStatus';
+import { useMetaSdk } from '../metaSdk';
 import './Settings.css';
 
-interface FbLoginResponse {
-  authResponse?: { code?: string } | null;
-  status?: string;
-}
-export interface FbSdk {
-  init(opts: Record<string, unknown>): void;
-  login(cb: (r: FbLoginResponse) => void, opts: Record<string, unknown>): void;
-}
-declare global {
-  interface Window {
-    FB?: FbSdk;
-    fbAsyncInit?: () => void;
-  }
-}
-
-interface MetaConfig {
-  appId: string;
-  configId: string;
-  graphVersion: string;
-}
-
-let sdkPromise: Promise<FbSdk> | null = null;
+// The SDK loader lives in ../metaSdk (shared by every Meta connect button).
+export { loadSdk, type FbSdk } from '../metaSdk';
 
 // Our business categories → WhatsApp's own business-profile categories, which
 // is what Embedded Signup's "category" field takes.
@@ -91,33 +72,6 @@ function prefillFrom(b?: BusinessProfile) {
   };
 }
 
-/**
- * Load and initialise the Facebook SDK once per page. Shared with Facebook
- * Login for Business (MetaBusinessLogin.tsx: Instagram, Messenger).
- */
-export function loadSdk(appId: string, version: string): Promise<FbSdk> {
-  if (sdkPromise) return sdkPromise;
-  sdkPromise = new Promise<FbSdk>((resolve, reject) => {
-    const ready = () => {
-      window.FB!.init({ appId, autoLogAppEvents: true, xfbml: false, version });
-      resolve(window.FB!);
-    };
-    if (window.FB) return ready();
-    window.fbAsyncInit = ready;
-    const s = document.createElement('script');
-    s.src = 'https://connect.facebook.net/en_US/sdk.js';
-    s.async = true;
-    s.defer = true;
-    s.crossOrigin = 'anonymous';
-    s.onerror = () => {
-      sdkPromise = null;
-      reject(new Error('Could not load Facebook’s sign-in script. Check your connection or ad blocker and try again.'));
-    };
-    document.body.appendChild(s);
-  });
-  return sdkPromise;
-}
-
 interface SessionInfo {
   wabaId?: string;
   phoneNumberId?: string;
@@ -145,36 +99,26 @@ export function useEmbeddedSignup(
 ) {
   const notify = useNotify();
   const confirm = useConfirm();
-  const [cfg, setCfg] = useState<MetaConfig | null>(null);
-  const [publicUrl, setPublicUrl] = useState('');
-  const [sdk, setSdk] = useState<FbSdk | null>(null);
+  const meta = useMetaSdk(api);
+  const cfg = meta.cfg?.meta || null;
+  const publicUrl = meta.cfg?.publicUrl || '';
+  const sdk = meta.sdk;
   const [busy, setBusy] = useState(false);
-  const [problem, setProblem] = useState('');
   const session = useRef<SessionInfo>({});
-
+  // A setup problem on the server (not something a retry fixes).
+  const problem = meta.cfg && meta.https && (!cfg?.appId || !cfg?.configId)
+    ? 'WhatsApp signup isn’t configured on the server yet.'
+    : '';
+  // Config or Meta's script still on its way: the button waits ("Preparing…").
+  const preparing = meta.https && !problem && !meta.error && !(sdk && cfg);
+  // The user asked to retry a failed load: tell them if it fails again.
+  const retried = useRef(false);
   useEffect(() => {
-    let live = true;
-    api
-      .getAuthConfig()
-      .then((r) => {
-        if (!live) return;
-        setCfg(r.meta);
-        setPublicUrl(r.publicUrl || '');
-        // On an http:// page Meta's popup can't run, so don't load its SDK.
-        if (window.location.protocol !== 'https:') return;
-        if (!r.meta?.appId || !r.meta?.configId) {
-          setProblem('WhatsApp signup isn’t configured on the server yet.');
-          return;
-        }
-        loadSdk(r.meta.appId, r.meta.graphVersion || 'v22.0')
-          .then((fb) => live && setSdk(fb))
-          .catch((e) => live && setProblem(e.message));
-      })
-      .catch(() => live && setProblem('Could not reach the server.'));
-    return () => {
-      live = false;
-    };
-  }, [api]);
+    if (meta.error && retried.current) {
+      retried.current = false;
+      notify('error', 'Meta’s sign-in didn’t load', meta.error);
+    }
+  }, [meta.error, notify]);
 
   // Meta reports the chosen WABA / number (or a cancel) by postMessage.
   useEffect(() => {
@@ -274,10 +218,15 @@ export function useEmbeddedSignup(
       notify('error', 'Can’t start WhatsApp signup', problem);
       return;
     }
-    if (!sdk || !cfg) {
-      notify('error', 'Still loading', 'Give it a second and click again.');
+    if (meta.error) {
+      // Loading failed (network / ad blocker): load again; the button shows
+      // "Preparing…" meanwhile and the user clicks once it's ready.
+      retried.current = true;
+      meta.retry();
       return;
     }
+    // Still preparing: the button is disabled, so this only guards other callers.
+    if (!sdk || !cfg) return;
     session.current = {};
     setBusy(true);
     // FB.login wants a plain (non-async) callback.
@@ -300,9 +249,9 @@ export function useEmbeddedSignup(
         extras: { setup: prefillFrom(business), featureType: '', sessionInfoVersion: '3' },
       },
     );
-  }, [cfg, sdk, problem, finish, notify, confirm, publicUrl, business]);
+  }, [cfg, sdk, problem, meta, finish, notify, confirm, publicUrl, business]);
 
-  return { connect, busy, ready: !!sdk && !problem, problem };
+  return { connect, busy, ready: !!sdk && !!cfg && !problem, preparing, loadFailed: !!meta.error, problem };
 }
 
 /** The button itself. */
@@ -320,13 +269,18 @@ export function ConnectWhatsAppButton({
   label?: string;
   variant?: 'primary' | 'ghost';
 }) {
-  const { connect, busy } = useEmbeddedSignup(api, onConnected, business);
+  const { connect, busy, preparing, loadFailed } = useEmbeddedSignup(api, onConnected, business);
   return (
     <button
       type="button"
-      className={`k-btn${variant === 'ghost' ? ' ghost' : ''} cw-btn`}
+      className={`k-btn${variant === 'ghost' ? ' ghost' : ''} cw-btn${preparing ? ' preparing' : ''}`}
       onClick={connect}
-      disabled={busy}
+      // Meta's popup must open from the click itself, so the button waits
+      // until Meta's sign-in script is ready instead of failing on a click.
+      disabled={busy || preparing}
+      aria-busy={busy || preparing}
+      title={preparing ? 'Getting Meta’s sign-in ready…' : loadFailed ? 'Meta’s sign-in didn’t load. Click to try again.' : undefined}
+      data-testid="cw-connect"
     >
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
         <path
@@ -334,7 +288,7 @@ export function ConnectWhatsAppButton({
           d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.3-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8s-.4-.1-.6.1-.7.8-.8 1c-.2.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.3-.4.2-.4.7-1.4.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5a1 1 0 0 0-.7.3 3 3 0 0 0-.9 2.2 5.2 5.2 0 0 0 1.1 2.7 11.8 11.8 0 0 0 4.5 4c1.7.7 2.3.8 3.2.6.5-.1 1.5-.6 1.7-1.2s.2-1.1.2-1.2-.2-.2-.5-.3z"
         />
       </svg>
-      {busy ? 'Connecting…' : label}
+      {busy ? 'Connecting…' : preparing ? 'Preparing…' : loadFailed ? 'Try again' : label}
     </button>
   );
 }

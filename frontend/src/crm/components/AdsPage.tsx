@@ -304,7 +304,8 @@ function AdsPageInner({ api, demo = false, onOpenChat, focusRequest, business }:
 
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
   // Meta's SDK is still loading: FB.login can't run from a click yet.
-  const sdkLoading = !demo && isHttps && !notConfigured && !fbLogin.problem && !fbLogin.ready;
+  // (A failed load leaves the button enabled: clicking it loads again.)
+  const sdkLoading = !demo && isHttps && !notConfigured && fbLogin.preparing;
   const loginBusy = phase !== '';
 
   async function disconnect() {
@@ -407,7 +408,7 @@ function AdsPageInner({ api, demo = false, onOpenChat, focusRequest, business }:
                   disabled={sdkLoading || loginBusy}
                   data-testid="ads-revoked-reconnect"
                 >
-                  {loginBusy ? 'Connecting…' : sdkLoading ? 'Loading…' : 'Reconnect'}
+                  {loginBusy ? 'Connecting…' : sdkLoading ? 'Preparing…' : 'Reconnect'}
                 </button>
                 <button type="button" className="ads-btn" onClick={disconnect}>
                   Remove
@@ -462,7 +463,7 @@ function AdsPageInner({ api, demo = false, onOpenChat, focusRequest, business }:
                 {loginBusy
                   ? 'Connecting…'
                   : sdkLoading
-                    ? 'Loading…'
+                    ? 'Preparing…'
                     : conn?.status === 'disconnected'
                       ? 'Reconnect your Facebook account'
                       : 'Connect your Facebook account'}

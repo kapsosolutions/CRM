@@ -43,6 +43,7 @@ import { BuyPlanModal } from './BuyPlanModal';
 import { DemoModal } from '../../site/DemoModal';
 import { BookDemoSvg, NavConnectSvg, BuyNowSvg } from './TemplateIcons';
 import { numberStatusTone, CHANNEL_STATUS_EVENT, NUMBER_ACTIVATION_EVENT } from '../numberStatus';
+import { preloadMetaSdk } from '../metaSdk';
 import type { SignupActivation } from '../types';
 import './CrmApp.css';
 
@@ -789,6 +790,12 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // Registered but WhatsApp not connected yet: every page is there, with a bar
   // on top to connect the number (Embedded Signup).
   const needsConnect = !demo && !!business && !business.whatsappConnected;
+  // Connecting WhatsApp is the next thing this business will do: get Meta's
+  // sign-in ready in the background, so the Connect button works on the first
+  // click instead of waiting while it loads.
+  useEffect(() => {
+    if (needsConnect || view === 'channel-status') preloadMetaSdk(api);
+  }, [needsConnect, view, api]);
   const onConnected = useCallback(
     (b: BusinessProfile) => {
       setBusiness(b);

@@ -400,7 +400,8 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
 
   const isHttps = typeof window !== 'undefined' && window.location.protocol === 'https:';
   // Meta's SDK is still loading: FB.login can't run from a click yet.
-  const sdkLoading = !demo && isHttps && !fbLogin.notConfigured && !fbLogin.problem && !fbLogin.ready;
+  // (A failed load leaves the button enabled: clicking it loads again.)
+  const sdkLoading = !demo && isHttps && !fbLogin.notConfigured && fbLogin.preparing;
 
   // Handle Disconnecting Catalog
   async function handleDisconnect() {
@@ -615,7 +616,7 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
                     <span>{phase === 'popup' ? 'Waiting for Meta…' : 'Reading your catalogs…'}</span>
                   </>
                 ) : sdkLoading ? (
-                  <span>Loading…</span>
+                  <span>Preparing…</span>
                 ) : (
                   <span>Get started</span>
                 )}

@@ -15,6 +15,7 @@
 // closes. The code is exchanged on the server; no token reaches the browser.
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import type { CrmApi } from '../api';
+import { authConfig } from '../metaSdk';
 import { useBackHandler } from '../useBackHandler';
 import './CatalogPage.css';
 import './InstagramConnect.css';
@@ -187,6 +188,7 @@ export function InstagramMethodDialog({
   igLoaded,
   igConfigured,
   fbConfigured,
+  fbPreparing = false,
   fbNotConfiguredText,
   initialMethod,
   busy,
@@ -198,6 +200,8 @@ export function InstagramMethodDialog({
   igLoaded: boolean;
   igConfigured: boolean;
   fbConfigured: boolean;
+  /** Meta's sign-in script is still loading (Log in with Facebook waits for it). */
+  fbPreparing?: boolean;
   fbNotConfiguredText: string;
   initialMethod?: InstagramMethod;
   /** '' | 'popup' (Instagram's window is open) | 'connecting' (the code is being exchanged). */
@@ -227,8 +231,15 @@ export function InstagramMethodDialog({
   useDialogBehaviour(boxRef, close);
 
   const igReady = igConfigured && isPro && isAdmin;
-  const canConnect = busy === '' && (method === 'instagram' ? igReady : fbConfigured);
-  const label = busy === 'popup' ? 'Waiting for Instagram…' : busy === 'connecting' ? 'Connecting…' : 'Connect Instagram';
+  const fbWaiting = method === 'facebook' && fbConfigured && fbPreparing;
+  const canConnect = busy === '' && (method === 'instagram' ? igReady : fbConfigured && !fbPreparing);
+  const label = busy === 'popup'
+    ? 'Waiting for Instagram…'
+    : busy === 'connecting'
+      ? 'Connecting…'
+      : fbWaiting
+        ? 'Preparing…'
+        : 'Connect Instagram';
 
   return (
     <div className="crm-cat-modal-backdrop" onClick={(e) => e.target === e.currentTarget && close()}>
@@ -357,8 +368,8 @@ export function useInstagramLoginConfig(api: CrmApi) {
   const [state, setState] = useState({ loaded: false, configured: false, publicUrl: '' });
   useEffect(() => {
     let live = true;
-    api
-      .getAuthConfig()
+    // Shared with the other Meta buttons: one /api/auth/config request.
+    authConfig(api)
       .then((r) => live && setState({ loaded: true, configured: !!r.meta?.instagramLoginConfigured, publicUrl: r.publicUrl || '' }))
       .catch(() => live && setState({ loaded: true, configured: false, publicUrl: '' }));
     return () => {

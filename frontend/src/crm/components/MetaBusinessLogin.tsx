@@ -5,10 +5,10 @@
 // override_default_response_type. The configuration id comes from
 // /api/auth/config (META_BUSINESS_LOGIN_CONFIG_ID on the server); the code is
 // exchanged on the server, so no token ever reaches the browser.
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { MetaChannel, MetaPageOption } from '../types';
-import { loadSdk, type FbSdk } from './ConnectWhatsApp';
+import { useMetaSdk } from '../metaSdk';
 import { useConfirm, useNotify } from './Dialogs';
 
 /** Shown wherever the configuration id isn't set on the server yet. */
@@ -32,43 +32,25 @@ export function useMetaBusinessLogin(
 ) {
   const notify = useNotify();
   const confirm = useConfirm();
-  const [configId, setConfigId] = useState('');
-  const [loaded, setLoaded] = useState(false);
-  const [publicUrl, setPublicUrl] = useState('');
-  const [sdk, setSdk] = useState<FbSdk | null>(null);
-  const [problem, setProblem] = useState('');
-
+  const meta = useMetaSdk(api);
+  const loaded = !!meta.cfg || !!meta.error;
+  const configId = String(meta.cfg?.meta?.[configKey] || '');
+  const publicUrl = meta.cfg?.publicUrl || '';
+  const sdk = meta.sdk;
+  const notConfigured = !!meta.cfg && !configId;
+  // A setup problem on the server (a retry doesn't fix it).
+  const problem = meta.cfg && meta.https && configId && !meta.cfg.meta?.appId
+    ? 'The Meta app isn’t configured on the server (META_APP_ID).'
+    : '';
+  // Config or Meta's script still on its way: callers show "Preparing…".
+  const preparing = meta.https && !notConfigured && !problem && !meta.error && !sdk;
+  const retried = useRef(false);
   useEffect(() => {
-    let live = true;
-    api
-      .getAuthConfig()
-      .then((r) => {
-        if (!live) return;
-        const id = String(r.meta?.[configKey] || '');
-        setConfigId(id);
-        setPublicUrl(r.publicUrl || '');
-        setLoaded(true);
-        // On an http:// page Meta's popup can't run, so don't load its SDK.
-        if (window.location.protocol !== 'https:' || !id) return;
-        if (!r.meta?.appId) {
-          setProblem('The Meta app isn’t configured on the server (META_APP_ID).');
-          return;
-        }
-        loadSdk(r.meta.appId, r.meta.graphVersion || 'v22.0')
-          .then((fb) => live && setSdk(fb))
-          .catch((e: Error) => live && setProblem(e.message));
-      })
-      .catch(() => {
-        if (!live) return;
-        setLoaded(true);
-        setProblem('Could not reach the server.');
-      });
-    return () => {
-      live = false;
-    };
-  }, [api, configKey]);
-
-  const notConfigured = loaded && !configId;
+    if (meta.error && retried.current) {
+      retried.current = false;
+      notify('error', 'Meta’s sign-in didn’t load', meta.error);
+    }
+  }, [meta.error, notify]);
 
   const login = useCallback((): Promise<string | null> => {
     if (notConfigured) {
@@ -97,10 +79,15 @@ export function useMetaBusinessLogin(
       notify('error', `Can’t start ${what}`, problem);
       return Promise.resolve(null);
     }
-    if (!sdk || !configId) {
-      notify('error', 'Still loading', 'Give it a second and click again.');
+    if (meta.error) {
+      // Loading failed (network / ad blocker): load again. The button shows
+      // "Preparing…" meanwhile; the user clicks again once it's ready.
+      retried.current = true;
+      meta.retry();
       return Promise.resolve(null);
     }
+    // Still preparing: buttons are disabled meanwhile, so nothing to report.
+    if (!sdk || !configId) return Promise.resolve(null);
     return new Promise<string | null>((resolve) => {
       // FB.login wants a plain (non-async) callback, called synchronously from the click.
       sdk.login(
@@ -115,9 +102,19 @@ export function useMetaBusinessLogin(
         { config_id: configId, response_type: 'code', override_default_response_type: true },
       );
     });
-  }, [notConfigured, notConfiguredText, publicUrl, problem, sdk, configId, notify, confirm, what]);
+  }, [notConfigured, notConfiguredText, publicUrl, problem, meta, sdk, configId, notify, confirm, what]);
 
-  return { login, loaded, notConfigured, ready: !!sdk && !problem && !!configId, problem };
+  return {
+    login,
+    loaded,
+    notConfigured,
+    ready: !!sdk && !problem && !!configId,
+    /** Config or Meta's script still loading: show "Preparing…", keep the button disabled. */
+    preparing,
+    /** Loading failed; clicking (login()) loads again. */
+    loadFailed: !!meta.error,
+    problem,
+  };
 }
 
 const LABEL: Record<MetaChannel, string> = { messenger: 'Messenger', instagram: 'Instagram' };

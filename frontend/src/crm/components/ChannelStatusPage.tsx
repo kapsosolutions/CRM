@@ -144,6 +144,7 @@ function MetaChannelPanel({
   channel,
   conn,
   busy,
+  preparing = false,
   notConfigured,
   onConnect,
   onDisconnect,
@@ -151,6 +152,8 @@ function MetaChannelPanel({
   channel: MetaChannel;
   conn: MetaChannelConnection | null;
   busy: boolean;
+  /** Meta's sign-in is still loading: the button waits ("Preparing…"). */
+  preparing?: boolean;
   notConfigured: boolean;
   onConnect: () => void;
   onDisconnect: () => void;
@@ -262,11 +265,12 @@ function MetaChannelPanel({
             type="button"
             className={`cs-connect-channel-btn${notConfigured ? ' not-configured' : ''}`}
             onClick={onConnect}
-            disabled={busy}
+            disabled={busy || preparing}
             aria-disabled={notConfigured}
+            aria-busy={busy || preparing}
             data-testid={`cs-meta-connect-${channel}`}
           >
-            {busy ? 'Connecting…' : revoked ? `Reconnect ${label}` : ig ? 'Connect Instagram Account' : 'Connect Messenger Account'}
+            {busy ? 'Connecting…' : preparing ? 'Preparing…' : revoked ? `Reconnect ${label}` : ig ? 'Connect Instagram Account' : 'Connect Messenger Account'}
           </button>
         </div>
         {notConfigured ? (
@@ -1718,6 +1722,7 @@ export function ChannelStatusPage({
               channel="messenger"
               conn={msgConn}
               busy={metaBusy === 'messenger'}
+              preparing={!demo && fbMessengerLogin.preparing}
               notConfigured={fbNotConfiguredFor('messenger')}
               onConnect={() => startMetaConnect('messenger')}
               onDisconnect={() => void disconnectMeta('messenger')}
@@ -1765,6 +1770,7 @@ export function ChannelStatusPage({
           igLoaded={igLoginCfg.loaded}
           igConfigured={igLoginConfigured}
           fbConfigured={!fbNotConfiguredFor('instagram')}
+          fbPreparing={fbLogin.preparing}
           fbNotConfiguredText="Log in with Facebook isn’t set up on this server yet (META_BUSINESS_LOGIN_CONFIG_ID)."
           initialMethod={igMethodInit}
           busy={igBusy}
