@@ -1,0 +1,4 @@
+# Shell scripts and workflows run on Linux: always LF, whatever the editor uses.
+*.sh  text eol=lf
+*.yml text eol=lf
+*.conf text eol=lf
