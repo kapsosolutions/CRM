@@ -1,0 +1,85 @@
+# CI: every push and pull request. Also called by deploy.yml, so what gets
+# deployed is exactly what passed these checks.
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}-${{ github.event_name }}
+  cancel-in-progress: ${{ github.event_name != 'workflow_call' }}
+
+env:
+  NODE_VERSION: '24'
+
+jobs:
+  frontend:
+    name: Frontend · type-check + build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      # tsc -b && vite build (package.json "build")
+      - run: npm run build
+      - name: Package the build
+        run: tar -czf ../frontend.tgz -C dist .
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend.tgz
+          retention-days: 7
+          if-no-files-found: error
+
+  backend:
+    name: Backend · install + syntax check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+      - run: npm ci --omit=dev --no-audit --no-fund
+      - name: Syntax check every file
+        run: find . -path ./node_modules -prune -o -name '*.js' -print0 | xargs -0 -n 50 node --check
+      - name: Every module loads (imports resolve)
+        # Imports each module without starting the server: catches a missing
+        # file or a misspelt import that a syntax check can't see.
+        run: |
+          node --input-type=module -e "
+            import { readdirSync } from 'node:fs';
+            const dirs = ['models', 'middleware', 'services', 'routes'];
+            let n = 0;
+            for (const d of dirs) for (const f of readdirSync(d)) if (f.endsWith('.js')) { await import('./' + d + '/' + f); n++; }
+            console.log('loaded', n, 'modules');
+            process.exit(0);
+          "
+        env:
+          NODE_ENV: test
+          AUTH_SECRET: ci-only-not-a-secret
+          TOKEN_ENC_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+      - name: Security audit (production dependencies)
+        # Reported, not blocking: a new advisory upstream shouldn't stop an
+        # urgent fix from shipping. Check the job summary.
+        continue-on-error: true
+        run: npm audit --omit=dev --audit-level=high

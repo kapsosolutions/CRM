@@ -1,0 +1,412 @@
+/* Connect WhatsApp Onboarding Container matching Image 2 */
+.crm-onboarding-container {
+  background: #ffffff;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 44px 52px;
+  box-sizing: border-box;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top Hero Section */
+.crm-onboarding-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 40px;
+  margin-bottom: 48px;
+  max-width: 960px;
+}
+
+.crm-onboarding-hero-left {
+  flex: 1;
+  max-width: 540px;
+}
+
+.crm-onboarding-title {
+  font-size: 32px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 12px 0;
+  letter-spacing: -0.5px;
+  line-height: 1.2;
+}
+
+.crm-onboarding-sub {
+  font-size: 15px;
+  font-weight: 500;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0 0 24px 0;
+}
+
+.crm-onboarding-connect-btn {
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 14.5px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 32px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(22, 163, 74, 0.28);
+  font-family: inherit;
+}
+
+.crm-onboarding-connect-btn:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.35);
+}
+
+.crm-onboarding-connect-btn:active {
+  transform: translateY(0);
+}
+
+.crm-onboarding-hero-right {
+  flex-shrink: 0;
+}
+
+.crm-onboarding-hero-img {
+  width: 270px;
+  height: 270px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Bottom Test Section */
+.crm-onboarding-test-section {
+  max-width: 960px;
+}
+
+.crm-onboarding-test-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 20px 0;
+}
+
+.crm-onboarding-test-cols {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+}
+
+.crm-onboarding-col-send {
+  flex: 1;
+  min-width: 240px;
+}
+
+.crm-onboarding-col-heading {
+  font-size: 14px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+}
+
+.crm-onboarding-instructions {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+  margin-bottom: 18px;
+}
+
+.crm-onboarding-instructions p {
+  margin: 0 0 4px 0;
+}
+
+.crm-onboarding-buttons-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.crm-onboarding-outlined-btn {
+  width: 230px;
+  padding: 9px 16px;
+  border: 1.5px solid #16a34a;
+  background: #ffffff;
+  color: #16a34a;
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.15s ease;
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+.crm-onboarding-outlined-btn:hover {
+  background: #f0fdf4;
+  border-color: #15803d;
+  color: #15803d;
+}
+
+.crm-onboarding-btn-icon {
+  flex-shrink: 0;
+}
+
+/* The buttons are links (wa.me / web / desktop app). */
+a.crm-onboarding-outlined-btn {
+  text-decoration: none;
+}
+
+.crm-onboarding-number {
+  white-space: nowrap;
+}
+
+/* Join code + copy button */
+.crm-onboarding-code-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.crm-onboarding-code-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.crm-onboarding-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: #0f172a;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 4px 10px;
+  user-select: all;
+}
+
+.crm-onboarding-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border: 1px solid #cbd5e1;
+  background: #ffffff;
+  color: #334155;
+  font-size: 12.5px;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.crm-onboarding-copy-btn:hover {
+  border-color: #16a34a;
+  color: #15803d;
+  background: #f0fdf4;
+}
+
+.crm-onboarding-qr-fallback {
+  display: inline-block;
+  max-width: 260px;
+  font-size: 12px;
+  color: #15803d;
+  word-break: break-all;
+}
+
+/* Note on pages the shared test number can't serve */
+.crm-sandbox-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 12px 20px 0;
+  padding: 10px 14px;
+  border: 1px solid #bfdbfe;
+  background: #eff6ff;
+  color: #1e3a8a;
+  border-radius: 8px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.crm-sandbox-note svg {
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* Center "or" divider */
+.crm-onboarding-or-divider {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 40px 16px 0 16px;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+/* QR Code Column */
+.crm-onboarding-col-qr {
+  flex: 1;
+  min-width: 240px;
+}
+
+.crm-onboarding-qr-desc {
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+  margin: 0 0 16px 0;
+  max-width: 280px;
+}
+
+.crm-onboarding-qr-box {
+  display: block;
+  position: relative;
+  width: 130px;
+  height: 130px;
+}
+
+.crm-onboarding-qr-desc-locked {
+  display: block;
+  color: #dc2626;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.crm-onboarding-qr-box.is-locked .crm-onboarding-qr-img {
+  filter: blur(2px) grayscale(80%);
+  opacity: 0.35;
+  border-color: #fca5a5;
+}
+
+.crm-onboarding-qr-lock-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  background: rgba(254, 242, 242, 0.88);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1.5px dashed #ef4444;
+  box-sizing: border-box;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.12);
+}
+
+.crm-onboarding-qr-lock-badge {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.25);
+}
+
+.crm-onboarding-qr-lock-text {
+  font-size: 11px;
+  font-weight: 700;
+  color: #dc2626;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.crm-onboarding-qr-unlock-btn {
+  margin-top: 12px;
+  padding: 6px 14px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #ffffff;
+  background: #2563eb;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.crm-onboarding-qr-unlock-btn:hover {
+  background: #1d4ed8;
+  transform: translateY(-1px);
+}
+
+.crm-onboarding-qr-img {
+  width: 130px;
+  height: 130px;
+  border-radius: 4px;
+  display: block;
+  border: 1px solid #e2e8f0;
+  padding: 2px;
+  background: #ffffff;
+  box-sizing: border-box;
+}
+
+.crm-onboarding-qr-placeholder {
+  width: 130px;
+  height: 130px;
+  border-radius: 4px;
+  border: 1px dashed #cbd5e1;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+/* Floating chat button at bottom right (Image 2) */
+.crm-onboarding-floating-chat {
+  position: absolute;
+  bottom: 24px;
+  right: 28px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #00a884;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 168, 132, 0.4);
+  cursor: pointer;
+  transition: transform 0.15s ease;
+  z-index: 10;
+}
+
+.crm-onboarding-floating-chat:hover {
+  transform: scale(1.06);
+}
+
+/* Responsive adjustments */
+@media (max-width: 900px) {
+  .crm-onboarding-hero {
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+  .crm-onboarding-test-cols {
+    flex-direction: column;
+  }
+  .crm-onboarding-or-divider {
+    margin: 10px 0;
+  }
+}

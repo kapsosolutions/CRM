@@ -1,0 +1,147 @@
+.dd {
+  display: block;
+  position: relative;
+}
+.dd-trigger {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  background: var(--wa-surface);
+  color: var(--wa-ink);
+  border: 1px solid var(--wa-hairline-strong);
+  border-radius: var(--wa-radius-pill);
+  padding: 12px 18px;
+  font-size: 15px;
+  cursor: pointer;
+  text-align: left;
+}
+.dd-trigger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.dd-trigger.open,
+.dd-trigger:focus-visible {
+  border-color: rgb(35, 164, 85);
+  box-shadow: 0 0 0 3px rgba(35, 164, 85, 0.18);
+  outline: none;
+}
+.dd-value {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.dd-value.placeholder {
+  color: var(--wa-ink-muted);
+}
+.dd-trigger .material-icons {
+  font-size: 20px;
+  color: var(--wa-ink-muted);
+  transition: transform 0.15s ease;
+}
+.dd-trigger.open .material-icons {
+  transform: rotate(180deg);
+}
+/* Still used by the inline multi-select in the product editor. The shared
+   Dropdown no longer renders a backdrop: a full-viewport fixed layer sits over
+   whatever is scrolling underneath and eats the wheel, which is how a dropdown
+   ended up both clipped and un-scrollable. */
+.dd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+}
+.dd-panel {
+  position: absolute;
+  z-index: 51;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  margin: 0;
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-hairline);
+  border-radius: var(--wa-radius-tile);
+  padding: 6px;
+  list-style: none;
+  max-height: 280px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-y;
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+}
+/* Portalled into <body> and positioned in viewport coordinates, so no ancestor
+   can clip it. `left/top/bottom/width/max-height` come from the trigger's rect. */
+.dd-panel-fixed {
+  position: fixed;
+  right: auto;
+  top: auto;
+  bottom: auto;
+  /* Above every dialog (the drip dialog is 2000, confirm dialogs and drawers
+     sit around there too): an open menu is always the top layer. */
+  z-index: 6000;
+}
+.dd-option {
+  padding: 10px 12px;
+  border-radius: var(--wa-radius-pill);
+  font-size: 14px;
+  cursor: pointer;
+  color: var(--wa-ink);
+}
+.dd-option.empty {
+  color: var(--wa-ink-muted);
+  cursor: default;
+}
+.dd-option.empty:hover {
+  background: none;
+}
+.dd-option:hover {
+  background: rgba(28, 30, 33, 0.06);
+}
+.dd-option.active {
+  background: rgba(35, 164, 85, 0.12);
+  color: rgb(35, 164, 85);
+  font-weight: 600;
+}
+
+/* Small / compact variant for toolbars, filters, table headers */
+.dd.sm .dd-trigger {
+  padding: 8px 12px;
+  font-size: 13px;
+  border-radius: var(--wa-radius-input);
+  min-height: 38px;
+  height: 38px;
+  gap: 6px;
+}
+.dd.sm .dd-trigger .material-icons {
+  font-size: 18px;
+}
+.dd-panel.dd-panel-sm {
+  padding: 4px;
+  border-radius: 10px;
+}
+.dd-panel.dd-panel-sm .dd-option {
+  padding: 7px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+}
+
+.dd-opt-with-icon {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+}
+
+.dd-opt-with-icon > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dd-opt-with-icon svg {
+  flex-shrink: 0;
+  color: #24d06e;
+}
+

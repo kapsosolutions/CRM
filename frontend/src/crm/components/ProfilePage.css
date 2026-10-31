@@ -1,0 +1,340 @@
+/* =============================================================================
+   Business Profile & Settings Layout (matching screenshot)
+   ========================================================================== */
+
+.bp-layout {
+  display: flex;
+  height: 100%;
+  max-height: 100%;
+  min-height: 0;
+  width: 100%;
+  background: #ffffff;
+  position: relative;
+  box-sizing: border-box;
+  overflow: hidden;
+}
+
+/* Left Sidebar Settings Subnav */
+.bp-sidebar {
+  width: 240px;
+  min-width: 240px;
+  height: 100%;
+  border-right: 1px solid #f1f5f9;
+  padding: 24px 16px;
+  background: #ffffff;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  overflow-y: auto;
+}
+
+.bp-sidebar-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 8px;
+  letter-spacing: -0.01em;
+}
+
+.bp-sidebar-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.bp-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: none;
+  background: transparent;
+  color: #475569;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.bp-menu-item:hover {
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.bp-menu-item.active {
+  background: #f1f5f9;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+.bp-menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: inherit;
+}
+
+.bp-menu-arrow {
+  margin-left: auto;
+  font-size: 11px;
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+}
+
+/* Right Content Main Panel */
+.bp-content {
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+  padding: 28px 40px 64px;
+  background: #ffffff;
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+/* WhatsApp business profile heading */
+.bp-section-title {
+  margin: 0 0 4px;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bp-section-sub {
+  margin: 0 0 22px;
+  font-size: 13.5px;
+  color: #64748b;
+}
+
+/* Profile Picture Block */
+.bp-pic-section {
+  margin-bottom: 26px;
+}
+
+.bp-pic-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+
+.bp-pic-box {
+  width: 96px;
+  height: 96px;
+  border-radius: 8px;
+  background: #64748b;
+  color: #ffffff;
+  font-size: 42px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  user-select: none;
+}
+
+.bp-pic-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bp-pic-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6.5px 16px;
+  background: #ffffff;
+  border: 1.5px solid #22c55e;
+  border-radius: 6px;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bp-pic-btn:hover {
+  background: #f0fdf4;
+  border-color: #16a34a;
+}
+
+/* 2-Column Form Grid */
+.bp-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 22px 36px;
+  margin-top: 8px;
+}
+
+.bp-field-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.bp-field-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 7px;
+  display: block;
+}
+
+.bp-field-input {
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s, background-color 0.15s;
+}
+
+.bp-field-input:focus {
+  background: #ffffff;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+.bp-field-input[readonly] {
+  background: #f8fafc;
+  color: #475569;
+  cursor: default;
+}
+
+.bp-field-err {
+  color: #ef4444;
+  font-size: 12px;
+  margin-top: 5px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+/* Custom Select Wrap */
+.bp-field-select-wrap {
+  position: relative;
+  width: 100%;
+}
+
+.bp-field-select {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 10px 36px 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.bp-field-select:focus {
+  background: #ffffff;
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+.bp-field-select-arrow {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+}
+
+/* Save Action Row */
+.bp-actions {
+  margin-top: 32px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.bp-save-btn {
+  background: #22c55e;
+  color: #ffffff;
+  border: none;
+  padding: 10px 24px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  transition: background 0.15s ease, transform 0.1s ease;
+}
+
+.bp-save-btn:hover {
+  background: #16a34a;
+}
+
+.bp-save-btn:active {
+  transform: scale(0.99);
+}
+
+/* Floating WhatsApp Chat Widget in Bottom Right */
+.bp-floating-chat {
+  position: fixed;
+  bottom: 24px;
+  right: 28px;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #00d084;
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 16px rgba(0, 208, 132, 0.4);
+  cursor: pointer;
+  border: none;
+  transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275), box-shadow 0.2s ease;
+  z-index: 90;
+}
+
+.bp-floating-chat:hover {
+  transform: scale(1.08);
+  box-shadow: 0 6px 22px rgba(0, 208, 132, 0.55);
+}
+
+@media (max-width: 860px) {
+  .bp-layout {
+    flex-direction: column;
+  }
+  .bp-sidebar {
+    width: 100%;
+    min-width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #f1f5f9;
+    padding: 16px;
+  }
+  .bp-content {
+    padding: 24px 20px 60px;
+  }
+  .bp-form-grid {
+    grid-template-columns: 1fr;
+    gap: 18px;
+  }
+}

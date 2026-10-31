@@ -1,0 +1,119 @@
+# CD: deploy main to production (Vultr) after CI passes.
+#
+# Gates, in order:
+#   1. CI (ci.yml) must pass for this commit.
+#   2. The repository variable DEPLOY_ENABLED must be "true" (Settings →
+#      Secrets and variables → Actions → Variables). Until then deploys are
+#      skipped, so pushing never deploys by surprise.
+#   3. The "production" environment: add yourself as a Required reviewer
+#      (Settings → Environments → production) and every deploy waits for your
+#      Approve click.
+# On the server, crm-deploy-release installs the release next to the live one,
+# switches only if everything checks out, and rolls back automatically if the
+# backend or the website doesn't come up healthy.
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      reason:
+        description: Why deploy by hand?
+        required: false
+
+permissions:
+  contents: read
+
+# One production deploy at a time; a newer one waits, never cancels a running one.
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  deploy:
+    name: Deploy to production
+    needs: ci
+    if: vars.DEPLOY_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment:
+      name: production
+      url: https://kapsosolutions.com
+    env:
+      DEPLOY_HOST: ${{ vars.DEPLOY_HOST || '139.84.141.28' }}
+      DEPLOY_USER: deploy
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: release
+
+      - name: Package the backend (exactly what is committed)
+        run: |
+          git archive --format=tar.gz -o release/backend.tgz HEAD:backend
+          ID="$(date -u +%Y%m%d-%H%M%S)-${GITHUB_SHA::12}"
+          {
+            echo "RELEASE_ID=$ID"
+            echo "GIT_SHA=${GITHUB_SHA::12}"
+            echo "BACKEND_TREE=$(git rev-parse HEAD:backend)"
+          } > release/release.env
+          echo "RELEASE_ID=$ID" >> "$GITHUB_ENV"
+          ls -l release
+
+      - name: SSH key
+        env:
+          DEPLOY_SSH_KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          [ -n "$DEPLOY_SSH_KEY" ] || { echo "::error::Secret DEPLOY_SSH_KEY is not set"; exit 1; }
+          [ -n "$DEPLOY_KNOWN_HOSTS" ] || { echo "::error::Secret DEPLOY_KNOWN_HOSTS is not set"; exit 1; }
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$DEPLOY_SSH_KEY" > ~/.ssh/deploy_key
+          chmod 600 ~/.ssh/deploy_key
+          # Pinned host key: never trust a host key on first use.
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 644 ~/.ssh/known_hosts
+
+      - name: Upload the release
+        run: |
+          SSH="ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes -o ConnectTimeout=20"
+          $SSH "$DEPLOY_USER@$DEPLOY_HOST" "mkdir -p incoming/$RELEASE_ID"
+          scp -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            release/release.env release/backend.tgz release/frontend.tgz \
+            "$DEPLOY_USER@$DEPLOY_HOST:incoming/$RELEASE_ID/"
+
+      - name: Install and switch (rolls back by itself on failure)
+        run: |
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes "$DEPLOY_USER@$DEPLOY_HOST" \
+            "sudo /usr/local/sbin/crm-deploy-release /home/deploy/incoming/$RELEASE_ID"
+
+      - name: Check the live site from outside
+        run: |
+          for i in $(seq 1 10); do
+            api=$(curl -s -o /dev/null -w '%{http_code}' https://kapsosolutions.com/api/health || true)
+            web=$(curl -s https://kapsosolutions.com/ | grep -c '<div id="root"' || true)
+            [ "$api" = 200 ] && [ "$web" -ge 1 ] && { echo "live: api $api, site ok"; exit 0; }
+            sleep 3
+          done
+          echo "::error::kapsosolutions.com is not answering correctly after the deploy"
+          exit 1
+
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "### Deploy ${{ job.status }}"
+            echo "- Release: \`$RELEASE_ID\`"
+            echo "- Commit: \`${GITHUB_SHA::12}\`"
+            echo "- Rollback if needed: \`sudo crm-rollback-release\` on the server, or run \`pwsh deploy/deploy.ps1 -Rollback\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Remove the key
+        if: always()
+        run: rm -f ~/.ssh/deploy_key

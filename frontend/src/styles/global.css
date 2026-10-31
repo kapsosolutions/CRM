@@ -1,0 +1,185 @@
+/* =============================================================================
+   Global base styles — WhatsApp design system
+   ========================================================================== */
+@import './tokens.css';
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--wa-font);
+  font-weight: var(--wa-weight);
+  font-size: var(--wa-body-md);
+  line-height: 1.45;
+  color: var(--wa-ink);
+  background: var(--wa-canvas); /* light SaaS floor */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6, p, span, button, input, textarea, label, a {
+  font-family: var(--wa-font);
+}
+/* Headings carry the hierarchy with weight now, not just size. */
+h1, h2, h3, h4 { font-weight: 600; color: var(--wa-ink); }
+
+a {
+  color: var(--wa-link);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  font-family: var(--wa-font);
+  cursor: pointer;
+}
+
+/* Material icons helper */
+.material-icons {
+  font-family: 'Material Icons';
+  font-weight: normal;
+  font-style: normal;
+  line-height: 1;
+  letter-spacing: normal;
+  text-transform: none;
+  display: inline-block;
+  white-space: nowrap;
+  word-wrap: normal;
+  direction: ltr;
+  -webkit-font-feature-settings: 'liga';
+  -webkit-font-smoothing: antialiased;
+  user-select: none;
+}
+
+/* ---- Shared primitives built from the design tokens ---- */
+
+/* Primary voltage-green pill — reserved for primary actions (DESIGN.md). */
+.k-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: var(--wa-primary);
+  color: var(--wa-primary-ink);
+  border: 1px solid transparent;
+  border-radius: var(--wa-radius-btn);
+  padding: 10px 18px;
+  font-size: var(--wa-button);
+  font-weight: 500;
+  line-height: 1.1;
+  box-shadow: var(--wa-shadow-sm);
+  transition: background 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease;
+}
+.k-btn:hover:not(:disabled) {
+  background: var(--wa-primary-strong);
+}
+.k-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+/* Secondary — surface with a soft neutral border. */
+.k-btn.ghost {
+  background: var(--wa-surface);
+  color: var(--wa-ink);
+  border: 1px solid var(--wa-hairline-strong);
+  box-shadow: none;
+}
+.k-btn.ghost:hover:not(:disabled) {
+  background: var(--wa-surface-2);
+}
+.k-btn.sm {
+  padding: 7px 13px;
+  font-size: 13px;
+}
+.k-btn.danger-solid {
+  background: var(--k-danger);
+  color: #fff;
+  border-color: var(--k-danger);
+}
+.k-btn.danger-solid:hover:not(:disabled) {
+  background: #dc2626;
+}
+
+/* Text / select inputs — compact rounded fields with a soft border. */
+.k-input,
+.k-textarea {
+  width: 100%;
+  background: var(--wa-surface);
+  color: var(--wa-ink);
+  border: 1px solid var(--wa-hairline-strong);
+  border-radius: var(--wa-radius-input);
+  padding: 10px 14px;
+  font-size: var(--wa-body-md);
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+.k-textarea {
+  border-radius: var(--wa-radius-input);
+  resize: vertical;
+}
+.k-input::placeholder,
+.k-textarea::placeholder {
+  color: #9aa3af;
+}
+.k-input:focus,
+.k-textarea:focus {
+  border-color: var(--wa-primary);
+  box-shadow: var(--wa-focus-ring);
+}
+
+.k-field {
+  margin-bottom: var(--wa-space-md);
+}
+.k-label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 6px;
+  letter-spacing: -0.15px;
+}
+
+/* Status chip (pill). */
+.k-chip {
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--wa-radius-pill);
+  padding: 3px 10px;
+  font-size: var(--wa-caption);
+  background: rgba(28, 30, 33, 0.06);
+  color: var(--wa-ink-muted);
+}
+.k-chip.green {
+  background: var(--wa-primary-soft);
+  color: #0f7a46;
+}
+.k-chip.amber {
+  background: #fdf0dc;
+  color: #9a6b00;
+}
+
+/* Scrollbars — subtle, consistent with the light theme. */
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #cfd6de;
+  border-radius: var(--wa-radius-full);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Signing you in…</title>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; display: grid; place-items: center; height: 100vh; margin: 0; color: #1f2a37; }
+    </style>
+  </head>
+  <body>
+    <p>Signing you in…</p>
+    <script>
+      // Google → Supabase → here, inside the sign-in popup. Hand the result
+      // (tokens or an error, in the URL fragment) to the page that opened the
+      // popup, then close. BroadcastChannel + localStorage are same-origin and
+      // keep working even when the browser has cut the popup's link to its
+      // opener during Google's pages.
+      (function () {
+        var hash = (location.hash || '').replace(/^#/, '');
+        var msg = { type: 'kapso-google-auth', hash: hash, at: Date.now() };
+        try { new BroadcastChannel('kapso-auth').postMessage(msg); } catch (e) {}
+        try {
+          localStorage.setItem('kapso-google-auth', JSON.stringify(msg));
+          localStorage.removeItem('kapso-google-auth');
+        } catch (e) {}
+        try { if (window.opener) window.opener.postMessage(msg, location.origin); } catch (e) {}
+        // Clear the tokens from this window's address bar straight away.
+        history.replaceState(null, '', location.pathname);
+        window.close();
+        // Not a popup after all (the browser blocked it and we came here in the
+        // main window): carry on with the normal full-page flow.
+        setTimeout(function () { location.replace('/#' + hash); }, 400);
+      })();
+    </script>
+  </body>
+</html>

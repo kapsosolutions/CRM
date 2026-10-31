@@ -1,0 +1,100 @@
+/* =============================================================================
+   Design tokens — "WATI-style" SaaS theme
+   A clean, light surface with an emerald primary, soft neutral borders, gentle
+   shadows and a modern sans. Token NAMES are kept (--wa-*) so every component
+   that already reads them is re-skinned without edits; only the VALUES change.
+   ========================================================================== */
+
+:root {
+  /* ---- Brand / accent ---- */
+  --wa-primary: #24d06e;
+  /* vibrant green — primary actions */
+  --wa-primary-strong: #1eb861;
+  /* hover / pressed */
+  --wa-primary-ink: #ffffff;
+  /* text on the green */
+  --wa-primary-soft: #e9fbf1;
+  /* tinted fill for soft chips / active rows */
+  --wa-secondary: #d9fdd3;
+  /* mint — outgoing message bubble */
+
+  /* ---- Text ---- */
+  --wa-ink: #1f2a37;
+  /* primary text */
+  --wa-ink-muted: #6b7280;
+  /* secondary / captions */
+  --wa-ink-inverse: #ffffff;
+  /* text on dark / photography */
+  --wa-link: #2563eb;
+  /* anchor links */
+
+  /* ---- Surfaces ---- */
+  --wa-canvas: #f5f7fa;
+  /* app background */
+  --wa-surface: #ffffff;
+  /* cards / panels */
+  --wa-surface-2: #f9fafb;
+  /* subtle inset / table head */
+  --wa-surface-dark: #0f172a;
+  /* rare dark band */
+  --wa-chat-bg: #efeae2;
+  /* chat thread wallpaper (half-white) */
+
+  /* ---- Borders ---- */
+  --wa-hairline: #eceef2;
+  /* light divider */
+  --wa-hairline-strong: #d9dee5;
+  /* input / control border (soft, not black) */
+
+  /* ---- Focus + elevation ---- */
+  --wa-focus-ring: 0 0 0 3px rgba(29, 191, 115, 0.22);
+  --wa-shadow-sm: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --wa-shadow-md: 0 2px 10px rgba(16, 24, 40, 0.08);
+  --wa-shadow-lg: 0 12px 32px rgba(16, 24, 40, 0.12);
+
+  /* ---- Typography ---- */
+  --wa-font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --wa-weight: 400;
+
+  --wa-display-xl: 40px;
+  --wa-display-lg: 30px;
+  --wa-display-md: 24px;
+  --wa-body-lg: 16px;
+  --wa-body-md: 14px;
+  --wa-button: 14px;
+  --wa-caption: 12px;
+
+  /* ---- Radius ---- */
+  --wa-radius-none: 0px;
+  --wa-radius-btn: 9px;
+  /* buttons */
+  --wa-radius-input: 9px;
+  /* inputs / selects */
+  --wa-radius-card: 14px;
+  /* cards / panels */
+  --wa-radius-tile: 14px;
+  /* was 25px — cards read less bubbly now */
+  --wa-radius-pill: 999px;
+  /* chips, tags, toggles, avatars */
+  --wa-radius-full: 9999px;
+
+  /* ---- Spacing (base 4px) ---- */
+  --wa-space-xs: 8px;
+  --wa-space-sm: 12px;
+  --wa-space-md: 16px;
+  --wa-space-lg: 18px;
+  --wa-space-xl: 20px;
+  --wa-space-2xl: 24px;
+  --wa-space-3xl: 32px;
+  --wa-space-4xl: 40px;
+  --wa-space-5xl: 80px;
+
+  /* ---- Semantic aliases used by the CRM components ---- */
+  --k-green: var(--wa-primary);
+  --k-surface: var(--wa-surface);
+  --k-canvas: var(--wa-canvas);
+  --k-ink: var(--wa-ink);
+  --k-ink-muted: var(--wa-ink-muted);
+  --k-hairline: var(--wa-hairline);
+  --k-danger: #ef4444;
+}

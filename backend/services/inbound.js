@@ -1,0 +1,216 @@
+// One inbound WhatsApp message, once the tenant it belongs to is known.
+//
+// Shared by the tenant webhooks (routes/webhook.js) and the shared "try it"
+// number (services/sandbox.js), so a sandbox chat goes through exactly the
+// same logging and automation as a business's own number.
+import logger from './logger.js';
+import {
+  handleMessage, handleReaction, handlePaymentUpdate, logInbound,
+} from './chatbot.js';
+import { buildSubmissionSummary, summaryToText } from './flowSubmission.js';
+import { priceCart, cartToText, cartBubble } from './cart.js';
+
+/**
+ * Log and handle one entry of a change's `messages` array.
+ * @param {object} message Meta's message object
+ * @param {Record<string,string>} names wa_id → profile name, from `contacts`
+ * @param {object} ctx { meta, tenantId, tenantName, sandbox? }
+ */
+export async function processInboundMessage(message, names, ctx) {
+  // Emoji reactions arrive as their own message type — handle + skip.
+  if (message.type === 'reaction') {
+    handleReaction(message.reaction, ctx).catch((e) =>
+      logger.error('handleReaction error', { error: e.message }),
+    );
+    return;
+  }
+
+  const msg = parseIncoming(message);
+  if (!msg) return;
+  msg.name = names[message.from] || '';
+
+  // A payment outcome isn't a chat message: it settles the order and
+  // resumes the flow on the paid / not-paid branch. Logged so the CRM
+  // shows it in the thread, then handled and skipped.
+  if (msg.type === 'payment') {
+    logInbound(msg.phone, msg.name, 'payment', msg.logBody, message, message.id, null, ctx).catch(() => {});
+    handlePaymentUpdate(msg.payment, ctx).catch((e) =>
+      logger.error('handlePaymentUpdate error', { error: e.message }),
+    );
+    return;
+  }
+
+  // Resolve a flow submission into labelled rows before logging it, so
+  // the chat shows the questions and the chosen wording rather than
+  // component names and option ids.
+  if (msg.type === 'flow_reply') {
+    msg.form = await buildSubmissionSummary(msg.formData);
+    msg.logBody = summaryToText(msg.form);
+  }
+
+  // Likewise a cart: resolve retailer ids to product names and price it
+  // up, so the chat shows what was ordered rather than "carrot__v1s0".
+  // `orderInfo` is the resolved bubble the CRM renders; without it the
+  // chat only has Meta's raw `product_items` to work from.
+  if (msg.type === 'order') {
+    try {
+      const priced = await priceCart(msg.cart, ctx.tenantId);
+      msg.logBody = cartToText(priced);
+      msg.orderInfo = cartBubble(priced, msg.cart);
+    } catch (e) {
+      logger.warn('could not price inbound cart', { error: e.message });
+    }
+  }
+
+  logInbound(msg.phone, msg.name, msg.type, msg.logBody, message, message.id, msg.media, {
+    ...ctx, form: msg.form, order: msg.orderInfo,
+  }).catch(() => {});
+  handleMessage(msg, ctx).catch((e) =>
+    logger.error('handleMessage error', { error: e.message, stack: e.stack }),
+  );
+}
+
+/** wa_id → profile name, from a change's `contacts`. */
+export function contactNames(value) {
+  const names = {};
+  for (const c of value?.contacts || []) {
+    if (c.wa_id && c.profile?.name) names[c.wa_id] = c.profile.name;
+  }
+  return names;
+}
+
+// Exported so the shape of each message type can be checked in isolation.
+export function parseIncoming(message) {
+  const phone = message.from;
+  const out = { phone, type: 'text', text: '', selectedId: null, logBody: '' };
+
+  switch (message.type) {
+    case 'text':
+      out.text = message.text?.body || '';
+      out.logBody = out.text;
+      break;
+    case 'interactive': {
+      const it = message.interactive || {};
+      if (it.type === 'button_reply') {
+        out.type = 'button';
+        out.selectedId = it.button_reply?.id || '';
+        out.text = it.button_reply?.title || '';
+        out.logBody = out.text;
+      } else if (it.type === 'list_reply') {
+        out.type = 'list';
+        out.selectedId = it.list_reply?.id || '';
+        out.text = it.list_reply?.title || '';
+        out.logBody = out.text;
+      } else if (it.type === 'payment' || it.payment) {
+        // A native WhatsApp Pay outcome. Depending on API version it arrives
+        // here under `interactive`, or as a top-level `payment` message (see
+        // the case below) — never assume only one shape.
+        out.type = 'payment';
+        out.payment = it.payment || {};
+        out.logBody = '💳 Payment update';
+      } else if (it.type === 'nfm_reply') {
+        // A native Flow was completed — response_json holds the typed answers.
+        // The readable version is resolved by buildSubmissionSummary once the
+        // flow definition is in hand; this is just the raw fallback.
+        out.type = 'flow_reply';
+        try {
+          out.formData = JSON.parse(it.nfm_reply?.response_json || '{}');
+        } catch {
+          out.formData = {};
+        }
+        const answers = Object.entries(out.formData)
+          .filter(([k]) => k !== 'flow_token' && k !== '__version__')
+          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+        out.text = answers.join('\n');
+        out.logBody = `📝 Form submitted${answers.length ? `\n${answers.join('\n')}` : ''}`;
+      }
+      break;
+    }
+    // The other shape a payment outcome takes: its own top-level message type.
+    // Missing this is why a payment could succeed and the conversation still
+    // never reach the confirmation block.
+    case 'payment':
+      out.type = 'payment';
+      out.payment = message.payment || {};
+      out.logBody = '💳 Payment update';
+      break;
+    case 'image':
+      out.type = 'image';
+      out.media = { id: message.image?.id, mime: message.image?.mime_type, caption: message.image?.caption || '' };
+      out.logBody = message.image?.caption || '📷 Photo';
+      break;
+    case 'video':
+      out.type = 'video';
+      out.media = { id: message.video?.id, mime: message.video?.mime_type, caption: message.video?.caption || '' };
+      out.logBody = message.video?.caption || '🎥 Video';
+      break;
+    case 'audio':
+      out.type = 'audio';
+      out.media = { id: message.audio?.id, mime: message.audio?.mime_type, caption: '' };
+      out.logBody = '🎵 Audio';
+      break;
+    case 'document':
+      out.type = 'document';
+      out.media = {
+        id: message.document?.id, mime: message.document?.mime_type,
+        filename: message.document?.filename || 'Document', caption: message.document?.caption || '',
+      };
+      out.logBody = message.document?.filename || '📄 Document';
+      break;
+    case 'sticker':
+      out.type = 'image';
+      out.media = { id: message.sticker?.id, mime: message.sticker?.mime_type, caption: '' };
+      out.logBody = 'Sticker';
+      break;
+    // A shared pin. This was missing entirely, so every location message was
+    // discarded as "no content" — which is why an Ask location block could
+    // never advance down its valid branch. `name`/`address` are only present
+    // when the customer picked a saved place rather than dropping a pin.
+    case 'location': {
+      const l = message.location || {};
+      out.type = 'location';
+      out.location = {
+        lat: l.latitude,
+        lng: l.longitude,
+        name: l.name || '',
+        address: l.address || '',
+      };
+      const where = [l.name, l.address].filter(Boolean).join(', ');
+      out.text = where || `${l.latitude}, ${l.longitude}`;
+      out.logBody = `📍 ${out.text}`;
+      break;
+    }
+    // The customer tapped "Send" on their catalog cart. Only retailer ids and
+    // unit prices arrive — services/cart.js resolves them to product names and
+    // totals, which is what prices up the Payment type block.
+    case 'order': {
+      const o = message.order || {};
+      out.type = 'order';
+      out.cart = {
+        catalogId: o.catalog_id || '',
+        note: o.text || '',
+        items: (o.product_items || []).map((it) => ({
+          retailerId: it.product_retailer_id || '',
+          quantity: Number(it.quantity) || 1,
+          price: Number(it.item_price) || 0,
+          currency: it.currency || 'INR',
+        })),
+      };
+      out.text = o.text || '';
+      // Replaced with the itemised version once the cart has been priced.
+      out.logBody = `🛒 Cart sent (${out.cart.items.length} line${out.cart.items.length === 1 ? '' : 's'})`;
+      break;
+    }
+    default:
+      out.text = '';
+  }
+
+  // A payment outcome has no text, no selection and no media, so it has to be
+  // listed here explicitly or it gets dropped as "nothing to see" — the same
+  // way location messages used to be.
+  const hasContent = out.text || out.selectedId || out.media || out.formData
+    || out.cart || out.location || out.payment;
+  return hasContent ? out : null;
+}
+
+export default { processInboundMessage, contactNames, parseIncoming };

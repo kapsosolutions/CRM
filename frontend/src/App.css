@@ -1,0 +1,60 @@
+/* Host shell — CRM fills the whole viewport, edge to edge. */
+.app-main {
+  height: 100%;
+  min-height: 0;
+}
+
+/* Shown for a moment while the CRM / admin code downloads. */
+.app-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  min-height: 100vh;
+  background: #f8fafc;
+}
+.app-loading-spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid #d1fae5;
+  border-top-color: #16a34a;
+  border-radius: 50%;
+  animation: app-loading-spin 0.8s linear infinite;
+}
+@keyframes app-loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .app-loading-spinner {
+    animation-duration: 2.4s;
+  }
+}
+.app-load-failed {
+  max-width: 320px;
+  padding: 24px;
+  text-align: center;
+  color: #1f2937;
+  font-family: inherit;
+}
+.app-load-failed strong {
+  display: block;
+  font-size: 16px;
+  margin-bottom: 6px;
+}
+.app-load-failed p {
+  margin: 0 0 16px;
+  font-size: 14px;
+  color: #6b7280;
+}
+.app-load-failed button {
+  padding: 8px 20px;
+  border: 0;
+  border-radius: 8px;
+  background: #16a34a;
+  color: #fff;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}

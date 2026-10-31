@@ -1,0 +1,6 @@
+node_modules/
+.env
+*.log
+# WhatsApp Flows endpoint encryption keypair — the private key must never be committed.
+keys/
+*.pem

@@ -1,0 +1,485 @@
+/* WhatsApp business profile editor (Settings + Business profile page) and
+   the profile summary in the profile sidebar. */
+
+.wpe-wrapper {
+  display: flex;
+  width: 100%;
+}
+
+.wpe-wrapper.has-preview {
+  gap: 48px;
+  align-items: flex-start;
+}
+
+.wpe-form-col {
+  flex: 1;
+  min-width: 0;
+  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wpe-preview-col {
+  width: 330px;
+  flex-shrink: 0;
+  position: sticky;
+  top: 10px;
+  display: flex;
+  justify-content: center;
+}
+
+@media (max-width: 1200px) {
+  .wpe-wrapper.has-preview {
+    flex-direction: column-reverse;
+    gap: 36px;
+  }
+  .wpe-preview-col {
+    position: static;
+    width: 100%;
+  }
+}
+
+.wpe {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.wpe-note {
+  font-size: 13.5px;
+  color: #64748b;
+  padding: 8px 0;
+}
+
+.wpe-photo-row {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.wpe-photo {
+  width: 88px;
+  height: 88px;
+  border-radius: 50%;
+  background: #64748b;
+  color: #ffffff;
+  font-size: 36px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.08);
+  user-select: none;
+}
+
+.wpe-photo img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.wpe-photo-side {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wpe-number {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.wpe-number-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.wpe-number-phone {
+  font-size: 13px;
+  color: #475569;
+}
+
+.wpe-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 18px 28px;
+}
+
+.wpe-field {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.wpe-field.wide {
+  grid-column: 1 / -1;
+}
+
+.wpe-field label,
+.wpe-label {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: #1e293b;
+  margin-bottom: 7px;
+}
+
+.wpe-input {
+  width: 100%;
+  height: 42px;
+  box-sizing: border-box;
+  padding: 10px 14px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 13.5px;
+  color: #0f172a;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.wpe-input:focus {
+  border-color: #22c55e;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.12);
+}
+
+.wpe-input.bad {
+  border-color: #f87171;
+}
+
+.wpe-textarea {
+  height: auto;
+  min-height: 84px;
+  resize: vertical;
+  line-height: 1.45;
+}
+
+.wpe-meta {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.wpe-count {
+  margin-top: 5px;
+  margin-left: auto;
+  font-size: 12px;
+  color: #94a3b8;
+  font-variant-numeric: tabular-nums;
+}
+
+.wpe-count.over {
+  color: #dc2626;
+  font-weight: 600;
+}
+
+.wpe-err {
+  color: #dc2626;
+  font-size: 12px;
+  margin-top: 5px;
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.wpe-hint {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+.wpe-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.wpe-btn {
+  background: #22c55e;
+  color: #ffffff;
+  border: none;
+  padding: 10px 22px;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.wpe-btn:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.wpe-btn:disabled {
+  background: #a7e3bd;
+  cursor: not-allowed;
+}
+
+.wpe-btn-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  background: #ffffff;
+  border: 1.5px solid #22c55e;
+  border-radius: 6px;
+  color: #16a34a;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.wpe-btn-ghost .material-icons {
+  font-size: 16px;
+}
+
+.wpe-btn-ghost:hover:not(:disabled) {
+  background: #f0fdf4;
+}
+
+.wpe-btn-ghost:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+.wpe-alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 14px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 13px;
+}
+
+.wpe-alert > div {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.wpe-alert-close {
+  background: transparent;
+  border: none;
+  color: #991b1b;
+  cursor: pointer;
+  font-size: 13px;
+}
+
+.wpe-unconnected {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 16px;
+  background: #f8fafc;
+  border: 1px dashed #cbd5e1;
+  border-radius: 10px;
+}
+
+.wpe-unconnected > .material-icons {
+  color: #64748b;
+  font-size: 22px;
+}
+
+.wpe-unconnected-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+.wpe-unconnected-text strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.wpe-unconnected-text p {
+  margin: 0;
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+@media (max-width: 720px) {
+  .wpe-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ---- Profile sidebar: what Meta has on the WhatsApp profile ---- */
+.wpe-side {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.wpe-side-title {
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  color: #64748b;
+}
+
+.wpe-side-about {
+  font-size: 13.5px;
+  color: #0f172a;
+  font-style: italic;
+  word-break: break-word;
+}
+
+.wpe-side-row {
+  display: flex;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #334155;
+  min-width: 0;
+}
+
+.wpe-side-row .material-icons {
+  font-size: 15px;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.wpe-side-row span:last-child,
+.wpe-side-row a {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wpe-side-row a {
+  color: #0f766e;
+  text-decoration: none;
+}
+
+.wpe-side-row a:hover {
+  text-decoration: underline;
+}
+
+.wpe-side-desc {
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+.wpe-side-error {
+  font-size: 12px;
+  color: #b45309;
+}
+
+/* From Uiverse.io by santhoshsj-dev (modified to use green #22cf6e) */
+.wpe-loading-pane {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 380px;
+  padding: 40px 20px;
+  box-sizing: border-box;
+}
+
+.wpe-loading-pane .bg {
+  padding: 20px;
+  border-radius: 10px;
+  background-color: var(--base-color);
+  --base-color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wpe-loading-pane .loader {
+  width: 60px;
+  height: 40px;
+  position: relative;
+  display: inline-block;
+  background-color: var(--base-color);
+}
+
+.wpe-loading-pane .loader::before {
+  content: '';
+  left: 0;
+  top: 0;
+  position: absolute;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #22cf6e;
+  background-image:
+    radial-gradient(circle 8px at 18px 18px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 18px 0px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 0px 18px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 36px 18px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 18px 36px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 30px 5px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 30px 5px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 30px 30px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 5px 30px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 4px at 5px 5px, var(--base-color) 100%, transparent 0);
+  background-repeat: no-repeat;
+  box-sizing: border-box;
+  animation: rotationBack 3s linear infinite;
+}
+
+.wpe-loading-pane .loader::after {
+  content: '';
+  left: 35px;
+  top: 15px;
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background-color: #22cf6e;
+  background-image:
+    radial-gradient(circle 5px at 12px 12px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 12px 0px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 0px 12px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 24px 12px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 12px 24px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 20px 3px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 20px 3px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 20px 20px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 3px 20px, var(--base-color) 100%, transparent 0),
+    radial-gradient(circle 2.5px at 3px 3px, var(--base-color) 100%, transparent 0);
+  background-repeat: no-repeat;
+  box-sizing: border-box;
+  animation: rotationBack 4s linear infinite reverse;
+}
+
+@keyframes rotationBack {
+  0% {
+    transform: rotate(0deg);
+  }
+
+  100% {
+    transform: rotate(-360deg);
+  }
+}

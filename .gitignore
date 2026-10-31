@@ -1,0 +1,37 @@
+# ---- Secrets: never commit ----
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+keys/
+*.backup-*
+crm-env.*
+
+# ---- Dependencies / builds ----
+node_modules/
+dist/
+dist.old/
+*.tsbuildinfo
+coverage/
+
+# ---- Logs / OS / editor ----
+*.log
+npm-debug.log*
+.DS_Store
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json
+.idea/
+
+# ---- Local work, not part of the app ----
+# Test harnesses, screenshots and browser profiles (local only).
+.agents/
+.kiro/
+semantic-review/
+# Stray copies at the repo root (the real files live in frontend/src).
+/AdsAudiences.tsx
+/AdsPage.tsx
+
+# Vite's temporary config bundles
+*.timestamp-*.mjs

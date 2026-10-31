@@ -1,0 +1,335 @@
+// Thin client for the multi-tenant platform backend (admin + auth + businesses).
+import { defaultConfig } from '../crm/config';
+import type { PlanState } from '../crm/types';
+
+const API = import.meta.env.VITE_API_BASE ?? defaultConfig.apiBase;
+
+export const ADMIN_TOKEN_KEY = 'crm_admin_jwt';
+export const BUSINESS_TOKEN_KEY = 'crm_business_jwt';
+
+export interface PaymentConfig {
+  enabled: boolean;
+  configName: string;
+  gatewayType: 'razorpay' | 'payu' | 'upi_vpa' | '';
+  /**
+   * Seller details. Meta requires country_of_origin / importer_name /
+   * importer_address on every order line when the business has no Meta
+   * catalog, so these are mandatory for a catalog-less tenant with payments on.
+   */
+  merchantName?: string;
+  addressLine1?: string;
+  addressLine2?: string;
+  city?: string;
+  zoneCode?: string;
+  postalCode?: string;
+  countryCode?: string;
+  countryOfOrigin?: string;
+}
+
+export interface BusinessLabels {
+  memberLabel?: string;
+  memberSingular?: string;
+  categoryLabel?: string;
+  categoryPlural?: string;
+  customerLabel?: string;
+  customerPlural?: string;
+}
+
+export interface Business {
+  _id: string;
+  name: string;
+  category?: string; // business vertical key (see crm/verticals.ts)
+  /** Per-business wording overrides; blank fields fall back to category defaults. */
+  labels?: BusinessLabels;
+  phoneNumberId: string;
+  wabaId: string;
+  appId?: string;
+  catalogId?: string;
+  graphVersion?: string;
+  payment?: PaymentConfig;
+  meta?: {
+    verifiedName?: string;
+    displayPhoneNumber?: string;
+    qualityRating?: string;
+    wabaName?: string;
+    catalogName?: string;
+    lastVerifiedAt?: string;
+  };
+  username?: string;
+  verifyToken?: string;
+  callbackUrl?: string;
+  active?: boolean;
+  /** Secrets are never sent to the client, only whether one is stored. */
+  hasAccessToken?: boolean;
+  hasAppSecret?: boolean;
+  /** Legacy 6-digit passcode still set (businesses from before sign-up). */
+  hasPasscode?: boolean;
+  /** A number + token are stored, so it can send. */
+  whatsappConnected?: boolean;
+  /** List only: the number's real Meta status (CONNECTED / PENDING / FLAGGED / …); '' = unknown or not connected. */
+  numberStatus?: string;
+  /** List only: `numberStatus` was just read from Meta (false = the stored snapshot). */
+  numberStatusLive?: boolean;
+  waConnection?: { method?: string; connectedAt?: string };
+  /** Owner login (registered businesses). */
+  email?: string;
+  ownerFirstName?: string;
+  ownerLastName?: string;
+  ownerPhone?: string;
+  authProvider?: string;
+  createdAt?: string;
+  /** 'free' = trial with a message-credit cap; 'paid' = unmetered. */
+  plan?: 'free' | 'paid';
+  /** The paid plan's name when recorded ('Basic' | 'Pro' | 'Premium'). */
+  planName?: string;
+  planChangedAt?: string;
+  trial?: TrialInfo;
+  /** The SaaS plan in force (Plan column; status 'trial' = the "New" label). */
+  planState?: PlanState;
+}
+
+export interface TrialInfo {
+  limit: number;
+  used: number;
+  resets?: number;
+  lastResetAt?: string;
+}
+
+/** Plan + remaining allowance, as returned by /api/auth/login and /api/auth/me. */
+export interface PlanSummary {
+  plan: 'free' | 'paid';
+  planName?: string;
+  limit: number;
+  used: number;
+  remaining: number | null; // null when unmetered
+  exhausted: boolean;
+}
+
+export interface VerifyResult {
+  success: boolean;
+  ok?: boolean;
+  details?: Record<string, unknown>;
+  errors?: string[];
+  message?: string;
+}
+
+export interface CreatedCredentials {
+  username: string;
+  passcode: string;
+  verifyToken: string;
+  callbackUrl: string;
+}
+
+export interface PlatformStats {
+  businesses: { total: number; active: number; inactive: number };
+  messages: { total: number; last24h: number; inbound: number; outbound: number };
+  totals: { conversations: number; flows: number; journeys: number; members: number; products: number; orders: number };
+  byCategory: { key: string; label: string; archetype: string; count: number }[];
+  daily: { date: string; count: number }[];
+  recent: { _id: string; name: string; category?: string; active?: boolean; createdAt?: string }[];
+}
+
+export type DemoStatus = 'scheduled' | 'completed' | 'not_answered' | 'not_interested' | 'cancelled';
+export type DemoView = 'today' | 'upcoming' | 'missed' | DemoStatus | 'all';
+
+export interface DemoRequest {
+  _id: string;
+  name: string;
+  businessName: string;
+  email: string;
+  phone: string;
+  category: string;
+  date: string; // YYYY-MM-DD (IST)
+  slot: string; // HH:MM
+  timezone: string;
+  scheduledAt: string;
+  status: DemoStatus;
+  notes?: string;
+  statusChangedAt?: string;
+  createdAt?: string;
+}
+
+export interface DemoCounts {
+  today: number;
+  upcoming: number;
+  completed: number;
+  not_answered: number;
+  not_interested: number;
+  cancelled: number;
+  all: number;
+}
+
+export interface BusinessStats {
+  messages: { total: number; last24h: number; inbound: number; outbound: number };
+  contacts: number;
+  journeys: number;
+  lastMessageAt: string | null;
+}
+
+async function req<T>(path: string, opts: RequestInit = {}, token?: string): Promise<T> {
+  const headers: Record<string, string> = { ...(opts.headers as Record<string, string>) };
+  if (opts.body && !headers['Content-Type']) headers['Content-Type'] = 'application/json';
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API}${path}`, { ...opts, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throw new Error((data && (data.message || data.error)) || `HTTP ${res.status}`);
+  return data as T;
+}
+
+const adminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY) || '';
+const businessToken = () => localStorage.getItem(BUSINESS_TOKEN_KEY) || '';
+
+export const platformApi = {
+  apiBase: API,
+
+  // ---- Super admin ----
+  adminLogin(username: string, password: string) {
+    return req<{ success: boolean; token: string }>('/api/auth/admin/login', {
+      method: 'POST',
+      body: JSON.stringify({ username, password }),
+    });
+  },
+  adminLoggedIn: () => !!adminToken(),
+  adminLogout: () => localStorage.removeItem(ADMIN_TOKEN_KEY),
+  setAdminToken: (t: string) => localStorage.setItem(ADMIN_TOKEN_KEY, t),
+
+  verifyBusiness(body: Record<string, unknown>) {
+    return req<VerifyResult>('/api/businesses/verify', { method: 'POST', body: JSON.stringify(body) }, adminToken());
+  },
+  listBusinesses() {
+    return req<{ success: boolean; data: Business[] }>('/api/businesses', {}, adminToken());
+  },
+  getBusiness(id: string) {
+    return req<{ success: boolean; data: Business }>(`/api/businesses/${id}`, {}, adminToken());
+  },
+  /** Rename / re-categorise / re-word without re-verifying the Meta credentials. */
+  updateBusinessProfile(id: string, body: { name?: string; category?: string; labels?: BusinessLabels }) {
+    return req<{ success: boolean; data: Business }>(
+      `/api/businesses/${id}`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+      adminToken(),
+    );
+  },
+  /**
+   * Check an edit before saving. Falls back to the tenant's stored access
+   * token when the form leaves that field blank, so an admin doesn't have to
+   * paste it again to re-check a number they haven't touched.
+   */
+  verifyBusinessEdit(id: string, body: object) {
+    return req<VerifyResult>(
+      `/api/businesses/${id}/verify`,
+      { method: 'POST', body: JSON.stringify(body) },
+      adminToken(),
+    );
+  },
+  /**
+   * Save credentials + payment settings. Re-verifies with Meta only when a
+   * field Meta owns changed, so switching payments on later needs no token.
+   */
+  updateBusiness(id: string, body: object) {
+    return req<{ success: boolean; data: Business; verified?: boolean; webhook?: string | null }>(
+      `/api/businesses/${id}`,
+      { method: 'PUT', body: JSON.stringify(body) },
+      adminToken(),
+    );
+  },
+  /** Re-point this tenant's Meta app at our current callback URL. */
+  syncWebhook(id: string) {
+    return req<{ success: boolean; changed?: boolean; message?: string; callbackUrl?: string }>(
+      `/api/businesses/${id}/sync-webhook`,
+      { method: 'POST' },
+      adminToken(),
+    );
+  },
+  platformStats() {
+    return req<{ success: boolean; data: PlatformStats }>('/api/businesses/stats/overview', {}, adminToken());
+  },
+  businessStats(id: string) {
+    return req<{ success: boolean; data: BusinessStats }>(`/api/businesses/${id}/stats`, {}, adminToken());
+  },
+  /** Give a business an email + password login (or reset the owner's password). */
+  setBusinessLogin(id: string, email: string, password: string) {
+    return req<{ success: boolean; data: Business }>(
+      `/api/businesses/${id}/login`,
+      { method: 'POST', body: JSON.stringify({ email, password }) },
+      adminToken(),
+    );
+  },
+  regeneratePasscode(id: string) {
+    return req<{ success: boolean; credentials: { username: string; passcode: string } }>(
+      `/api/businesses/${id}/regenerate`,
+      { method: 'POST' },
+      adminToken(),
+    );
+  },
+
+  // ---- Free tier (trial tenants) ----
+  /** Verify the Meta credentials and create a tenant on the free plan. */
+  createTrial(body: Record<string, unknown>) {
+    return req<{ success: boolean; data: Business; credentials: CreatedCredentials }>(
+      '/api/businesses/trial',
+      { method: 'POST', body: JSON.stringify(body) },
+      adminToken(),
+    );
+  },
+  /** New passcode + a fresh 7-day free trial. Signs out the old session. */
+  resetTrial(id: string, trialDays?: number) {
+    return req<{ success: boolean; data: Business; credentials: { username: string; passcode: string } }>(
+      `/api/businesses/${id}/trial/reset`,
+      { method: 'POST', body: JSON.stringify(trialDays ? { trialDays } : {}) },
+      adminToken(),
+    );
+  },
+  /**
+   * Give a business a plan without payment ({ tier, until }), or restart its
+   * free trial ({ trialDays }). The business is notified.
+   */
+  setPlan(id: string, body: { tier: string; until: string } | { trialDays: number }) {
+    return req<{ success: boolean; data: Business }>(
+      `/api/businesses/${id}/plan`,
+      { method: 'POST', body: JSON.stringify(body) },
+      adminToken(),
+    );
+  },
+  setBusinessActive(id: string, active: boolean) {
+    return req<{ success: boolean; data: Business }>(
+      `/api/businesses/${id}/active`,
+      { method: 'POST', body: JSON.stringify({ active }) },
+      adminToken(),
+    );
+  },
+  /** Deletes the business and every record, file and Meta flow it owns. */
+  deleteBusiness(id: string) {
+    return req<{
+      success: boolean;
+      name?: string;
+      deleted?: Record<string, number | string>;
+      media?: string;
+      metaFlows?: { deprecated: number; deleted: number; failed: number };
+    }>(`/api/businesses/${id}`, { method: 'DELETE' }, adminToken());
+  },
+
+  // ---- Demo requests (Book a demo on the landing page) ----
+  listDemos(view: DemoView, q = '') {
+    return req<{ success: boolean; data: DemoRequest[]; counts: DemoCounts; today: string }>(
+      `/api/admin/demos?view=${encodeURIComponent(view)}&q=${encodeURIComponent(q)}`,
+      {},
+      adminToken(),
+    );
+  },
+  updateDemo(id: string, body: Partial<Pick<DemoRequest, 'status' | 'notes' | 'date' | 'slot'>>) {
+    return req<{ success: boolean; data: DemoRequest; counts: DemoCounts }>(
+      `/api/admin/demos/${id}`,
+      { method: 'PATCH', body: JSON.stringify(body) },
+      adminToken(),
+    );
+  },
+  deleteDemo(id: string) {
+    return req<{ success: boolean; counts: DemoCounts }>(`/api/admin/demos/${id}`, { method: 'DELETE' }, adminToken());
+  },
+
+  // ---- Business session (sign-in itself lives in site/siteApi.ts) ----
+  businessLoggedIn: () => !!businessToken(),
+  businessLogout: () => localStorage.removeItem(BUSINESS_TOKEN_KEY),
+  setBusinessToken: (t: string) => localStorage.setItem(BUSINESS_TOKEN_KEY, t),
+};

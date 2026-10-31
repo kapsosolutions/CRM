@@ -1,0 +1,211 @@
+/* "Coming soon" screens, popup and pill (ComingSoon.tsx). The screen itself
+   uses the .wa-req-* "Connect …" layout from WhatsAppConnectRequired.css. */
+.soon-pill {
+  display: inline-flex;
+  align-items: center;
+  height: 18px;
+  padding: 0 7px;
+  border-radius: 999px;
+  background: #fef3c7;
+  color: #92400e;
+  border: 1px solid #fde68a;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  line-height: 1;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.soon-pill.lg {
+  height: 24px;
+  padding: 0 12px;
+  font-size: 11.5px;
+}
+
+/* The screen */
+.soon-page {
+  background: #ffffff;
+}
+.soon-page > .soon-screen {
+  flex: 1;
+  min-height: 0;
+}
+.soon-screen.compact {
+  height: auto;
+  min-height: 0;
+  padding: 48px 24px;
+  background: transparent;
+}
+.soon-start-btn {
+  background: #22cf6e;
+  color: #ffffff;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 600;
+  border: none;
+  border-radius: 9px;
+  padding: 12px 26px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 2px 8px rgba(34, 207, 110, 0.35);
+  transition: all 0.15s ease;
+}
+.soon-start-btn:hover {
+  background: #1eb861;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(34, 207, 110, 0.45);
+}
+.soon-start-btn .material-icons {
+  font-size: 18px;
+}
+
+/* The popup */
+.soon-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 3000;
+  background: rgba(15, 23, 42, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: soonFade 0.15s ease;
+}
+@keyframes soonFade {
+  from { opacity: 0; }
+}
+.soon-modal {
+  width: 100%;
+  max-width: 400px;
+  background: #fff;
+  border-radius: 18px;
+  padding: 28px 24px 22px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);
+  animation: soonPop 0.18s ease;
+}
+@keyframes soonPop {
+  from { transform: translateY(8px) scale(0.98); opacity: 0; }
+}
+.soon-modal-icons {
+  position: relative;
+  display: flex;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+.soon-modal-icons img {
+  width: 48px;
+  height: 48px;
+}
+.soon-modal-lock {
+  position: absolute;
+  right: -10px;
+  bottom: -6px;
+  font-size: 16px !important;
+  color: #92400e;
+  background: #fff;
+  border: 1px solid #fde68a;
+  border-radius: 50%;
+  padding: 3px;
+}
+.soon-modal h3 {
+  margin: 4px 0 0;
+  font-size: 19px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.soon-modal p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #475569;
+}
+.soon-modal .soon-modal-note {
+  font-size: 12.5px;
+  color: #64748b;
+  background: #f8fafc;
+  border-radius: 10px;
+  padding: 8px 10px;
+}
+.soon-modal-ok {
+  margin-top: 6px;
+  min-width: 140px;
+  background: #22cf6e;
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  border-radius: 9px;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+.soon-modal-ok:hover {
+  background: #1eb861;
+}
+
+/* Rail buttons for a feature that isn't open yet */
+.rail-btn.soon {
+  position: relative;
+}
+.rail-btn.soon > svg {
+  opacity: 0.55;
+}
+.rail-soon {
+  position: absolute;
+  right: 1px;
+  bottom: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #f59e0b;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 0 2px #fff;
+}
+.rail-soon .material-icons {
+  font-size: 9px !important;
+}
+
+/* Small lock on a tab (Chats channel tabs) */
+.soon-tab-lock {
+  font-size: 13px !important;
+  color: #b45309;
+  margin-left: 2px;
+}
+
+/* Channel Status: the Instagram / Messenger panel while they're coming soon */
+.cs-soon-wrap {
+  padding: 8px 16px 24px;
+}
+.cs-soon-disconnect {
+  display: flex;
+  justify-content: center;
+  margin-top: -16px;
+}
+
+/* Profile drawer channel rows */
+.crm-ps-channel-item.soon {
+  opacity: 0.9;
+}
+.crm-ps-channel-item.soon .crm-ps-ch-desc {
+  color: #92400e;
+}
+
+@media (max-width: 560px) {
+  .soon-screen .wa-req-headline {
+    font-size: 23px;
+  }
+  .soon-screen.compact {
+    padding: 28px 12px;
+  }
+}

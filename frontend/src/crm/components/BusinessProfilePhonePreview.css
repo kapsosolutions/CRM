@@ -1,0 +1,476 @@
+/* =============================================================================
+   Business Profile Mobile Phone Preview (WhatsApp Light Theme)
+   ========================================================================== */
+
+.bpp-phone-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  user-select: none;
+}
+
+.bpp-phone-label {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.bpp-phone-frame {
+  width: 320px;
+  height: 610px;
+  background: #f8fafc;
+  border-radius: 38px;
+  border: 8px solid #1e293b;
+  box-shadow: 0 20px 48px -12px rgba(15, 23, 42, 0.22), 0 2px 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  position: relative;
+  box-sizing: border-box;
+}
+
+/* Status Bar */
+.bpp-status-bar {
+  height: 38px;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+
+.bpp-status-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bpp-dynamic-island {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 18px;
+  background: #000000;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 9px;
+  box-sizing: border-box;
+}
+
+.bpp-island-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1e293b;
+}
+
+.bpp-status-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.bpp-status-5g {
+  font-size: 9px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
+
+/* Navigation Bar */
+.bpp-nav-bar {
+  height: 44px;
+  background: #ffffff;
+  border-bottom: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  flex-shrink: 0;
+}
+
+.bpp-back-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: #f1f5f9;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.bpp-back-btn:hover {
+  background: #e2e8f0;
+}
+
+.bpp-nav-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bpp-nav-spacer {
+  width: 30px;
+}
+
+/* Scrollable Body */
+.bpp-scroll-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bpp-scroll-body::-webkit-scrollbar {
+  width: 4px;
+}
+
+.bpp-scroll-body::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 999px;
+}
+
+/* Hero Profile Block */
+.bpp-hero-block {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 10px 4px;
+}
+
+.bpp-avatar-wrap {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #16a34a, #059669);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.08);
+  border: 3px solid #ffffff;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+
+.bpp-avatar-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bpp-avatar-initial {
+  color: #ffffff;
+  font-size: 30px;
+  font-weight: 700;
+}
+
+.bpp-hero-name-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+}
+
+.bpp-hero-name {
+  font-size: 16.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+  line-height: 1.25;
+}
+
+.bpp-verified-badge {
+  flex-shrink: 0;
+}
+
+.bpp-hero-phone {
+  font-size: 12.5px;
+  color: #64748b;
+  margin: 3px 0 0;
+  font-weight: 500;
+}
+
+.bpp-hero-about {
+  font-size: 12px;
+  color: #334155;
+  margin: 6px 0 0;
+  font-style: italic;
+  max-width: 90%;
+  line-height: 1.35;
+}
+
+/* Quick Action Pills */
+.bpp-action-pills {
+  display: flex;
+  gap: 8px;
+  padding: 4px 2px;
+}
+
+.bpp-action-pill {
+  flex: 1;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 8px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.bpp-action-pill:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.bpp-action-icon {
+  color: #16a34a;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bpp-action-icon .tc-wa-catalog-icon path {
+  fill: #16a34a;
+}
+
+.bpp-action-text {
+  font-size: 11px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+/* Reusable WhatsApp Card */
+.bpp-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+}
+
+/* Catalog Card */
+.bpp-catalog-card {
+  gap: 10px;
+}
+
+.bpp-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.bpp-card-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.bpp-see-all {
+  font-size: 12px;
+  font-weight: 600;
+  color: #16a34a;
+  cursor: pointer;
+}
+
+.bpp-product-row {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.bpp-product-row::-webkit-scrollbar {
+  display: none;
+}
+
+.bpp-product-item {
+  width: 82px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.bpp-product-thumb {
+  width: 82px;
+  height: 82px;
+  border-radius: 10px;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bpp-product-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.bpp-product-fallback {
+  color: #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.bpp-product-name {
+  font-size: 11px;
+  font-weight: 500;
+  color: #334155;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Info Rows in Cards */
+.bpp-address-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.bpp-map-container {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.bpp-map-container .lm-wrap {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.bpp-map-dir-badge {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #111b21;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  cursor: pointer;
+  z-index: 10;
+  transition: transform 0.15s ease;
+}
+
+.bpp-map-dir-badge:hover {
+  transform: scale(1.08);
+}
+
+.bpp-address-row {
+  margin-top: 2px;
+}
+
+.bpp-info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.bpp-row-icon {
+  color: #16a34a;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+}
+
+.bpp-row-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.bpp-row-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.bpp-row-text {
+  font-size: 12.5px;
+  color: #475569;
+  word-break: break-word;
+}
+
+.bpp-link {
+  color: #0284c7;
+  font-weight: 500;
+}
+
+.bpp-desc-text {
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.45;
+  border-top: 1px solid #f1f5f9;
+  padding-top: 8px;
+  word-break: break-word;
+}
+
+/* Meta Security Card */
+.bpp-meta-card {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 10px;
+  background: #f8fafc;
+}
+
+.bpp-meta-icon {
+  color: #64748b;
+  flex-shrink: 0;
+  margin-top: 1px;
+  display: flex;
+}
+
+.bpp-meta-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bpp-meta-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.bpp-meta-sub {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+}

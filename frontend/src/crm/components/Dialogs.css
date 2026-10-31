@@ -1,0 +1,256 @@
+/* Confirm dialogs and toasts (Dialogs.tsx). They are used everywhere: the
+   public site, the admin panel and the CRM. So they live here, loaded with
+   the main app, and not in CrmApp.css, which loads only with the CRM.
+   The values are the ones CrmApp.css used to end up with. */
+
+/* ---- Confirm card (also the in-chat "Discard changes?" card) ---- */
+.disc-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+.disc-box {
+  background: var(--wa-surface);
+  border-radius: var(--wa-radius-tile);
+  padding: 22px 24px;
+  width: 100%;
+  max-width: 420px;
+  box-shadow: var(--wa-shadow-sm);
+}
+.disc-title {
+  font-size: 16px;
+  font-weight: 800 !important;
+  color: #0f172a !important;
+  margin-bottom: 8px;
+}
+/* Says what is actually at stake, rather than leaving the title to imply it.
+   Spacing lives on .disc-actions so a title-only dialog looks the same. */
+.disc-text {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--wa-ink-muted);
+  margin: 0;
+}
+.disc-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 14px;
+  margin-top: 20px;
+}
+.disc-cancel {
+  background: none;
+  border: none;
+  color: #107c3f;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+.disc-discard {
+  background: var(--wa-primary);
+  color: var(--wa-primary-ink);
+  border: 1px solid var(--wa-hairline-strong);
+  border-radius: var(--wa-radius-pill);
+  padding: 10px 24px;
+  font-size: 14px;
+  cursor: pointer;
+}
+.disc-discard:hover {
+  filter: brightness(0.96);
+}
+
+/* ---- App-wide confirm dialog (same card as "Discard changes?") ---- */
+.disc-backdrop.app-dialog {
+  position: fixed;
+  z-index: 2500; /* above all page overlays and drawers like profile drawer (1000) */
+  animation: dialogFade 0.15s ease both;
+}
+.disc-backdrop.app-dialog .disc-box {
+  animation: dialogPop 0.18s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+@keyframes dialogFade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes dialogPop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.98);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .disc-backdrop.app-dialog,
+  .disc-backdrop.app-dialog .disc-box {
+    animation: none;
+  }
+}
+.disc-points {
+  margin: 10px 0 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--wa-ink-muted);
+}
+/* One-way actions (delete, reset…) get a red button. */
+.disc-discard.danger {
+  background: #d93025;
+  border-color: #d93025;
+  color: #fff;
+}
+.disc-discard.danger:hover {
+  background: #c5221f;
+  filter: none;
+}
+.disc-discard:focus-visible,
+.disc-cancel:focus-visible {
+  outline: none;
+  box-shadow: var(--wa-focus-ring);
+  border-radius: var(--wa-radius-pill);
+}
+
+/* ---- Toast notifications (top-right, slide in from the right) ---- */
+.toast-stack {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  /* Toasts sit above dialogs, so a result can show while one closes. */
+  z-index: 1200;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  pointer-events: none;
+}
+.toast-card {
+  --toast-accent: #269b24;
+  --toast-icon-bg: #04e40048;
+  --toast-wave: #04e4003a;
+  width: 330px;
+  max-width: calc(100vw - 32px);
+  min-height: 80px;
+  border-radius: 8px;
+  box-sizing: border-box;
+  padding: 10px 15px;
+  background-color: #ffffff;
+  box-shadow: rgba(149, 157, 165, 0.2) 0px 8px 24px;
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  gap: 15px;
+  pointer-events: auto;
+  animation: toastIn 0.32s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.toast-card.error {
+  --toast-accent: #d10d0d;
+  --toast-icon-bg: #ff000030;
+  --toast-wave: #ff00002a;
+}
+.toast-card.leaving {
+  animation: toastOut 0.26s ease-in both;
+}
+@keyframes toastIn {
+  from {
+    transform: translateX(calc(100% + 24px));
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+}
+@keyframes toastOut {
+  from {
+    transform: translateX(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateX(calc(100% + 24px));
+    opacity: 0;
+  }
+}
+.toast-wave {
+  position: absolute;
+  transform: rotate(90deg);
+  left: -31px;
+  top: 32px;
+  width: 80px;
+  fill: var(--toast-wave);
+}
+.toast-icon {
+  width: 35px;
+  height: 35px;
+  flex-shrink: 0;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: var(--toast-icon-bg);
+  border-radius: 50%;
+  margin-left: 8px;
+  color: var(--toast-accent);
+}
+.toast-icon svg {
+  width: 17px;
+  height: 17px;
+}
+.toast-text {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  flex-grow: 1;
+  min-width: 0;
+}
+.toast-title,
+.toast-sub {
+  margin: 0;
+  cursor: default;
+}
+.toast-title {
+  color: var(--toast-accent);
+  font-size: 17px;
+  font-weight: 700;
+}
+.toast-sub {
+  font-size: 14px;
+  color: #555;
+  overflow-wrap: anywhere;
+}
+.toast-close {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 50%;
+  background: none;
+  color: #555;
+  cursor: pointer;
+  padding: 0;
+}
+.toast-close:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+.toast-close:focus-visible {
+  outline: none;
+  box-shadow: var(--wa-focus-ring);
+}
+.toast-close svg {
+  width: 18px;
+  height: 18px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .toast-card,
+  .toast-card.leaving {
+    animation-duration: 0.01s;
+  }
+}

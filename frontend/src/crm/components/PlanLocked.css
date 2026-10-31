@@ -1,0 +1,284 @@
+/* A page outside the business's plan (PlanLocked.tsx). */
+.pl-wrap {
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 48px 20px;
+  box-sizing: border-box;
+  background: #f8fafc;
+}
+.pl-card {
+  width: 100%;
+  max-width: 520px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 32px 28px;
+  text-align: center;
+  box-shadow: 0 8px 28px rgba(15, 23, 42, 0.06);
+  box-sizing: border-box;
+}
+.pl-icon {
+  position: relative;
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 18px;
+  background: #dcfce7;
+  color: #15803d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.pl-icon > .material-icons {
+  font-size: 32px;
+}
+.pl-lock {
+  position: absolute;
+  right: -6px;
+  bottom: -6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: #0f172a;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px solid #fff;
+}
+.pl-lock .material-icons {
+  font-size: 14px;
+}
+.pl-pill {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #fef9c3;
+  color: #854d0e;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+.pl-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+}
+.pl-sub {
+  margin: 0 0 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: #475569;
+}
+.pl-points {
+  list-style: none;
+  margin: 0 auto 22px;
+  padding: 0;
+  max-width: 360px;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.pl-points li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13.5px;
+  color: #334155;
+}
+.pl-points .material-icons {
+  font-size: 18px;
+  color: #16a34a;
+  flex-shrink: 0;
+}
+.pl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 22px;
+  border: 0;
+  border-radius: 999px;
+  background: #16a34a;
+  color: #fff;
+  font: inherit;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+}
+.pl-btn:hover {
+  background: #15803d;
+}
+.pl-btn:focus-visible {
+  outline: 3px solid rgba(22, 163, 74, 0.35);
+  outline-offset: 2px;
+}
+.pl-btn .material-icons {
+  font-size: 18px;
+}
+.pl-mini {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding: 1px 6px 1px 4px;
+  border-radius: 999px;
+  background: #fef9c3;
+  color: #854d0e;
+  font-size: 10.5px;
+  font-weight: 700;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.pl-mini .material-icons {
+  font-size: 11px;
+}
+
+/* ---- Wallet (top bar): coming soon, with the link to Meta's billing ---- */
+.wl-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background: #fff;
+  color: #374151;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.wl-btn:hover {
+  border-color: #16a34a;
+  color: #15803d;
+}
+.wl-btn:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+}
+.wl-btn .material-icons {
+  font-size: 17px;
+}
+.wl-soon {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #475569;
+  font-size: 10.5px;
+  font-weight: 700;
+}
+.wl-soon .material-icons {
+  font-size: 11px;
+}
+.wl-box {
+  max-width: 440px;
+}
+.wl-box .disc-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.wl-meta-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: none;
+}
+@media (max-width: 900px) {
+  .wl-btn .wl-label {
+    display: none;
+  }
+}
+
+/* An inline "See plans" link inside a hint. */
+.k-link-btn {
+  border: 0;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #15803d;
+  font-weight: 700;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+.k-link-btn:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* ---- Chats outside the plan (Free: after the first 10 contacts) ---- */
+.chat-item.is-plan-locked .ci-name {
+  color: #64748b;
+}
+.ci-plan-lock {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: 6px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: #fef9c3;
+  color: #854d0e;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 16px;
+  vertical-align: middle;
+}
+.ci-plan-lock .material-icons {
+  font-size: 11px;
+}
+.plan-chat-locked {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  margin: 0;
+  background: #fffbeb;
+  border-top: 1px solid #fde68a;
+  color: #78350f;
+  font-size: 13.5px;
+}
+.plan-chat-locked strong {
+  display: block;
+  font-size: 14px;
+  color: #713f12;
+}
+.plan-chat-locked .pl-btn {
+  padding: 8px 16px;
+  font-size: 13px;
+  flex-shrink: 0;
+}
+.plan-contact-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 10px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  color: #78350f;
+  font-size: 12.5px;
+  line-height: 1.35;
+}
+.plan-contact-bar .material-icons {
+  font-size: 16px;
+  color: #b45309;
+}
+.plan-contact-bar button {
+  margin-left: auto;
+  flex-shrink: 0;
+}

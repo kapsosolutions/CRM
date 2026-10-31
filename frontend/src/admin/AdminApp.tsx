@@ -1,0 +1,273 @@
+// Top-level router (hash based) for the multi-tenant host:
+//   #/admin            → super-admin panel (admin login gate)
+//   #/demo             → demo CRM (in-memory, no backend)
+//   signed-in business → the CRM
+//   otherwise          → public site: landing (#/), #/login, #/register,
+//                        #/register/google
+import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
+import { platformApi } from './platformApi';
+import { useConfirm } from '../crm/components/Dialogs';
+import { exitApp, resetBackHandler, useBackHandler } from '../crm/useBackHandler';
+import { LandingPage } from '../site/LandingPage';
+import { LoginPage, RegisterPage, GoogleReturn, AuthCard, Field, useSignedOutReason } from '../site/AuthPages';
+import { TermsPage, PrivacyPage, RefundPage, DataDeletionPage, ContactPage } from '../site/LegalPages';
+import { readOAuthReturn } from '../site/siteApi';
+import '../site/site.css';
+import './admin.css';
+
+// The CRM and the admin panel are most of the app's code. They are downloaded
+// only when someone opens them, so the landing, login and register pages load
+// fast. After a deploy, an open tab whose old files are gone reloads itself
+// (see main.tsx).
+const CrmShell = lazy(() => import('../crm/components/CrmShell').then((m) => ({ default: m.CrmShell })));
+const AdminShell = lazy(() => import('./AdminShell').then((m) => ({ default: m.AdminShell })));
+
+// If the download fails (offline, or a deploy happened twice within a minute),
+// say so and offer a reload instead of leaving a blank page.
+class LoadFailed extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() {
+    return { failed: true };
+  }
+  render() {
+    if (!this.state.failed) return this.props.children;
+    return (
+      <div className="app-loading" role="alert">
+        <div className="app-load-failed">
+          <strong>Couldn’t load this page</strong>
+          <p>Something went wrong. Check your internet connection, then reload.</p>
+          <button type="button" onClick={() => window.location.reload()}>
+            Reload
+          </button>
+        </div>
+      </div>
+    );
+  }
+}
+
+function Loading({ children }: { children: ReactNode }) {
+  return (
+    <LoadFailed>
+      <Suspense
+        fallback={
+          <div className="app-loading" role="status" aria-label="Loading">
+            <span className="app-loading-spinner" />
+          </div>
+        }
+      >
+        {children}
+      </Suspense>
+    </LoadFailed>
+  );
+}
+
+function useHashRoute() {
+  const [hash, setHash] = useState(window.location.hash || '');
+  useEffect(() => {
+    const on = () => setHash(window.location.hash || '');
+    window.addEventListener('hashchange', on);
+    window.addEventListener('popstate', on);
+    return () => {
+      window.removeEventListener('hashchange', on);
+      window.removeEventListener('popstate', on);
+    };
+  }, []);
+  return hash.replace(/^#/, '');
+}
+
+function AdminLoginPage({
+  onSignedIn,
+}: {
+  onSignedIn: (token: string) => void;
+}) {
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const signedOut = useSignedOutReason();
+
+  return (
+    <AuthCard
+      title="Admin Sign In"
+      subtitle="Sign in to platform management & tenant controls"
+      imageSrc="/login.png"
+      imageAlt="Platform Admin Portal"
+      imageSide="left"
+    >
+      {signedOut && <div className="au-alert">{signedOut}</div>}
+      {error && <div className="au-alert" role="alert">{error}</div>}
+      <form
+        onSubmit={async (e) => {
+          e.preventDefault();
+          if (!username.trim() || !password) {
+            setError('Enter your admin username and password.');
+            return;
+          }
+          setBusy(true);
+          setError('');
+          try {
+            const r = await platformApi.adminLogin(username.trim(), password);
+            onSignedIn(r.token);
+          } catch (err) {
+            setError(err instanceof Error ? err.message : 'Login failed');
+          } finally {
+            setBusy(false);
+          }
+        }}
+        noValidate
+      >
+        <Field
+          label="Admin Username"
+          value={username}
+          onChange={setUsername}
+          autoComplete="username"
+          placeholder="admin"
+        />
+        <Field
+          label="Password"
+          value={password}
+          onChange={setPassword}
+          type="password"
+          autoComplete="current-password"
+          placeholder="••••••••"
+        />
+        <div className="au-switch-link">
+          Client workspace? <a href="#/login">Client Log in</a> &bull; <a href="#/">Back to Home</a>
+        </div>
+        <button className="au-submit" type="submit" disabled={busy}>
+          {busy ? 'Signing in…' : 'Sign in to Platform'}
+        </button>
+      </form>
+    </AuthCard>
+  );
+}
+
+export function AdminApp() {
+  const route = useHashRoute();
+  const [, force] = useState(0);
+  const rerender = () => force((n) => n + 1);
+  const confirm = useConfirm();
+
+  // Signed in (CRM or admin panel): Back at the top level must not drop the
+  // user onto the login screen (or out of the site) by accident. It asks.
+  const isAdminArea = route.startsWith('/admin');
+  const signedIn = isAdminArea
+    ? platformApi.adminLoggedIn()
+    : !route.startsWith('/demo') && platformApi.businessLoggedIn();
+  useBackHandler(
+    signedIn,
+    async () => {
+      const leave = await confirm({
+        title: isAdminArea ? 'Leave the admin panel?' : 'Leave the CRM?',
+        message: 'You’ll stay signed in. Use the log-out button to sign out.',
+        confirmLabel: 'Leave',
+        cancelLabel: 'Stay',
+        tone: 'primary',
+      });
+      if (leave) exitApp();
+    },
+    { base: true },
+  );
+
+  // The login screen and the app share one URL, so once signed in the guard
+  // above is what keeps Back from landing on the login screen again.
+  const signIn = (save: () => void) => {
+    save();
+    rerender();
+  };
+
+  // ----- Super admin area -----
+  if (route.startsWith('/admin')) {
+    if (!platformApi.adminLoggedIn()) {
+      return (
+        <AdminLoginPage
+          onSignedIn={(token) => {
+            signIn(() => platformApi.setAdminToken(token));
+          }}
+        />
+      );
+    }
+    const handleAdminLogout = async () => {
+      const ok = await confirm({
+        title: 'Log out?',
+        message: 'Are you sure you want to log out of the admin panel?',
+        confirmLabel: 'Log out',
+        cancelLabel: 'Cancel',
+        tone: 'danger',
+      });
+      if (!ok) return;
+      resetBackHandler();
+      platformApi.adminLogout();
+      rerender();
+    };
+    return (
+      <Loading>
+        <AdminShell onLogout={handleAdminLogout} />
+      </Loading>
+    );
+  }
+
+  // ----- Demo escape hatch (explore with in-memory data) -----
+  if (route.startsWith('/demo')) {
+    return (
+      <Loading>
+        <CrmShell
+          demo
+          onLogout={() => {
+            window.location.hash = '#/login';
+          }}
+        />
+      </Loading>
+    );
+  }
+
+  // ----- Business area -----
+  // Signed in → the CRM. Signed out → the public site: landing page, with
+  // Log in / Register on top.
+  const businessSignIn = (token: string) => {
+    platformApi.setBusinessToken(token);
+    window.location.hash = '#/';
+    rerender();
+  };
+
+  const handleBusinessLogout = () => {
+    // Disarm back handlers FIRST so no "Discard changes?" or "Leave" prompts fire
+    resetBackHandler();
+    // Clear business token
+    platformApi.businessLogout();
+    // Return to login screen
+    window.location.hash = '#/login';
+    rerender();
+  };
+
+  // Back from "Continue with Google": Supabase puts the tokens in the hash.
+  const oauth = readOAuthReturn(route);
+  if (oauth) return <GoogleReturn {...oauth} onSignedIn={businessSignIn} />;
+
+  // Public legal pages (available to everyone)
+  const page = route.split(/[/?#]/)[1] || '';
+  if (page === 'terms') return <TermsPage />;
+  if (page === 'privacy') return <PrivacyPage />;
+  if (page === 'refund') return <RefundPage />;
+  if (page === 'data-deletion') return <DataDeletionPage />;
+  if (page === 'contact') return <ContactPage />;
+
+  if (!platformApi.businessLoggedIn()) {
+    if (route.startsWith('/login')) return <LoginPage onSignedIn={businessSignIn} />;
+    if (route.startsWith('/register/google')) return <RegisterPage key="google" google onSignedIn={businessSignIn} />;
+    if (route.startsWith('/register')) return <RegisterPage key="email" onSignedIn={businessSignIn} />;
+    return <LandingPage />;
+  }
+
+  // Logged-in tenant → the real CRM (uses the cached business token in localStorage).
+  return (
+    <div className="pa-crm-host">
+      <Loading>
+        <CrmShell
+          config={{ tokenKey: 'crm_business_jwt' }}
+          onLogout={handleBusinessLogout}
+        />
+      </Loading>
+    </div>
+  );
+}

@@ -1,0 +1,115 @@
+/* Authentication (one-time code) templates: composer fields + the chat's Send OTP pane. */
+.at-fields .tc-section .tc-check + .tc-check {
+  margin-top: 8px;
+}
+.at-note {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border-radius: 10px;
+  background: rgba(35, 164, 85, 0.08);
+  border: 1px solid rgba(35, 164, 85, 0.25);
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--wa-ink, #1c1c1e);
+}
+.at-note .material-icons {
+  font-size: 18px;
+  color: rgb(35, 164, 85);
+}
+.at-soft {
+  color: var(--wa-ink-muted, #667085);
+}
+.at-inline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 8px 0 0 23px;
+  font-size: 13px;
+}
+.at-num {
+  width: 86px;
+}
+.at-app {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.at-app .k-input {
+  flex: 1;
+  min-width: 0;
+}
+.at-app .at-hash {
+  flex: 0 0 140px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.at-terms {
+  align-items: flex-start;
+  margin: 0 0 14px;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.at-terms input {
+  margin-top: 2px;
+}
+
+/* ---- Chat template drawer: Send OTP ---- */
+.at-otp-entry {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  border: 1px solid rgba(35, 164, 85, 0.35);
+  border-radius: 10px;
+  background: rgba(35, 164, 85, 0.06);
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: var(--wa-ink, #1c1c1e);
+}
+.at-otp-entry:hover {
+  background: rgba(35, 164, 85, 0.12);
+}
+.at-otp-entry .material-icons {
+  color: rgb(35, 164, 85);
+}
+.at-otp-entry-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.at-otp-entry-text strong {
+  font-size: 14px;
+}
+.at-otp-entry-text span {
+  font-size: 12px;
+  color: var(--wa-ink-muted, #667085);
+}
+.at-otp-pane .k-field {
+  margin-bottom: 14px;
+}
+.at-otp-code-row {
+  display: flex;
+  gap: 8px;
+}
+.at-otp-code-row .k-input {
+  flex: 1;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 1px;
+}
+.at-otp-send {
+  width: 100%;
+  justify-content: center;
+}
+.at-preview-hint {
+  max-width: 320px;
+  margin: 10px auto 0;
+  text-align: center;
+}

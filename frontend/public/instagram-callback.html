@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Connecting Instagram…</title>
+    <style>
+      body { font-family: Inter, system-ui, sans-serif; display: grid; place-items: center; height: 100vh; margin: 0; color: #1f2a37; text-align: center; padding: 0 24px; }
+      p { max-width: 360px; line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+    <p id="msg">Connecting Instagram…</p>
+    <script>
+      // Business Login for Instagram → here, inside the popup the CRM opened
+      // (INSTAGRAM_REDIRECT_URI). Hand { code, state } (or Instagram's error)
+      // to the CRM window, then close. Only same-origin windows can read it:
+      // postMessage targets this origin exactly, and BroadcastChannel /
+      // localStorage are same-origin by nature. The CRM checks the origin and
+      // the state too, and the server verifies the state's signature.
+      // BroadcastChannel + localStorage keep working when Instagram's pages
+      // cut the popup's link to its opener (COOP).
+      (function () {
+        var q = new URLSearchParams(location.search);
+        var msg = {
+          type: 'crm-instagram-auth',
+          // Instagram appends "#_" to the redirect; it lives in the hash, not the code.
+          code: (q.get('code') || '').replace(/#_?$/, ''),
+          state: q.get('state') || '',
+          error: q.get('error') || '',
+          errorReason: q.get('error_reason') || '',
+          errorDescription: (q.get('error_description') || '').replace(/\+/g, ' '),
+          at: Date.now(),
+        };
+        // The code is single-use and short-lived; clear it from the address bar straight away.
+        try { history.replaceState(null, '', location.pathname); } catch (e) {}
+        try { if (window.opener && window.opener !== window) window.opener.postMessage(msg, location.origin); } catch (e) {}
+        try { var bc = new BroadcastChannel('crm-instagram-auth'); bc.postMessage(msg); bc.close(); } catch (e) {}
+        try {
+          localStorage.setItem('crm-instagram-auth', JSON.stringify(msg));
+          localStorage.removeItem('crm-instagram-auth');
+        } catch (e) {}
+        window.close();
+        // Still open (not a popup, or the browser refused to close it).
+        setTimeout(function () {
+          document.getElementById('msg').textContent = msg.code
+            ? 'Done. Go back to the CRM window to finish connecting; you can close this one.'
+            : 'Instagram login was not completed. You can close this window and try again in the CRM.';
+        }, 600);
+      })();
+    </script>
+  </body>
+</html>

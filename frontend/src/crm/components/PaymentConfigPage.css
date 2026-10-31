@@ -1,0 +1,871 @@
+/* Payment Configuration Page & Modal Styles (Matching Mockup Images 1 & 2) */
+
+.crm-pay-onboarding {
+  background: #ffffff;
+  width: 100%;
+  height: 100%;
+  overflow-y: auto;
+  padding: 44px 56px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.crm-pay-onboarding.is-unconnected,
+.crm-pay-onboarding:has(.cs-unconnected-hero-box) {
+  background: #ffffff url('/bg.svg') no-repeat center center / cover;
+}
+
+.crm-pay-onboarding-inner {
+  width: 100%;
+  max-width: 1480px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Top Connected Bar */
+.crm-pay-header-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 20px;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.crm-pay-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.crm-pay-header-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0;
+}
+
+.crm-pay-status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #dcfce7;
+  border: 1px solid #bbf7d0;
+  color: #15803d;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: 9999px;
+}
+
+.crm-pay-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #22c55e;
+}
+
+.crm-pay-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.crm-pay-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid transparent;
+}
+
+.crm-pay-action-btn.primary {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.crm-pay-action-btn.primary:hover {
+  background: #15803d;
+}
+
+.crm-pay-action-btn.outline {
+  background: #ffffff;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
+.crm-pay-action-btn.outline:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+.crm-pay-action-btn.danger {
+  background: #ffffff;
+  border-color: #fca5a5;
+  color: #dc2626;
+}
+
+.crm-pay-action-btn.danger:hover {
+  background: #fef2f2;
+}
+
+/* Hero Section (Matching Image 1) */
+.crm-pay-hero {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 56px;
+  margin-bottom: 52px;
+  width: 100%;
+}
+
+.crm-pay-hero-left {
+  flex: 1;
+  max-width: 720px;
+}
+
+.crm-pay-title {
+  font-size: 34px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 14px 0;
+  letter-spacing: -0.6px;
+  line-height: 1.22;
+}
+
+.crm-pay-sub {
+  font-size: 15px;
+  font-weight: 500;
+  color: #334155;
+  line-height: 1.5;
+  margin: 0 0 28px 0;
+  max-width: 660px;
+}
+
+.crm-pay-hero-connect-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #16a34a;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 700;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2);
+}
+
+.crm-pay-hero-connect-btn:hover {
+  background: #15803d;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(22, 163, 74, 0.28);
+}
+
+.crm-pay-hero-right {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.crm-pay-hero-img {
+  width: 480px;
+  max-width: 100%;
+  height: auto;
+  max-height: 330px;
+  object-fit: contain;
+  display: block;
+}
+
+/* Features Highlight Section (Matching Image 1) */
+.crm-pay-features-section {
+  width: 100%;
+  margin-top: 8px;
+  padding-top: 36px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.crm-pay-features-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 24px 0;
+  letter-spacing: -0.2px;
+}
+
+.crm-pay-feature-cards {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 20px;
+  width: 100%;
+}
+
+.crm-pay-feature-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 26px 24px;
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+  box-sizing: border-box;
+}
+
+.crm-pay-feature-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+  transform: translateY(-2px);
+}
+
+.crm-pay-card-icon-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+  flex-shrink: 0;
+}
+
+.crm-pay-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 8px 0;
+  line-height: 1.3;
+}
+
+.crm-pay-card-desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: #64748b;
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* ========================================================
+   CONNECTED CONFIGURATION CARDS
+   ======================================================== */
+.crm-pay-connected-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 24px;
+  margin-bottom: 40px;
+}
+
+.crm-pay-main-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 28px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.crm-pay-main-card-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: 24px;
+  padding-bottom: 18px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.crm-pay-card-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #f0fdf4;
+  color: #166534;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 6px;
+}
+
+.crm-pay-details-list {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.crm-pay-detail-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.crm-pay-detail-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.crm-pay-detail-value {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.crm-pay-detail-value code {
+  font-family: ui-monospace, monospace;
+  background: #f1f5f9;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 13.5px;
+}
+
+.crm-pay-side-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.crm-pay-side-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.crm-pay-tip-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.crm-pay-tip-bullet {
+  color: #16a34a;
+  font-size: 16px;
+  line-height: 1;
+}
+
+/* ========================================================
+   CONNECT PAYMENT CONFIG MODAL (Matching Image 2)
+   ======================================================== */
+.crm-pay-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.crm-pay-modal {
+  background: #ffffff;
+  width: 100%;
+  max-width: 530px;
+  max-height: calc(100vh - 40px);
+  border-radius: 14px;
+  box-shadow: 0 20px 48px rgba(15, 23, 42, 0.22);
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  animation: crmPayModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes crmPayModalPop {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+/* Modal Banner Header (Full proportional display, no cropping) */
+.crm-pay-modal-banner-wrap {
+  width: 100%;
+  background: #bbf0eb;
+  position: relative;
+  overflow: hidden;
+  display: block;
+  flex-shrink: 0;
+  aspect-ratio: 3 / 1;
+  height: auto;
+  min-height: unset;
+  max-height: unset;
+}
+
+.crm-pay-modal-banner {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.crm-pay-modal-close-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.45);
+  color: #ffffff;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+
+.crm-pay-modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+  transform: scale(1.05);
+}
+
+/* Modal Body */
+.crm-pay-modal-body {
+  padding: 18px 24px 12px 24px;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.crm-pay-modal-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 6px 0;
+  line-height: 1.3;
+}
+
+.crm-pay-modal-sub {
+  font-size: 13px;
+  font-weight: 400;
+  color: #475569;
+  line-height: 1.45;
+  margin: 0 0 14px 0;
+}
+
+/* Step list (Step 2: Connect ONLY, as requested) */
+.crm-pay-steps-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.crm-pay-step-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.crm-pay-step-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #334155;
+  flex-shrink: 0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.crm-pay-step-content {
+  flex: 1;
+}
+
+.crm-pay-step-title {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 3px 0;
+}
+
+.crm-pay-step-desc {
+  font-size: 13px;
+  font-weight: 400;
+  color: #64748b;
+  line-height: 1.5;
+  margin: 0;
+}
+
+/* Inline Gateway Config Form (when user proceeds or inputs details) */
+.crm-pay-form-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.crm-pay-form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.crm-pay-form-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #334155;
+}
+
+.crm-pay-form-input {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #0f172a;
+  background: #ffffff;
+  outline: none;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.crm-pay-form-input:focus {
+  border-color: #0073e6;
+  box-shadow: 0 0 0 3px rgba(0, 115, 230, 0.15);
+}
+
+/* Payment Gateway Radio Group (Horizontal with SVG logos, no outer boxes) */
+.crm-pay-provider-radios {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  flex-wrap: wrap;
+  width: 100%;
+  padding: 4px 0;
+  margin-top: 2px;
+  margin-bottom: 6px;
+}
+
+.crm-pay-radio-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  user-select: none;
+  transition: opacity 0.15s ease;
+  box-sizing: border-box;
+}
+
+.crm-pay-radio-item:hover {
+  opacity: 0.8;
+}
+
+.crm-pay-radio-item:focus-visible {
+  outline: 2px solid #0073e6;
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
+/* No box, border, or background when active - only radio button circle changes */
+.crm-pay-radio-item.active {
+  border: none;
+  background: transparent;
+  box-shadow: none;
+}
+
+.crm-pay-radio-item.active:hover {
+  opacity: 0.8;
+}
+
+.crm-pay-radio-custom {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #94a3b8;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  background: #ffffff;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.crm-pay-radio-custom.checked {
+  border-color: #0073e6;
+}
+
+.crm-pay-radio-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #0073e6;
+  display: block;
+}
+
+.crm-pay-radio-icon-box {
+  display: flex;
+  align-items: center;
+  height: 26px;
+}
+
+.crm-pay-radio-logo {
+  max-width: 100%;
+  height: auto;
+  object-fit: contain;
+  display: block;
+}
+
+.crm-pay-radio-logo.razorpay {
+  height: 18px;
+  max-height: 20px;
+}
+
+.crm-pay-radio-logo.payu {
+  height: 20px;
+  max-height: 22px;
+}
+
+.crm-pay-radio-logo.upi {
+  height: 20px;
+  max-height: 22px;
+}
+
+@media (max-width: 480px) {
+  .crm-pay-provider-radios {
+    gap: 16px;
+  }
+}
+
+/* Modal Footer (Matching Image 2) */
+.crm-pay-modal-footer {
+  padding: 12px 24px 16px 24px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-shrink: 0;
+  background: #ffffff;
+}
+
+.crm-pay-disclaimer {
+  font-size: 11px;
+  line-height: 1.4;
+  color: #64748b;
+  margin: 0;
+  flex: 1;
+}
+
+.crm-pay-disclaimer a {
+  color: #0073e6;
+  text-decoration: none;
+}
+
+.crm-pay-disclaimer a:hover {
+  text-decoration: underline;
+}
+
+.crm-pay-get-started-btn {
+  background: #0073e6;
+  color: #ffffff;
+  border: none;
+  border-radius: 6px;
+  padding: 9px 20px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 8px rgba(0, 115, 230, 0.25);
+  flex-shrink: 0;
+}
+
+.crm-pay-get-started-btn:hover {
+  background: #0060c2;
+  box-shadow: 0 4px 12px rgba(0, 115, 230, 0.35);
+}
+
+.crm-pay-get-started-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+@media (max-width: 900px) {
+  .crm-pay-onboarding {
+    padding: 24px;
+  }
+  .crm-pay-hero {
+    flex-direction: column;
+    gap: 32px;
+  }
+  .crm-pay-feature-cards {
+    grid-template-columns: 1fr;
+  }
+  .crm-pay-connected-grid {
+    grid-template-columns: 1fr;
+  }
+  .crm-pay-modal-footer {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}
+
+/* ========================================================
+   UNCONNECTED HERO BOX (Matching Meta Channels layout)
+   ======================================================== */
+.cs-unconnected-hero-box {
+  max-width: 620px;
+  width: 100%;
+  margin: 36px auto 48px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 20px 36px 20px;
+  box-sizing: border-box;
+}
+
+.cs-unconnected-logos-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  margin-top: 6px;
+}
+
+.cs-unconnected-logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  display: block;
+}
+
+.cs-unconnected-arrow {
+  font-size: 24px;
+  color: #94a3b8;
+  font-weight: 300;
+  line-height: 1;
+  margin: 0 4px;
+  user-select: none;
+}
+
+.cs-unconnected-headline {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 10px 0;
+  line-height: 1.25;
+  letter-spacing: -0.5px;
+  text-align: center;
+}
+
+.cs-unconnected-subline {
+  font-size: 15px;
+  font-weight: 500;
+  color: #334155;
+  margin: 0 0 28px 0;
+  line-height: 1.5;
+  text-align: center;
+  max-width: 560px;
+}
+
+.cs-unconnected-benefits-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.cs-unconnected-benefits-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.cs-unconnected-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 32px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: fit-content;
+}
+
+.cs-unconnected-benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+  text-align: left;
+}
+
+.cs-benefit-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: #16a34a;
+}
+
+.cs-unconnected-cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.cs-connect-channel-btn {
+  background: #24d06e;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(36, 208, 110, 0.35);
+  font-family: inherit;
+}
+
+.cs-connect-channel-btn:hover {
+  background: #1eb861;
+  transform: translateY(-1px);
+}
+

@@ -1,0 +1,1840 @@
+/* Channel Status Page Styles matching Image 1, 2, and 3 */
+.cs-page {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  background: #f8fafc;
+  overflow: hidden;
+  box-sizing: border-box;
+}
+
+/* Left Sidebar - width 350px, comfortably fits tabs without scrolling */
+.cs-sidebar {
+  width: 350px;
+  min-width: 350px;
+  max-width: 350px;
+  background: #ffffff;
+  border-right: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  padding: 18px 12px;
+  gap: 14px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  box-sizing: border-box;
+}
+
+.cs-sidebar-header {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cs-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: transparent;
+  border: none;
+  color: #166534;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 0 0 6px 0;
+  transition: opacity 0.15s ease;
+  font-family: inherit;
+  align-self: flex-start;
+}
+
+.cs-back-btn:hover {
+  color: #24d06e;
+}
+
+.cs-sidebar-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 800;
+  color: #166534;
+  letter-spacing: -0.2px;
+}
+
+.cs-sidebar-sub {
+  margin: 0;
+  font-size: 12px;
+  color: #64748b;
+}
+
+/* Channel Tabs: WhatsApp, Instagram, Messenger - Exact Card Style from User Image 1 */
+.cs-channel-tabs {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  border-bottom: 1px solid #f1f5f9;
+  padding: 8px 0 12px 0;
+  width: 100%;
+  box-sizing: border-box;
+  overflow: visible;
+}
+
+.cs-tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 4px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  color: #334155;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  box-sizing: border-box;
+  position: relative;
+  font-family: inherit;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.cs-tab-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #0f172a;
+}
+
+/* Active tab matches Image 1: clean neutral border, bold black text, NO green box */
+.cs-tab-btn.active {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #000000;
+  font-weight: 700;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.cs-tab-icon {
+  width: 16px;
+  height: 16px;
+  object-fit: contain;
+  flex-shrink: 0;
+  display: block;
+}
+
+.cs-tab-text {
+  font-size: 12px;
+  font-weight: inherit;
+  color: inherit;
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.cs-tab-badge-new {
+  position: absolute;
+  top: -7px;
+  right: -3px;
+  background: #ff4d6d;
+  color: #ffffff;
+  font-size: 8.5px;
+  font-weight: 800;
+  padding: 1px 5px;
+  border-radius: 999px;
+  line-height: 12px;
+  letter-spacing: 0.2px;
+  text-transform: capitalize;
+  box-shadow: 0 1px 3px rgba(255, 77, 109, 0.4);
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* Sidebar Body */
+.cs-sidebar-body {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Number Input Card matching Image 1 */
+.cs-number-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 7px 10px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.cs-number-left {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cs-number-wa-icon {
+  width: 17px;
+  height: 17px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.cs-number-text {
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  white-space: nowrap;
+}
+
+.cs-number-add-btn {
+  border: none;
+  background: transparent;
+  color: #16a34a;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cs-number-add-btn:hover {
+  background: #f0fdf4;
+  color: #15803d;
+}
+
+.cs-status-pill {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.cs-status-pill.active {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+/* Sidebar Navigation Sections */
+.cs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cs-section-label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #64748b;
+  margin-bottom: 4px;
+}
+
+.cs-item-btn {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cs-item-btn:hover {
+  background: #f8fafc;
+}
+
+/* Selected item matches Image 1: uniform soft mint tint, no green left stripe */
+.cs-item-btn.active {
+  background: #eaf3ec;
+  border: 1px solid transparent;
+  border-radius: 8px;
+}
+
+.cs-item-check {
+  width: 17px;
+  height: 17px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 800;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.cs-item-check.completed {
+  background: #16a34a;
+  color: #ffffff;
+}
+
+.cs-item-check.pending {
+  background: #cbd5e1;
+  color: #ffffff;
+}
+
+.cs-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.cs-item-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cs-item-desc {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.3;
+}
+
+/* Right Main Content Area */
+.cs-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  box-sizing: border-box;
+  background: #ffffff;
+}
+
+.cs-top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 28px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #ffffff;
+}
+
+.cs-top-left {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cs-top-heading-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cs-top-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+}
+
+.cs-badge-status {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.cs-badge-status.completed {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.cs-badge-status.pending {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.cs-last-updated {
+  font-size: 12px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.cs-top-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.cs-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: none;
+  background: transparent;
+  color: #0284c7;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cs-link-btn:hover {
+  color: #0369a1;
+  text-decoration: underline;
+}
+
+/* Content Body */
+.cs-content-body {
+  padding: 28px;
+  width: 100%;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.cs-content-body:has(.cs-unconnected-hero-box),
+.cs-content-body.has-unconnected-hero {
+  background: #ffffff url('/bg.svg') no-repeat center center / cover;
+}
+
+/* Two-Column Layout (Matching Image 1 and Image 2) */
+.cs-two-col-layout {
+  display: flex;
+  gap: 36px;
+  align-items: flex-start;
+  width: 100%;
+  max-width: 1200px;
+  box-sizing: border-box;
+}
+
+.cs-left-content {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Messaging Limit 5-Segment Horizontal Track matching User Image */
+.cs-tier-track-wrapper {
+  width: 100%;
+  padding: 36px 4px 40px 4px;
+  box-sizing: border-box;
+  margin-bottom: 22px;
+  overflow-x: auto;
+  overflow-y: visible;
+}
+
+.cs-tier-track {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  min-width: 600px;
+  height: 110px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  position: relative;
+  box-sizing: border-box;
+}
+
+.cs-tier-col {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border-right: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: background 0.15s ease;
+  user-select: none;
+  box-sizing: border-box;
+}
+
+.cs-tier-col.first {
+  border-top-left-radius: 9px;
+  border-bottom-left-radius: 9px;
+}
+
+.cs-tier-col.last {
+  border-right: none;
+  border-top-right-radius: 9px;
+  border-bottom-right-radius: 9px;
+}
+
+.cs-tier-col:hover:not(.active) {
+  background: #f1f5f9;
+}
+
+.cs-tier-inactive-num {
+  font-size: 14px;
+  font-weight: 500;
+  color: #64748b;
+  transition: color 0.15s ease;
+}
+
+.cs-tier-col:hover .cs-tier-inactive-num {
+  color: #0f172a;
+}
+
+/* Elevated Active Card (pops out above and below track) */
+.cs-tier-col.active {
+  flex: 1.35;
+  border-right: none;
+  z-index: 5;
+  cursor: default;
+}
+
+.cs-tier-elevated-card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100% + 10px);
+  min-width: 180px;
+  max-width: 230px;
+  height: 172px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 16px 14px;
+  box-sizing: border-box;
+  text-align: center;
+}
+
+.cs-tier-current-tag {
+  background: #eaf7ee;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 10px;
+  border-radius: 999px;
+  margin-bottom: 8px;
+  line-height: 16px;
+  display: inline-block;
+  letter-spacing: 0.2px;
+}
+
+.cs-tier-active-num {
+  font-size: 22px;
+  font-weight: 800;
+  color: #0f172a;
+  line-height: 1.2;
+  margin-bottom: 6px;
+}
+
+.cs-tier-active-desc {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.35;
+  text-align: center;
+  max-width: 190px;
+  margin: 0;
+}
+
+/* Advancement Criteria Banner (Image 1) */
+.cs-criteria-banner {
+  background: #f0fdf4;
+  border: 1px solid #dcfce7;
+  border-radius: 6px;
+  padding: 20px 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cs-criteria-line {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.cs-criteria-link {
+  color: #16a34a;
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  display: inline-block;
+  margin-top: 2px;
+}
+
+/* Right Tools & Tips Panel (Image 1 & 2) */
+.cs-tools-panel {
+  width: 320px;
+  min-width: 320px;
+  max-width: 340px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cs-tools-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #0f172a;
+  margin-bottom: 4px;
+}
+
+.cs-info-icon {
+  font-size: 15px;
+  color: #64748b;
+  cursor: default;
+}
+
+.cs-tools-subtitle {
+  margin: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cs-tools-p {
+  margin: 0;
+  font-size: 12px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.cs-tools-bullets {
+  list-style: none;
+  padding: 0;
+  margin: 4px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cs-tools-bullets li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 12px;
+  color: #334155;
+  line-height: 1.45;
+}
+
+.cs-bullet-dot {
+  color: #16a34a;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.cs-bullet-green {
+  color: #16a34a;
+  font-size: 16px;
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.cs-inline-link {
+  color: #0284c7;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.cs-inline-link:hover {
+  text-decoration: underline;
+}
+
+/* White Panel for Quality Rating, Phone Status, Approval (Image 2) */
+.cs-white-panel {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.cs-qr-head-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.cs-qr-label {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cs-quality-pill {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.cs-quality-pill.green {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.cs-quality-pill.amber {
+  background: #fef3c7;
+  color: #b45309;
+}
+
+.cs-quality-pill.red {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.cs-quality-pill.grey {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* Live Channel Status additions */
+.cs-badge-status.failed {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.cs-badge-status.muted {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+.cs-info-icon[title] {
+  cursor: help;
+}
+
+.cs-keyval-key .cs-info-icon,
+.cs-last-updated .cs-info-icon,
+.cs-display-name-val .cs-info-icon {
+  font-size: 13px;
+  font-weight: 400;
+}
+
+.cs-refresh-link {
+  margin-left: 10px;
+  border: none;
+  background: transparent;
+  color: #0284c7;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+}
+
+.cs-refresh-link:hover:not(:disabled) {
+  text-decoration: underline;
+}
+
+.cs-refresh-link:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
+.cs-status-error {
+  display: block;
+  margin-top: 4px;
+  font-size: 12px;
+  color: #b45309;
+}
+
+.cs-limit-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 4px;
+}
+
+.cs-limit-summary-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #334155;
+}
+
+.cs-limit-summary-key {
+  font-weight: 600;
+  color: #475569;
+}
+
+.cs-limit-value {
+  font-size: 15px;
+  color: #0f172a;
+}
+
+.cs-tier-track.static .cs-tier-col {
+  cursor: default;
+}
+
+.cs-tier-track.static .cs-tier-col:hover:not(.active) {
+  background: transparent;
+}
+
+.cs-health-errors {
+  list-style: none;
+  padding: 0;
+  margin: 16px 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cs-health-error {
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 12.5px;
+  color: #7c2d12;
+  line-height: 1.45;
+}
+
+.cs-health-solution {
+  margin-top: 4px;
+  color: #9a3412;
+}
+
+.cs-text-warn {
+  color: #b91c1c;
+}
+
+.cs-qr-intro {
+  margin: 0 0 14px 0;
+  font-size: 13px;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.cs-qr-checklist {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 16px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.cs-qr-checklist li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  font-size: 13px;
+  color: #1e293b;
+  line-height: 1.4;
+}
+
+.cs-qr-restore-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+/* Key-Value Status Grid (Phone Number & Approval Status) */
+.cs-status-keyval-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 6px;
+}
+
+.cs-keyval-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #f1f5f9;
+  border-radius: 6px;
+}
+
+.cs-keyval-key {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.cs-keyval-val {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.cs-keyval-val code {
+  background: #e2e8f0;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: monospace;
+}
+
+.cs-verified-tick {
+  color: #16a34a;
+  font-size: 12.5px;
+  font-weight: 700;
+}
+
+/* Display Name Card */
+.cs-display-name-card {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 8px;
+  padding: 16px 20px;
+  margin-top: 12px;
+}
+
+.cs-display-name-val {
+  font-size: 18px;
+  font-weight: 800;
+  color: #166534;
+}
+
+/* Completed Card (Connect Account Tab) */
+.cs-completed-card {
+  position: relative;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #f0fdf4 100%);
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 60px 30px;
+  min-height: 340px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  overflow: hidden;
+}
+
+.cs-card-pattern {
+  position: absolute;
+  inset: 0;
+  background-image: 
+    radial-gradient(#24d06e 1px, transparent 1px),
+    linear-gradient(to right, rgba(36, 208, 110, 0.06) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(36, 208, 110, 0.06) 1px, transparent 1px);
+  background-size: 28px 28px;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.cs-completed-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+
+.cs-icon-circle-success {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 4px 14px rgba(36, 208, 110, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 16px;
+}
+
+.cs-completed-title {
+  margin: 0 0 10px 0;
+  font-size: 24px;
+  font-weight: 800;
+  color: #166534;
+  letter-spacing: -0.3px;
+}
+
+.cs-completed-text-1 {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.cs-completed-text-2 {
+  margin: 4px 0 18px 0;
+  font-size: 13px;
+  color: #475569;
+}
+
+.cs-account-details-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid #bbf7d0;
+  border-radius: 999px;
+  padding: 6px 16px;
+  font-size: 12.5px;
+  color: #166534;
+}
+
+/* Not Connected Greeting Card */
+.cs-not-connected-inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  max-width: 620px;
+}
+
+.cs-greeting-badge {
+  background: #dcfce7;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 800;
+  padding: 3px 10px;
+  border-radius: 999px;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.cs-greeting-title {
+  margin: 0 0 8px 0;
+  font-size: 26px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.cs-greeting-sub {
+  margin: 0 0 20px 0;
+  font-size: 13.5px;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.cs-connect-action-box {
+  margin-bottom: 24px;
+}
+
+.cs-steps-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 14px;
+  width: 100%;
+}
+
+.cs-step-card {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 6px;
+}
+
+.cs-step-num {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #24d06e;
+  color: #ffffff;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cs-step-card strong {
+  font-size: 12.5px;
+  color: #0f172a;
+}
+
+.cs-step-card small {
+  font-size: 11px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.cs-connect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #24d06e;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 18px;
+  font-size: 13.5px;
+  font-weight: 700;
+  cursor: pointer;
+  width: fit-content;
+  transition: background 0.15s ease;
+  margin-top: 12px;
+}
+
+.cs-connect-btn:hover {
+  background: #1eb861;
+}
+
+/* Unconnected Channels Sidebar & Main Layout (Image 3) */
+.cs-channels-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.cs-channel-row-btn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 11px 12px;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+  font-family: inherit;
+}
+
+.cs-channel-row-btn:hover {
+  background: #f8fafc;
+}
+
+.cs-channel-row-btn.active {
+  background: #eaf3ec;
+  border-color: transparent;
+}
+
+.cs-channel-row-left {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.cs-channel-row-icon {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.cs-channel-row-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.cs-channel-row-btn.active .cs-channel-row-name {
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cs-channel-row-badge {
+  background: #f1f5f9;
+  color: #64748b;
+  font-size: 11.5px;
+  font-weight: 600;
+  padding: 2.5px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* Unconnected Top Bar */
+.cs-badge-not-started {
+  background: #e0f2fe;
+  color: #0284c7;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 12px;
+  border-radius: 999px;
+  display: inline-block;
+  line-height: 16px;
+}
+
+.cs-trialling-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 999px;
+  padding: 7px 16px;
+  font-size: 12.5px;
+  color: #475569;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
+}
+
+.cs-trialling-icon {
+  color: #64748b;
+  font-size: 14.5px;
+  line-height: 1;
+}
+
+/* Unconnected Hero & Benefits Box (Image 3) */
+.cs-unconnected-hero-box {
+  max-width: 620px;
+  width: 100%;
+  margin: 24px auto 40px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 16px 20px 36px 20px;
+  box-sizing: border-box;
+}
+
+.cs-unconnected-logos-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  margin-top: 6px;
+}
+
+.cs-unconnected-logo-box {
+  width: auto;
+  height: auto;
+  border-radius: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: none !important;
+  border: none !important;
+  background: transparent !important;
+  padding: 0 !important;
+}
+
+.cs-unconnected-logo-box.wa,
+.cs-unconnected-logo-box.meta,
+.cs-unconnected-logo-box.ig,
+.cs-unconnected-logo-box.ms {
+  background: transparent !important;
+  border-color: transparent !important;
+}
+
+.cs-unconnected-logo-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  display: block;
+}
+
+.cs-unconnected-logo-img.cs-messenger-logo {
+  width: 34px;
+  height: 34px;
+}
+
+.cs-unconnected-arrow {
+  font-size: 24px;
+  color: #94a3b8;
+  font-weight: 300;
+  line-height: 1;
+  margin: 0 4px;
+  user-select: none;
+}
+
+.cs-unconnected-headline {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0f172a;
+  margin: 0 0 10px 0;
+  line-height: 1.25;
+  letter-spacing: -0.5px;
+  text-align: center;
+}
+
+.cs-unconnected-subline {
+  font-size: 15px;
+  font-weight: 500;
+  color: #334155;
+  margin: 0 0 28px 0;
+  line-height: 1.5;
+  text-align: center;
+  max-width: 560px;
+}
+
+.cs-unconnected-benefits-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.cs-unconnected-benefits-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0 0 16px 0;
+  text-align: center;
+}
+
+.cs-unconnected-benefits-list {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 32px auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: fit-content;
+}
+
+.cs-unconnected-benefit-item {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #334155;
+  text-align: left;
+}
+
+.cs-benefit-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  color: #16a34a;
+}
+
+.cs-unconnected-cta-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+}
+
+.cs-connect-channel-btn {
+  background: #24d06e;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(36, 208, 110, 0.35);
+  font-family: inherit;
+}
+
+.cs-connect-channel-btn:hover {
+  background: #1eb861;
+  transform: translateY(-1px);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1100px) {
+  .cs-two-col-layout {
+    flex-direction: column;
+  }
+  .cs-tools-panel {
+    width: 100%;
+    max-width: 100%;
+  }
+  .cs-limit-cards-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* Connect Channel Modals */
+.cs-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  animation: csFadeIn 0.15s ease-out;
+}
+
+.cs-modal-card {
+  background: #ffffff;
+  border-radius: 12px;
+  width: 100%;
+  max-width: 440px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  overflow: hidden;
+  animation: csScaleUp 0.18s ease-out;
+}
+
+.cs-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cs-modal-close {
+  background: transparent;
+  border: none;
+  font-size: 16px;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+}
+
+.cs-modal-close:hover {
+  background: #f1f5f9;
+  color: #334155;
+}
+
+.cs-modal-body {
+  padding: 20px;
+}
+
+.cs-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px 20px;
+  background: #f8fafc;
+  border-top: 1px solid #f1f5f9;
+}
+
+.cs-modal-btn {
+  padding: 9px 18px;
+  border-radius: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.cs-modal-btn.cancel {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  color: #475569;
+}
+
+.cs-modal-btn.cancel:hover {
+  background: #f1f5f9;
+}
+
+.cs-modal-btn.confirm:hover {
+  opacity: 0.92;
+  transform: translateY(-1px);
+}
+
+.cs-channel-row-badge.connected {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.cs-disconnect-btn {
+  background: #ffffff;
+  border: 1px solid #ef4444;
+  color: #ef4444;
+  padding: 8px 18px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.15s ease;
+}
+
+.cs-disconnect-btn:hover {
+  background: #fef2f2;
+}
+
+@keyframes csFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes csScaleUp {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+/* "Pending — activate this number" (ActivateNumberPanel.tsx) */
+.cs-activate-card {
+  background: #ffffff;
+  border: 1px solid #fde68a;
+  border-left: 4px solid #f59e0b;
+  border-radius: 12px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+  max-width: 760px;
+}
+
+.cs-activate-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cs-activate-title {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 800;
+  color: #0f172a;
+}
+
+.cs-activate-text,
+.cs-activate-help {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #334155;
+}
+
+.cs-activate-help {
+  font-size: 12.5px;
+  color: #475569;
+}
+
+.cs-activate-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: #92400e;
+  background: #fffbeb;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.cs-activate-pin {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.cs-activate-pin-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.cs-activate-choice {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  color: #1e293b;
+}
+
+.cs-activate-choice label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+}
+
+.cs-activate-input-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.cs-activate-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #475569;
+}
+
+.cs-activate-input {
+  width: 140px;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  background: #ffffff;
+  font-size: 16px;
+  letter-spacing: 4px;
+  font-family: monospace;
+  color: #0f172a;
+}
+
+.cs-activate-input:focus {
+  outline: none;
+  border-color: #0284c7;
+  box-shadow: 0 0 0 3px rgba(2, 132, 199, 0.15);
+}
+
+.cs-activate-hint {
+  font-size: 12px;
+  color: #b45309;
+}
+
+.cs-activate-error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: #7f1d1d;
+  line-height: 1.5;
+}
+
+.cs-activate-error p {
+  margin: 4px 0 0 0;
+}
+
+.cs-activate-meta {
+  color: #991b1b;
+  font-size: 12px;
+  word-break: break-word;
+}
+
+.cs-activate-ok {
+  margin: 0;
+  font-size: 13px;
+  color: #166534;
+  background: #f0fdf4;
+  border: 1px solid #bbf7d0;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+
+.cs-activate-actions {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.cs-activate-btn {
+  border: none;
+  border-radius: 8px;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  padding: 10px 20px;
+  cursor: pointer;
+}
+
+.cs-activate-btn:hover:not(:disabled) {
+  background: #15803d;
+}
+
+.cs-activate-btn:disabled {
+  background: #94a3b8;
+  cursor: default;
+}
+
+.cs-activate-limit {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cs-number-status-pill {
+  margin-left: 8px;
+  font-size: 10.5px;
+  padding: 2px 8px;
+}
+
+/* ---- Messenger / Instagram (Facebook Login for Business) ---- */
+.cs-connect-channel-btn:disabled {
+  opacity: 0.7;
+  cursor: progress;
+  transform: none;
+}
+.cs-connect-channel-btn.not-configured {
+  background: #94a3b8;
+}
+.cs-connect-channel-btn.not-configured:hover {
+  background: #8391a7;
+}
+.cs-meta-not-configured {
+  margin: 12px 0 0;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #9a3412;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.cs-meta-note {
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.cs-meta-revoked {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0 0 16px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  color: #991b1b;
+  font-size: 12.5px;
+  line-height: 1.5;
+  text-align: left;
+}
+.cs-meta-picker {
+  max-width: 520px;
+  width: 100%;
+}
+.cs-meta-intro,
+.cs-meta-empty {
+  margin: 0 0 12px;
+  color: #475569;
+  font-size: 13px;
+  line-height: 1.5;
+}
+.cs-meta-pages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+.cs-meta-page {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #ffffff;
+}
+.cs-meta-page.selected {
+  border-color: #0084ff;
+  background: #f0f7ff;
+}
+.cs-meta-page-pic {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+  flex: none;
+}
+.cs-meta-page-pic.blank {
+  background: #e2e8f0;
+}
+.cs-meta-page-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.cs-meta-page-text strong {
+  font-size: 13.5px;
+  color: #0f172a;
+}
+.cs-meta-page-text small {
+  font-size: 12px;
+  color: #64748b;
+}
+.cs-meta-channels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-top: 14px;
+}
+.cs-meta-channel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #0f172a;
+  cursor: pointer;
+}
+.cs-meta-channel img {
+  width: 18px;
+  height: 18px;
+}
+.cs-meta-channel.disabled {
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+.cs-meta-channel small {
+  color: #94a3b8;
+}
+
+
+
+/* Page picker (Instagram via Facebook): the chosen Page has no linked Instagram account */
+.cs-meta-no-ig-help {
+  margin-top: 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #fff7ed;
+  border: 1px solid #fed7aa;
+  color: #7c2d12;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.cs-meta-no-ig-help strong {
+  display: block;
+  font-size: 13px;
+  color: #7c2d12;
+  margin-bottom: 4px;
+}
+.cs-meta-no-ig-help ol {
+  margin: 0 0 10px;
+  padding-left: 18px;
+}
+.cs-meta-no-ig-help li + li {
+  margin-top: 3px;
+}
+.cs-meta-no-ig-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+}
+.cs-meta-try-again {
+  background: #0084ff;
+  color: #ffffff;
+  border: none;
+  padding: 7px 14px;
+}
+.cs-meta-try-again:disabled,
+.cs-meta-use-ig:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.cs-meta-use-ig {
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #c13584;
+  cursor: pointer;
+  font-family: inherit;
+}
+.cs-meta-use-ig:hover:not(:disabled) {
+  color: #962fbf;
+}
