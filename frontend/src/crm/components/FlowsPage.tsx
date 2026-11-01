@@ -1250,9 +1250,7 @@ export function FlowsPage({
   if (!canUseFlows) {
     return (
       <div className="page">
-        <header className="page-head">
-          <h2>Automation</h2>
-        </header>
+        {/* The top bar already says "Automation". */}
         <JourneyManager api={api} templates={templates} registerDirty={registerDirty} onNavigate={onNavigate} />
       </div>
     );
@@ -1261,7 +1259,6 @@ export function FlowsPage({
   return (
     <div className="page">
       <header className="page-head">
-        <h2>Automation</h2>
         <div className="flow-tabs">
           <button className={`flow-tab${tab === 'journeys' ? ' on' : ''}`} onClick={() => switchTab('journeys')}>
             <span className="material-icons">hub</span> Journeys

@@ -26,11 +26,18 @@ import type { AtRule, Container, Declaration, Plugin, Root, Rule } from 'postcss
 
 const DARK = ':where(html[data-theme="dark"])';
 
-/** Which files get dark copies. */
-function themed(file: string | undefined): boolean {
+/**
+ * Which rules get dark copies: everything in the CRM's stylesheets, plus the
+ * pricing / plan-card rules of the site stylesheet, which the CRM's plan picker
+ * and Billing page reuse. (The landing page never sets data-theme, so those
+ * copies never match there.)
+ */
+const SITE_IN_CRM = /\.lp-(?:plan|pricing|billing|cycle)/;
+function themed(file: string | undefined, selector: string): boolean {
   if (!file) return false;
   const f = file.replace(/\\/g, '/');
   if (f.endsWith('/src/crm/theme/dark.css')) return false;
+  if (f.endsWith('/src/site/site.css')) return SITE_IN_CRM.test(selector);
   return f.includes('/src/crm/') || f.endsWith('/src/styles/global.css');
 }
 
@@ -285,7 +292,7 @@ export default function crmDarkTheme(): Plugin {
     Once(root: Root) {
       const work: Array<[Rule, Out[]]> = [];
       root.walkRules((rule) => {
-        if (!themed(rule.source?.input.file ?? root.source?.input.file)) return;
+        if (!themed(rule.source?.input.file ?? root.source?.input.file, rule.selector)) return;
         if (rule.selector.includes('data-theme') || insideKeyframes(rule)) return;
         const outs: Out[] = [];
         rule.each((n) => {

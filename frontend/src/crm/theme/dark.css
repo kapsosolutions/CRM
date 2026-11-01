@@ -118,6 +118,47 @@ html[data-theme='dark'] {
   color: #38bdf8;
 }
 
+/* ---- icons drawn with a fixed dark colour (fill="#000000" etc. in the TSX) ----
+   CSS outranks SVG presentation attributes, so these turn them light. */
+:root[data-theme='dark'] [fill='#000' i],
+:root[data-theme='dark'] [fill='#000000' i],
+:root[data-theme='dark'] [fill='black' i],
+:root[data-theme='dark'] [fill='#0f172a' i],
+:root[data-theme='dark'] [fill='#111b21' i],
+:root[data-theme='dark'] [fill='#353735' i] {
+  fill: #e9ecef;
+}
+:root[data-theme='dark'] [stroke='#000' i],
+:root[data-theme='dark'] [stroke='#000000' i],
+:root[data-theme='dark'] [stroke='black' i],
+:root[data-theme='dark'] [stroke='#0f172a' i],
+:root[data-theme='dark'] [stroke='#1c2b33' i],
+:root[data-theme='dark'] [stroke='#353735' i] {
+  stroke: #e9ecef;
+}
+:root[data-theme='dark'] [stroke='#334155' i],
+:root[data-theme='dark'] [stroke='#374151' i] {
+  stroke: #c3c9cf;
+}
+:root[data-theme='dark'] [stroke='#667781' i],
+:root[data-theme='dark'] [stroke='#6b7280' i] {
+  stroke: #9aa2ab;
+}
+
+/* ---- plan cards (plans dialog, Billing): the buttons and the "Best Value"
+   badge keep their bright fills (set inline per plan), so their text stays dark. */
+:root[data-theme='dark'] .lp-plan-try-btn,
+:root[data-theme='dark'] .lp-plan-try-btn:hover {
+  color: #0b0d10;
+  border-color: #000000;
+}
+:root[data-theme='dark'] button.lp-plan-try-btn:disabled {
+  opacity: 0.8;
+}
+:root[data-theme='dark'] .lp-plan-card-badge:not(.is-current) {
+  color: #0b0d10;
+}
+
 /* ---- chat thread: WhatsApp's dark wallpaper colour ---- */
 :root[data-theme='dark'] .thread.has-active-chat {
   background-color: var(--wa-chat-bg);

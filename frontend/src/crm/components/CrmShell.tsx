@@ -836,7 +836,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     members: vertical.memberLabel,
     orders: vertical.ordersLabel,
     categories: vertical.categoryPlural,
-    flows: canUseFlows ? 'Automation' : 'Journeys',
+    flows: 'Automation',
   };
 
   // Registered but WhatsApp not connected yet: every page is there, with a bar
