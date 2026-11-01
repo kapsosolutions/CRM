@@ -7513,51 +7513,44 @@ a.msg-btn {
   border-color: var(--k-danger);
 }
 /* Dark WhatsApp-catalog mobile mock on the product details page */
+/* The same white phone as the template preview (.tc-phone), showing
+   WhatsApp's light catalog "Details" screen. */
 .pd-phone {
-  width: 300px;
+  width: 320px;
   max-width: 100%;
   margin: 0 auto;
-  background: #0b0f12;
-  color: #e9edef;
-  border: 9px solid #0f172a;
-  border-radius: 34px;
+  background: #ffffff;
+  color: #111b21;
+  border: 7px solid #ffffff;
+  border-radius: 38px;
+  outline: 1px solid #e2e8f0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: var(--wa-shadow-lg);
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
   /* Details page: tall, but never taller than the viewport allows. */
   height: min(720px, calc(100vh - 170px));
   min-height: 520px;
-}
-.pd-phone-bar {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 6px 16px;
-  font-size: 11px;
-  color: #fff;
-}
-.pd-phone-bar-ic {
-  display: inline-flex;
-  gap: 4px;
-}
-.pd-phone-bar-ic .material-icons {
-  font-size: 13px;
 }
 .pd-phone-head {
   display: flex;
   align-items: center;
   gap: 10px;
   padding: 6px 12px 10px;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
 }
 .pd-phone-head strong {
   flex: 1;
   text-align: center;
   font-size: 15px;
   font-weight: 600;
+  color: #0f172a;
 }
 .pd-phone-head .material-icons {
   font-size: 19px;
+  color: #475569;
 }
 .pd-phone-head-ic {
   display: inline-flex;
@@ -7593,18 +7586,19 @@ a.msg-btn {
 .pd-phone-title {
   font-size: 17px;
   font-weight: 700;
-  color: #fff;
+  color: #111b21;
   margin-bottom: 4px;
 }
 .pd-phone-price {
   font-size: 14px;
   font-weight: 600;
+  color: #111b21;
   margin-bottom: 14px;
 }
 .pd-phone-lbl {
   font-size: 13px;
   font-weight: 600;
-  color: #e9edef;
+  color: #111b21;
   margin: 10px 0 8px;
 }
 .pd-phone-chips {
@@ -7613,11 +7607,11 @@ a.msg-btn {
   gap: 8px;
 }
 .pd-phone-chip {
-  border: 1px solid #3a434a;
+  border: 1px solid #d1d7db;
   border-radius: 999px;
   padding: 6px 16px;
   font-size: 13px;
-  color: #cfd6da;
+  color: #3b4a54;
   background: transparent;
   font-family: inherit;
   cursor: default;
@@ -7628,12 +7622,12 @@ button.pd-phone-chip {
   cursor: pointer;
 }
 button.pd-phone-chip:hover {
-  border-color: #1dbf73;
+  border-color: #25d366;
 }
 .pd-phone-chip.on {
-  background: #0a4b2e;
-  border-color: #0a4b2e;
-  color: #fff;
+  background: #e7fce3;
+  border-color: #008069;
+  color: #008069;
   font-weight: 600;
 }
 /* Sale price the way Meta renders a catalog item's sale_price. */
@@ -7646,12 +7640,12 @@ button.pd-phone-chip:hover {
 .pd-phone-sale {
   font-size: 15px;
   font-weight: 700;
-  color: #fff;
+  color: #111b21;
 }
 .pd-phone-orig {
   font-size: 13px;
   font-weight: 400;
-  color: #8a949a;
+  color: #8696a0;
   text-decoration: line-through;
 }
 .pd-phone-orig.sm {
@@ -7660,13 +7654,13 @@ button.pd-phone-chip:hover {
 .pd-phone-off {
   font-size: 11px;
   font-weight: 700;
-  color: #1dbf73;
-  background: rgba(29, 191, 115, 0.14);
+  color: #008069;
+  background: rgba(0, 128, 105, 0.1);
   border-radius: 999px;
   padding: 2px 8px;
 }
 .pd-phone-avail-sale {
-  color: #e9edef;
+  color: #111b21;
   font-weight: 600;
 }
 
@@ -7790,9 +7784,9 @@ button.pd-phone-chip:hover {
 /* An option the current selection doesn't come in: dimmed + dashed, but still
    tappable — tapping it switches to a combination that has it (WhatsApp-style). */
 .pd-phone-chip.na:not(.on) {
-  color: #6b757b;
+  color: #a1aab0;
   border-style: dashed;
-  border-color: #2f383e;
+  border-color: #d1d7db;
 }
 /* The carousel fills the hero; the empty-state icon stays centred. */
 .pd-phone-hero > :not(.material-icons) {
@@ -7814,40 +7808,40 @@ button.pd-phone-chip:hover {
 .pd-phone-avail {
   margin-top: 16px;
   font-size: 12.5px;
-  color: #aeb6bb;
+  color: #54656f;
   line-height: 1.6;
 }
 .pd-phone-flavour {
   margin-top: 12px;
   font-size: 12.5px;
-  color: #aeb6bb;
+  color: #54656f;
 }
 .pd-phone-desc {
   margin-top: 10px;
   font-size: 12.5px;
-  color: #c7cdd1;
+  color: #3b4a54;
   line-height: 1.5;
 }
 .pd-phone-msgbtn {
   margin-top: 16px;
-  background: #202c33;
+  background: #f0f2f5;
   border-radius: 10px;
   padding: 11px;
   text-align: center;
   font-size: 13px;
   font-weight: 600;
-  color: #e9edef;
+  color: #111b21;
 }
 .pd-phone-cta {
-  background: #1dbf73;
-  color: #053;
+  background: #1daa61;
+  color: #ffffff;
   text-align: center;
   font-weight: 700;
   font-size: 14px;
   padding: 13px;
   margin: 10px;
   border-radius: 999px;
-  color: #04371f;
+  flex-shrink: 0;
 }
 
 /* ---- Product editor ---- */
