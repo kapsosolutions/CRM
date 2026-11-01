@@ -2210,3 +2210,133 @@ body.pa-dark .toast-close {
   height: 18px;
   display: block;
 }
+
+/* =============================================================================
+   Meta Tech Partner page (TechPartnerPage.tsx)
+   ========================================================================== */
+.tp-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 193, 7, 0.3);
+  border-left: 4px solid #ffc107;
+  border-radius: var(--radius);
+  background: rgba(255, 193, 7, 0.07);
+  color: var(--ink-2);
+  font-size: 13px;
+}
+.tp-summary.ok {
+  border-color: rgba(36, 208, 110, 0.3);
+  border-left-color: #15ca20;
+  background: rgba(36, 208, 110, 0.08);
+}
+.tp-summary strong {
+  color: #fff;
+  font-size: 14.5px;
+}
+.tp-summary a {
+  color: #6cb8ff;
+}
+.tp-reqs {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 20px;
+}
+.tp-req .pd-box-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.tp-value {
+  margin: 0;
+  color: var(--muted);
+  font-size: 15px;
+}
+.tp-value strong {
+  color: #fff;
+  font-size: 30px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+}
+.tp-bar {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+.tp-bar > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #ff9a1f, #ffc107);
+  transition: width 0.4s ease;
+}
+.tp-req.met .tp-bar > span {
+  background: linear-gradient(90deg, #12a51b, #2ee66b);
+}
+.tp-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+.tp-chips,
+.tp-quality {
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.tp-chip {
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 3px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tp-chip:hover {
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #fff;
+}
+.tp-quality li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+.tp-quality strong {
+  color: #fff;
+}
+.tp-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.tp-legend {
+  color: var(--muted);
+  font-size: 12px;
+}
+.tp-skel-bar {
+  margin: 4px 0;
+}
+@media (max-width: 1024px) {
+  .tp-reqs {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.tp-stale {
+  margin-left: 6px;
+  color: var(--muted);
+  font-size: 11px;
+}

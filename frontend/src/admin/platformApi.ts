@@ -217,6 +217,48 @@ export interface DemoCounts {
   all: number;
 }
 
+/** GET /api/businesses/stats/tech-partner (backend services/techPartner.js). */
+export type QualityRating = 'GREEN' | 'YELLOW' | 'RED' | 'UNKNOWN';
+export interface TechPartnerCheck {
+  key: 'messages' | 'activeClients' | 'quality';
+  label: string;
+  /** null: nothing to measure yet (no rated number). */
+  value: number | null;
+  target: number;
+  met: boolean;
+}
+export interface TechPartnerNumber {
+  businessId: string;
+  name: string;
+  active: boolean;
+  displayPhoneNumber: string;
+  qualityRating: QualityRating;
+  /** Read from Meta just now (false: the stored snapshot). */
+  qualityLive: boolean;
+  status: string;
+  limit: string;
+  error: string;
+  messages7d: number;
+  activeClient: boolean;
+}
+export interface TechPartnerDay {
+  date: string;
+  sent: number;
+  received: number;
+  total: number;
+}
+export interface TechPartnerStats {
+  generatedAt: string;
+  timezone: string;
+  targets: { messagesPerDay: number; activeClients: number; qualityPct: number };
+  eligible: boolean;
+  metCount: number;
+  checks: TechPartnerCheck[];
+  messages: { daily: TechPartnerDay[]; today: TechPartnerDay; total7: number; avgPerDay: number; shortBy7: number };
+  activeClients: { count: number; list: { businessId: string; name: string; sent30: number; lastSentAt: string | null }[] };
+  quality: { pct: number | null; rated: number; counts: Record<QualityRating, number>; numbers: TechPartnerNumber[] };
+}
+
 export interface BusinessStats {
   messages: { total: number; last24h: number; inbound: number; outbound: number };
   contacts: number;
@@ -305,6 +347,14 @@ export const platformApi = {
   /** Revenue, messages, sign-ups and plans for the admin Dashboard. */
   dashboardStats() {
     return req<{ success: boolean; data: DashboardStats }>('/api/businesses/stats/dashboard', {}, adminToken());
+  },
+  /** `refresh`: ask Meta again for each number's quality rating. */
+  techPartnerStats(refresh = false) {
+    return req<{ success: boolean; data: TechPartnerStats }>(
+      `/api/businesses/stats/tech-partner${refresh ? '?refresh=1' : ''}`,
+      {},
+      adminToken(),
+    );
   },
   businessStats(id: string) {
     return req<{ success: boolean; data: BusinessStats }>(`/api/businesses/${id}/stats`, {}, adminToken());

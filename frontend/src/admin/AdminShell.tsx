@@ -12,14 +12,15 @@ import { BusinessesPage } from './BusinessesPage';
 import { BusinessDetailPage } from './BusinessDetailPage';
 import { FreeTierPage } from './FreeTierPage';
 import { DemoRequestsPage } from './DemoRequestsPage';
+import { TechPartnerPage } from './TechPartnerPage';
 import { platformApi } from './platformApi';
 import {
-  BellIcon, CalendarIcon, CollapseIcon, DashboardIcon, GlobeIcon, LogoutIcon, MenuIcon, RefreshIcon, SearchIcon, StoreIcon, TagIcon,
+  BellIcon, CalendarIcon, CheckCircleIcon, CollapseIcon, DashboardIcon, GlobeIcon, LogoutIcon, MenuIcon, RefreshIcon, SearchIcon, StoreIcon, TagIcon,
 } from './AdminIcons';
 import { useLockWindowScroll } from '../crm/useLockWindowScroll';
 import { useBackHandler } from '../crm/useBackHandler';
 
-export type AdminView = 'dashboard' | 'businesses' | 'demos' | 'freeTier';
+export type AdminView = 'dashboard' | 'businesses' | 'demos' | 'freeTier' | 'techPartner';
 
 // Plans are bought in the CRM (Razorpay); there are no plan requests to handle.
 const GROUPS: { label?: string; items: { key: AdminView; label: string; icon: ReactNode }[] }[] = [
@@ -32,6 +33,7 @@ const GROUPS: { label?: string; items: { key: AdminView; label: string; icon: Re
     ],
   },
   { label: 'Sales', items: [{ key: 'demos', label: 'Demo Requests', icon: <CalendarIcon /> }] },
+  { label: 'Meta', items: [{ key: 'techPartner', label: 'Tech Partner', icon: <CheckCircleIcon /> }] },
 ];
 
 const COLLAPSED_KEY = 'pa_sidebar_collapsed';
@@ -233,6 +235,7 @@ export function AdminShell({ onLogout }: { onLogout: () => void }) {
             <BusinessDetailPage id={detailId} onBack={() => setDetailId(null)} />
           )}
           {view === 'demos' && <DemoRequestsPage />}
+          {view === 'techPartner' && <TechPartnerPage onOpenBusiness={openBusiness} />}
           {view === 'freeTier' && !detailId && <FreeTierPage onOpen={openTrial} />}
           {view === 'freeTier' && detailId && (
             <BusinessDetailPage id={detailId} onBack={() => setDetailId(null)} />

@@ -29,6 +29,7 @@ import { grantPlan, BillingError } from '../services/subscriptions.js';
 import { forgetPlan } from '../services/planGate.js';
 import { VERTICALS, DEFAULT_VERTICAL, verticalConfig } from '../services/verticals.js';
 import { dashboardStats } from '../services/platformDashboard.js';
+import { techPartnerStats } from '../services/techPartner.js';
 
 const pickCategory = (c) => (VERTICALS[String(c || '').trim()] ? String(c).trim() : DEFAULT_VERTICAL);
 
@@ -169,6 +170,19 @@ router.get('/stats/dashboard', async (_req, res) => {
   } catch (err) {
     logger.error('dashboard stats failed', { error: err.message });
     res.status(500).json({ success: false, message: 'Could not load the dashboard. Please try again.' });
+  }
+});
+
+// ---------- Meta Tech Partner eligibility (admin "Tech Partner" page) ----------
+// ?refresh=1 asks Meta again for each number's quality rating (otherwise the
+// 5-minute Channel Status cache is used).
+router.get('/stats/tech-partner', async (req, res) => {
+  try {
+    const refresh = req.query.refresh === '1';
+    res.json({ success: true, data: await techPartnerStats(new Date(), { refresh }) });
+  } catch (err) {
+    logger.error('tech partner stats failed', { error: err.message });
+    res.status(500).json({ success: false, message: 'Could not load the Tech Partner figures. Please try again.' });
   }
 });
 
