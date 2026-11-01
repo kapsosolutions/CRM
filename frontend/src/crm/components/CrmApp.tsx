@@ -883,6 +883,26 @@ export function CrmApp({
   }
 
 
+  // Replies saved before the server built quotes still carry Meta's
+  // `context.id`: quote the message it points to, when it's in this chat.
+  const shownMessages = useMemo(() => {
+    const byMetaId = new Map<string, ChatMessage>();
+    for (const m of messages) if (m.metaMessageId) byMetaId.set(m.metaMessageId, m);
+    return messages.map((m) => {
+      if (m.direction !== 'in' || m.raw?.replyTo) return m;
+      const ctxId = m.raw?.context?.id || m.raw?.meta?.context?.id;
+      const quoted = ctxId ? byMetaId.get(ctxId) : undefined;
+      if (!quoted) return m;
+      return {
+        ...m,
+        raw: {
+          ...m.raw,
+          replyTo: { id: quoted._id, author: quoted.direction === 'out' ? 'You' : activeName, preview: previewOf(quoted) },
+        },
+      };
+    });
+  }, [messages, activeName]);
+
   const activeChat = activePhone ? chats.find((c) => c.phone === activePhone) || null : null;
   // Messenger / Instagram: replies only, no WhatsApp templates, Flows, catalog or payments.
   const metaChat = isMetaChannelChat(activeChat);
@@ -1063,11 +1083,11 @@ export function CrmApp({
                   <span>No messages in this chat yet. Start the conversation below.</span>
                 </div>
               )}
-              {messages.map((m, i) => {
+              {shownMessages.map((m, i) => {
                 // WhatsApp-style day separator ("Today", "Yesterday", "Tuesday",
                 // "20/9/2026") whenever the calendar day changes.
                 const day = dayKey(m.createdAt);
-                const newDay = !!day && day !== dayKey(messages[i - 1]?.createdAt);
+                const newDay = !!day && day !== dayKey(shownMessages[i - 1]?.createdAt);
                 return (
                   <Fragment key={m._id}>
                     {newDay && (

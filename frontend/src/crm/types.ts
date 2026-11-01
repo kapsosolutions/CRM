@@ -2064,6 +2064,10 @@ export interface ChatMessage {
     template?: RenderedTemplate;
     // Raw Meta payload, kept for messages logged before `form` existed.
     interactive?: { nfm_reply?: { response_json?: string } };
+    /** Meta's reply context on an inbound message (which message it answers). */
+    context?: { id?: string; from?: string };
+    /** Meta's raw message, when the media was re-hosted (`raw.meta.context`). */
+    meta?: { context?: { id?: string; from?: string } };
   };
 }
 
