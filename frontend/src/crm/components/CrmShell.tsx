@@ -923,6 +923,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                 onUnreadChange={setUnreadChats}
                 needsConnect={needsConnect}
                 businessName={business?.name || (business?.ownerFirstName ? `${business.ownerFirstName} ${business.ownerLastName || ''}`.trim() : '')}
+                businessAvatar={business?.profilePicture || business?.avatarUrl || business?.meta?.profilePictureUrl || ''}
                 onConnectClick={() => navigate('channel-status')}
                 onOpenTemplatesPage={() => navigate('templates')}
                 onOpenTemplateCreate={handleOpenTemplateCreate}

@@ -24,6 +24,7 @@ import {
   jumboEmojiCount,
 } from '../utils';
 import { ReactionPicker } from './ReactionPicker';
+import { ReactionDetails, type ReactionPerson } from './ReactionDetails';
 import { LocationMap } from './LocationMap';
 
 export function MsgReplySvg({ width = 18, height = 18 }: { width?: number; height?: number }) {
@@ -146,6 +147,8 @@ interface Props {
   onViewMedia: (media: { url: string; pdf: boolean; name?: string }) => void;
   /** Re-send a message that failed to go out (only offered when provided). */
   onRetry?: (m: ChatMessage) => void;
+  /** Who is who in the reactions panel: the customer, and the business ("You"). */
+  people?: { customer: ReactionPerson; you: ReactionPerson };
 }
 
 export function MessageItem({
@@ -159,7 +162,10 @@ export function MessageItem({
   onJumpTo,
   onViewMedia,
   onRetry,
+  people,
 }: Props) {
+  // The reactions panel ("2 reactions"), anchored to the chip that opened it.
+  const [whoAnchor, setWhoAnchor] = useState<HTMLElement | null>(null);
   const [mediaFailed, setMediaFailed] = useState(false);
   const [retrying, setRetrying] = useState(false);
   const md = mediaOf(m);
@@ -200,14 +206,17 @@ export function MessageItem({
   // both the customer and the business reacted ("😂 ❤️ 2").
   const reactions = reactionsOf(m);
   const reactionChip = reactions.length ? (
-    <span
+    <button
+      type="button"
       className="reaction-chip"
+      onClick={(e) => setWhoAnchor(whoAnchor ? null : e.currentTarget)}
+      aria-label={`${reactions.length} reaction${reactions.length === 1 ? '' : 's'}: see who reacted`}
       title={reactions.map((r) => (r.by === 'you' ? `You: ${r.emoji}` : r.by === 'customer' ? `Customer: ${r.emoji}` : r.emoji)).join(' · ')}
       data-testid="reaction-chip"
     >
       {[...new Set(reactions.map((r) => r.emoji))].join(' ')}
       {reactions.length > 1 && <span className="reaction-count">{reactions.length}</span>}
-    </span>
+    </button>
   ) : null;
 
   // Only emoji (1–3) and nothing else: shown large without a bubble, like WhatsApp.
@@ -602,6 +611,18 @@ export function MessageItem({
               <MsgEmojiSvg width={18} height={18} />
             </button>
           </div>
+        )}
+
+        {whoAnchor && reactions.length > 0 && (
+          <ReactionDetails
+            anchor={whoAnchor}
+            reactions={reactions}
+            customer={people?.customer || { name: m.name || `+${m.phone}` }}
+            you={people?.you || { name: 'You' }}
+            side={m.direction === 'out' ? 'out' : 'in'}
+            onRemove={() => onReact(m, '')}
+            onClose={() => setWhoAnchor(null)}
+          />
         )}
 
         {reacting && (

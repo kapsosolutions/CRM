@@ -93,6 +93,8 @@ interface Props {
   onUnreadChange?: (chatsWithUnread: number) => void;
   needsConnect?: boolean;
   businessName?: string;
+  /** The business's profile photo, for "You" in the reactions panel. */
+  businessAvatar?: string;
   onConnectClick?: () => void;
   onOpenTemplatesPage?: () => void;
   onOpenTemplateCreate?: () => void;
@@ -100,7 +102,7 @@ interface Props {
 
 export function CrmApp({
   config, initialPhone = null, openRequest = null, demo = false, businessId,
-  visible = true, onUnreadChange, needsConnect = false, businessName: _businessName = '', onConnectClick,
+  visible = true, onUnreadChange, needsConnect = false, businessName = '', businessAvatar = '', onConnectClick,
   onOpenTemplatesPage,
   onOpenTemplateCreate,
 }: Props) {
@@ -904,6 +906,25 @@ export function CrmApp({
   }, [messages, activeName]);
 
   const activeChat = activePhone ? chats.find((c) => c.phone === activePhone) || null : null;
+
+  // The reactions panel's people: the customer (number, then their WhatsApp
+  // name, as WhatsApp lists them) and the business as "You".
+  const activeChatName = activeChat?.name || activeName;
+  const activeChatChannel = activeChat?.channel || 'whatsapp';
+  const activeChatAvatar = activeChat?.avatarUrl;
+  const people = useMemo(() => {
+    const phoneLabel = activePhone && /^\d{6,}$/.test(activePhone) ? `+${activePhone}` : '';
+    const name = activeChatName && activeChatName !== phoneLabel ? activeChatName : '';
+    return {
+      customer: {
+        name: phoneLabel || name || 'Customer',
+        sub: phoneLabel && name ? `~${name}` : '',
+        avatarUrl: activeChatAvatar,
+        channel: activeChatChannel,
+      },
+      you: { name: businessName || 'You', avatarUrl: businessAvatar || undefined },
+    };
+  }, [activePhone, activeChatName, activeChatChannel, activeChatAvatar, businessName, businessAvatar]);
   // Messenger / Instagram: replies only, no WhatsApp templates, Flows, catalog or payments.
   const metaChat = isMetaChannelChat(activeChat);
 
@@ -1106,6 +1127,7 @@ export function CrmApp({
                       onJumpTo={jumpToMessage}
                       onViewMedia={setViewMedia}
                       onRetry={m.type === 'text' ? retrySend : undefined}
+                      people={people}
                     />
                   </Fragment>
                 );
