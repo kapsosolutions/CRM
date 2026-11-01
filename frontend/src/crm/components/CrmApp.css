@@ -1202,19 +1202,20 @@
 .msg:hover .msg-tools {
   display: flex;
 }
+/* Plain icons: no circle, no movement. */
 .tool-btn {
-  background: var(--wa-surface);
-  border: 1px solid var(--wa-hairline);
+  background: transparent;
+  border: 0;
+  padding: 0;
   color: #000000;
   width: 30px;
   height: 30px;
-  border-radius: var(--wa-radius-full);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.15);
-  transition: transform 0.12s ease, background-color 0.12s ease;
+  opacity: 0.75;
+  transition: opacity 0.12s ease;
 }
 .tool-btn svg {
   display: block;
@@ -1223,10 +1224,10 @@
 .tool-btn .material-icons {
   font-size: 17px;
 }
-.tool-btn:hover {
-  background: #f8fafc;
-  color: #000000;
-  transform: scale(1.08);
+.tool-btn:hover,
+.tool-btn:focus-visible {
+  opacity: 1;
+  outline: none;
 }
 
 .msg strong,
