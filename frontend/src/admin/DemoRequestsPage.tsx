@@ -1,21 +1,22 @@
 // Super-admin → Demo Requests: everyone who booked a demo from the landing
 // page. Tabs for today / upcoming and each outcome; every row's status, notes
 // and time can be changed in place.
-import { useCallback, useEffect, useState } from 'react';
+import { BanIcon, CalendarIcon, CheckCircleIcon, ClockIcon, CloseIcon, ListIcon, MailIcon, PhoneMissedIcon, SearchIcon, TrashIcon, WhatsAppIcon } from './AdminIcons';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   platformApi, type DemoCounts, type DemoRequest, type DemoStatus, type DemoView,
 } from './platformApi';
 import { verticalConfig } from '../crm/verticals';
 import { useConfirm, useNotify } from '../crm/components/Dialogs';
 
-const TABS: { key: DemoView; label: string; icon: string; count?: keyof DemoCounts }[] = [
-  { key: 'today', label: 'Today', icon: 'today', count: 'today' },
-  { key: 'upcoming', label: 'Upcoming', icon: 'event', count: 'upcoming' },
-  { key: 'completed', label: 'Completed', icon: 'task_alt', count: 'completed' },
-  { key: 'not_answered', label: 'Not answered', icon: 'phone_missed', count: 'not_answered' },
-  { key: 'not_interested', label: 'Not interested', icon: 'block', count: 'not_interested' },
-  { key: 'missed', label: 'Needs update', icon: 'pending_actions' },
-  { key: 'all', label: 'All', icon: 'list', count: 'all' },
+const TABS: { key: DemoView; label: string; icon: ReactNode; count?: keyof DemoCounts }[] = [
+  { key: 'today', label: 'Today', icon: <CalendarIcon />, count: 'today' },
+  { key: 'upcoming', label: 'Upcoming', icon: <ClockIcon />, count: 'upcoming' },
+  { key: 'completed', label: 'Completed', icon: <CheckCircleIcon />, count: 'completed' },
+  { key: 'not_answered', label: 'Not answered', icon: <PhoneMissedIcon />, count: 'not_answered' },
+  { key: 'not_interested', label: 'Not interested', icon: <BanIcon />, count: 'not_interested' },
+  { key: 'missed', label: 'Needs update', icon: <ClockIcon /> },
+  { key: 'all', label: 'All', icon: <ListIcon />, count: 'all' },
 ];
 
 export const DEMO_STATUS: Record<DemoStatus, { label: string; tone: string }> = {
@@ -108,7 +109,7 @@ export function DemoRequestsPage() {
             className={`pa-stat dr-stat${view === t.key ? ' on' : ''}`}
             onClick={() => setView(t.key)}
           >
-            <div className="pa-stat-top"><span className="material-icons">{t.icon}</span>{t.label}</div>
+            <div className="pa-stat-top"><span className="pa-ico">{t.icon}</span>{t.label}</div>
             <div className="pa-stat-val">{counts && t.count ? counts[t.count] : '–'}</div>
           </button>
         ))}
@@ -117,7 +118,7 @@ export function DemoRequestsPage() {
       {/* ---------- Filters ---------- */}
       <div className="pa-toolbar">
         <div className="pa-search">
-          <span className="material-icons">search</span>
+          <span className="pa-ico"><SearchIcon /></span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, business, email, number…" />
         </div>
         <div className="pa-segments" role="tablist">
@@ -179,10 +180,10 @@ export function DemoRequestsPage() {
                   <td onClick={(e) => e.stopPropagation()}>
                     <div className="dr-contact">
                       <a href={waLink(r.phone)} target="_blank" rel="noreferrer" title="Open in WhatsApp">
-                        <span className="material-icons">chat</span>+{r.phone}
+                        <span className="pa-ico"><WhatsAppIcon /></span>+{r.phone}
                       </a>
                       <a href={`mailto:${r.email}`} title="Send an email">
-                        <span className="material-icons">mail</span>{r.email}
+                        <span className="pa-ico"><MailIcon /></span>{r.email}
                       </a>
                     </div>
                   </td>
@@ -203,7 +204,7 @@ export function DemoRequestsPage() {
                   <td className="pa-row-actions" onClick={(e) => e.stopPropagation()}>
                     <button className="pa-btn ghost sm" onClick={() => setEditing(r)}>Open</button>
                     <button className="pa-btn ghost sm" onClick={() => remove(r)} aria-label="Delete">
-                      <span className="material-icons" style={{ fontSize: 17 }}>delete</span>
+                      <TrashIcon />
                     </button>
                   </td>
                 </tr>
@@ -276,12 +277,12 @@ function DemoEditor({
             <h3>{demo.name}</h3>
             <small>{demo.businessName} · {verticalConfig(demo.category).label}</small>
           </div>
-          <button className="dr-x" onClick={onClose} aria-label="Close"><span className="material-icons">close</span></button>
+          <button className="dr-x" onClick={onClose} aria-label="Close"><CloseIcon /></button>
         </div>
         <div className="dr-box-body">
           <div className="dr-contact block">
-            <a href={waLink(demo.phone)} target="_blank" rel="noreferrer"><span className="material-icons">chat</span>+{demo.phone}</a>
-            <a href={`mailto:${demo.email}`}><span className="material-icons">mail</span>{demo.email}</a>
+            <a href={waLink(demo.phone)} target="_blank" rel="noreferrer"><span className="pa-ico"><WhatsAppIcon /></span>+{demo.phone}</a>
+            <a href={`mailto:${demo.email}`}><span className="pa-ico"><MailIcon /></span>{demo.email}</a>
           </div>
           <div className="pa-form-grid">
             <label className="pa-field">

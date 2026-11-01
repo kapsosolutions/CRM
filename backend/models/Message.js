@@ -27,5 +27,7 @@ const MessageSchema = new Schema(
 );
 
 MessageSchema.index({ phone: 1, createdAt: -1 });
+// The admin dashboard's day / month totals read a date range of messages.
+MessageSchema.index({ createdAt: -1 });
 
 export default defineModel('Message', MessageSchema, 'messages');

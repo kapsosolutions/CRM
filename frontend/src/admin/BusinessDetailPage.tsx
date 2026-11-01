@@ -2,6 +2,7 @@
 // webhook wiring and login, and lets the admin rename / re-categorise, edit the
 // Meta credentials and payment settings, issue a new passcode,
 // activate/deactivate, or delete the business.
+import { ArrowLeftIcon, ChatIcon, FlowIcon, SwapIcon, UsersIcon } from './AdminIcons';
 import { useEffect, useState } from 'react';
 import { platformApi, type Business, type BusinessStats, type VerifyResult, type BusinessLabels } from './platformApi';
 import { VERTICAL_OPTIONS, verticalConfig } from '../crm/verticals';
@@ -257,7 +258,7 @@ export function BusinessDetailPage({ id, onBack }: { id: string; onBack: () => v
     <div className="pa-page">
       <header className="pa-page-head detail">
         <button className="pa-back" onClick={onBack} aria-label="Back to businesses">
-          <span className="material-icons">arrow_back</span>
+          <ArrowLeftIcon />
         </button>
         <span className="pa-avatar lg">{biz.name.slice(0, 1).toUpperCase()}</span>
         <div className="pa-detail-title">
@@ -289,22 +290,22 @@ export function BusinessDetailPage({ id, onBack }: { id: string; onBack: () => v
       {/* ---------- Usage ---------- */}
       <div className="pa-stat-grid">
         <div className="pa-stat">
-          <div className="pa-stat-top"><span className="material-icons">forum</span>Messages</div>
+          <div className="pa-stat-top"><span className="pa-ico"><ChatIcon /></span>Messages</div>
           <div className="pa-stat-val">{num(stats?.messages.total || 0)}</div>
           <div className="pa-stat-sub">{num(stats?.messages.last24h || 0)} in last 24h</div>
         </div>
         <div className="pa-stat">
-          <div className="pa-stat-top"><span className="material-icons">groups</span>Contacts</div>
+          <div className="pa-stat-top"><span className="pa-ico"><UsersIcon /></span>Contacts</div>
           <div className="pa-stat-val">{num(stats?.contacts || 0)}</div>
           <div className="pa-stat-sub">unique people reached</div>
         </div>
         <div className="pa-stat">
-          <div className="pa-stat-top"><span className="material-icons">swap_vert</span>In / Out</div>
+          <div className="pa-stat-top"><span className="pa-ico"><SwapIcon /></span>In / Out</div>
           <div className="pa-stat-val">{num(stats?.messages.inbound || 0)} / {num(stats?.messages.outbound || 0)}</div>
           <div className="pa-stat-sub">inbound / outbound</div>
         </div>
         <div className="pa-stat">
-          <div className="pa-stat-top"><span className="material-icons">hub</span>Journeys</div>
+          <div className="pa-stat-top"><span className="pa-ico"><FlowIcon /></span>Journeys</div>
           <div className="pa-stat-val">{num(stats?.journeys || 0)}</div>
           <div className="pa-stat-sub">last msg {fmtDateTime(stats?.lastMessageAt)}</div>
         </div>

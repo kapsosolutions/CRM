@@ -6,6 +6,7 @@ import { platformApi, type Business } from './platformApi';
 import { verticalConfig } from '../crm/verticals';
 import { numberStatusLabel, numberStatusTone } from '../crm/numberStatus';
 import type { PlanState } from '../crm/types';
+import { SearchIcon } from './AdminIcons';
 
 const shortDate = (s?: string | null) =>
   s ? new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
@@ -51,11 +52,21 @@ export function PlanCell({ s }: { s?: PlanState }) {
 const fmtDate = (s?: string) =>
   s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-export function BusinessesPage({ onOpen }: { onOpen: (id: string) => void }) {
+export function BusinessesPage({
+  onOpen,
+  searchRequest,
+}: {
+  onOpen: (id: string) => void;
+  /** The top bar's search: fills the search box (n changes on every submit). */
+  searchRequest?: { q: string; n: number } | null;
+}) {
   const [list, setList] = useState<Business[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [q, setQ] = useState('');
+  const [q, setQ] = useState(searchRequest?.q || '');
+  useEffect(() => {
+    if (searchRequest) setQ(searchRequest.q);
+  }, [searchRequest]);
   const [status, setStatus] = useState<'all' | 'active' | 'inactive'>('all');
 
   function load() {
@@ -109,7 +120,7 @@ export function BusinessesPage({ onOpen }: { onOpen: (id: string) => void }) {
       {/* ---------- Filters ---------- */}
       <div className="pa-toolbar">
         <div className="pa-search">
-          <span className="material-icons">search</span>
+          <span className="pa-ico"><SearchIcon /></span>
           <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search name, email, number…" />
         </div>
         <div className="pa-segments">

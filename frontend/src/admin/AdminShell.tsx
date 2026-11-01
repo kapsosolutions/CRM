@@ -1,32 +1,40 @@
-// Super-admin shell, laid out like the CRM (CrmShell): a black utility bar,
-// the white top nav with the logo, an icon rail on the left and the active
-// page in the content area. Only the content area scrolls.
-//   Dashboard     → platform-wide stats
+// Super-admin shell in the "Rocker" dark admin style: a sidebar with grouped
+// sections (it collapses to icons, and becomes a drawer on small screens), a
+// top bar with business search, refresh, today's demos and the admin, the
+// page, and a footer. Only the page area scrolls; the window never moves.
+//   Dashboard     → revenue, messages, plans
 //   Businesses    → tenant list (drills into a business detail page)
-//   Demo Requests → demos booked from the website
 //   Free tier     → trials created by the admin
-import { useState } from 'react';
+//   Demo Requests → demos booked from the website
+import { useEffect, useState, type FormEvent, type ReactNode } from 'react';
 import { DashboardPage } from './DashboardPage';
 import { BusinessesPage } from './BusinessesPage';
 import { BusinessDetailPage } from './BusinessDetailPage';
 import { FreeTierPage } from './FreeTierPage';
 import { DemoRequestsPage } from './DemoRequestsPage';
-import { LogoutSvg } from '../crm/components/NavRail';
+import { platformApi } from './platformApi';
+import {
+  BellIcon, CalendarIcon, CollapseIcon, DashboardIcon, GlobeIcon, LogoutIcon, MenuIcon, RefreshIcon, SearchIcon, StoreIcon, TagIcon,
+} from './AdminIcons';
 import { useLockWindowScroll } from '../crm/useLockWindowScroll';
 import { useBackHandler } from '../crm/useBackHandler';
 
 export type AdminView = 'dashboard' | 'businesses' | 'demos' | 'freeTier';
 
 // Plans are bought in the CRM (Razorpay); there are no plan requests to handle.
-const NAV: { key: AdminView; icon: string; label: string }[] = [
-  { key: 'dashboard', icon: 'space_dashboard', label: 'Dashboard' },
-  { key: 'businesses', icon: 'apartment', label: 'Businesses' },
-  { key: 'demos', icon: 'event_available', label: 'Demo Requests' },
-  { key: 'freeTier', icon: 'card_giftcard', label: 'Free tier' },
+const GROUPS: { label?: string; items: { key: AdminView; label: string; icon: ReactNode }[] }[] = [
+  { items: [{ key: 'dashboard', label: 'Dashboard', icon: <DashboardIcon /> }] },
+  {
+    label: 'Customers',
+    items: [
+      { key: 'businesses', label: 'Businesses', icon: <StoreIcon /> },
+      { key: 'freeTier', label: 'Free tier', icon: <TagIcon /> },
+    ],
+  },
+  { label: 'Sales', items: [{ key: 'demos', label: 'Demo Requests', icon: <CalendarIcon /> }] },
 ];
 
-const today = () =>
-  new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+const COLLAPSED_KEY = 'pa_sidebar_collapsed';
 
 export function AdminShell({ onLogout }: { onLogout: () => void }) {
   // Full-screen portal: the content pane scrolls, the window never moves.
@@ -36,10 +44,41 @@ export function AdminShell({ onLogout }: { onLogout: () => void }) {
   const [detailId, setDetailId] = useState<string | null>(null);
   // Bumped by Refresh: remounts the open page so it loads its data again.
   const [reloadKey, setReloadKey] = useState(0);
+  const [collapsed, setCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem(COLLAPSED_KEY) === '1';
+    } catch {
+      return false;
+    }
+  });
+  // Small screens: the sidebar is a drawer.
+  const [drawer, setDrawer] = useState(false);
+  const [search, setSearch] = useState('');
+  const [searchRequest, setSearchRequest] = useState<{ q: string; n: number } | null>(null);
+  // Demos still to do today (the bell).
+  const [demosToday, setDemosToday] = useState(0);
+
+  // Dialogs and toasts render outside the shell: the body class themes them too.
+  useEffect(() => {
+    document.body.classList.add('pa-dark');
+    return () => document.body.classList.remove('pa-dark');
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    platformApi
+      .listDemos('today', '')
+      .then((r) => live && setDemosToday((r.data || []).filter((d) => d.status === 'scheduled').length))
+      .catch(() => {});
+    return () => {
+      live = false;
+    };
+  }, [view, reloadKey]);
 
   function go(v: AdminView) {
     setDetailId(null);
     setView(v);
+    setDrawer(false);
   }
   function openBusiness(id: string) {
     setDetailId(id);
@@ -51,90 +90,145 @@ export function AdminShell({ onLogout }: { onLogout: () => void }) {
     setDetailId(id);
     setView('freeTier');
   }
-  // Back: a business's page closes first, then other tabs return to Dashboard.
+  function toggleCollapsed() {
+    setCollapsed((c) => {
+      try {
+        localStorage.setItem(COLLAPSED_KEY, c ? '0' : '1');
+      } catch {
+        /* private mode */
+      }
+      return !c;
+    });
+  }
+  function submitSearch(e: FormEvent) {
+    e.preventDefault();
+    setDetailId(null);
+    setView('businesses');
+    setSearchRequest({ q: search.trim(), n: Date.now() });
+    setDrawer(false);
+  }
+
+  // Back: the drawer closes first, then a business's page, then other tabs
+  // return to Dashboard.
   useBackHandler(view !== 'dashboard', () => go('dashboard'));
   useBackHandler(!!detailId, () => setDetailId(null));
+  useBackHandler(drawer, () => setDrawer(false));
 
   return (
-    <div className="pa-shell">
-      {/* Utility bar: same black strip as the CRM's top bar. */}
-      <div className="pa-top-bar">
-        <div className="pa-top-left">
-          <span className="pa-top-badge">
-            <span className="pa-top-dot" aria-hidden="true" />
-            Super admin
-          </span>
-        </div>
-        <div className="pa-top-center">
-          Kapso Solutions <span className="pa-top-sep">·</span> <strong>Platform console</strong>
-        </div>
-        <div className="pa-top-right">{today()}</div>
-      </div>
-
-      {/* Main nav: logo left, actions right (as in the CRM). */}
-      <header className="pa-main-nav">
-        <button type="button" className="pa-main-nav-logo-btn" onClick={() => go('dashboard')} title="Dashboard">
-          <img src="/logo.png" alt="Kapso Solutions" className="pa-main-nav-logo" />
-          <span className="pa-main-nav-tag">Admin</span>
-        </button>
-
-        <div className="pa-main-nav-right">
-          <a className="pa-nav-outline-btn" href="/#/" target="_blank" rel="noopener noreferrer" title="Open the website in a new tab">
-            <span className="material-icons" aria-hidden="true">open_in_new</span>
-            <span>Open website</span>
-          </a>
-          <div className="pa-nav-sep" />
+    <div className={`pa-shell${collapsed ? ' collapsed' : ''}${drawer ? ' drawer-open' : ''}`}>
+      <aside className="pa-sidebar" aria-label="Admin navigation">
+        <div className="pa-brand">
+          <button type="button" className="pa-brand-logo" onClick={() => go('dashboard')} title="Dashboard">
+            <img src="/logo1.png" alt="Kapso Solutions" className="pa-brand-full" />
+            <span className="pa-brand-mark" aria-hidden="true">K</span>
+          </button>
           <button
             type="button"
-            className="pa-nav-icon-btn"
-            onClick={() => setReloadKey((k) => k + 1)}
-            title="Refresh this page"
-            aria-label="Refresh this page"
+            className="pa-collapse"
+            onClick={toggleCollapsed}
+            aria-label={collapsed ? 'Expand the menu' : 'Collapse the menu'}
+            title={collapsed ? 'Expand the menu' : 'Collapse the menu'}
           >
-            <span className="material-icons">refresh</span>
-          </button>
-          <div className="pa-nav-sep" />
-          <div className="pa-nav-user" title="Signed in as the platform super admin">
-            <span className="pa-nav-user-avatar" aria-hidden="true">A</span>
-            <span className="pa-nav-user-text">
-              <strong>Super admin</strong>
-              <small>Platform owner</small>
-            </span>
-          </div>
-          <button
-            type="button"
-            className="pa-nav-icon-btn logout"
-            onClick={onLogout}
-            title="Log out"
-            aria-label="Log out"
-            data-testid="pa-logout"
-          >
-            <LogoutSvg size={18} />
+            <CollapseIcon />
           </button>
         </div>
-      </header>
 
-      <div className="pa-body">
-        <nav className="pa-rail" aria-label="Admin sections">
-          {NAV.map((n) => (
-            <button
-              key={n.key}
-              type="button"
-              className={`pa-rail-btn${view === n.key ? ' active' : ''}`}
-              onClick={() => go(n.key)}
-              aria-label={n.label}
-              aria-current={view === n.key ? 'page' : undefined}
-              data-label={n.label}
-            >
-              <span className="material-icons" aria-hidden="true">{n.icon}</span>
-              <span className="pa-rail-label">{n.label}</span>
-            </button>
+        <nav className="pa-menu">
+          {GROUPS.map((g, gi) => (
+            <div className="pa-menu-group" key={g.label || gi}>
+              {g.label && <div className="pa-menu-label">{g.label}</div>}
+              {g.items.map((it) => {
+                const on = view === it.key;
+                return (
+                  <button
+                    key={it.key}
+                    type="button"
+                    className={`pa-menu-item${on ? ' active' : ''}`}
+                    onClick={() => go(it.key)}
+                    aria-current={on ? 'page' : undefined}
+                    title={collapsed ? it.label : undefined}
+                    data-label={it.label}
+                  >
+                    <span className="pa-menu-icon" aria-hidden="true">{it.icon}</span>
+                    <span className="pa-menu-text">{it.label}</span>
+                    {it.key === 'demos' && demosToday > 0 && (
+                      <span className="pa-menu-badge" aria-label={`${demosToday} today`}>{demosToday}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           ))}
         </nav>
 
+        <div className="pa-sidebar-foot">
+          <a className="pa-menu-item" href="/#/" target="_blank" rel="noopener noreferrer" title={collapsed ? 'Open the website' : undefined}>
+            <span className="pa-menu-icon" aria-hidden="true"><GlobeIcon /></span>
+            <span className="pa-menu-text">Open website</span>
+          </a>
+          <button
+            type="button"
+            className="pa-menu-item logout"
+            onClick={onLogout}
+            data-testid="pa-logout"
+            title={collapsed ? 'Log out' : undefined}
+          >
+            <span className="pa-menu-icon" aria-hidden="true"><LogoutIcon size={20} /></span>
+            <span className="pa-menu-text">Log out</span>
+          </button>
+        </div>
+      </aside>
+      <div className="pa-drawer-backdrop" onClick={() => setDrawer(false)} aria-hidden="true" />
+
+      <div className="pa-main-col">
+        <header className="pa-topbar">
+          <button type="button" className="pa-icon-btn pa-burger" onClick={() => setDrawer(true)} aria-label="Open the menu">
+            <MenuIcon />
+          </button>
+          <form className="pa-top-search" role="search" onSubmit={submitSearch}>
+            <SearchIcon />
+            <input
+              type="search"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search businesses…"
+              aria-label="Search businesses by name, email or number"
+            />
+          </form>
+          <div className="pa-topbar-right">
+            <button
+              type="button"
+              className="pa-icon-btn"
+              onClick={() => setReloadKey((k) => k + 1)}
+              title="Refresh this page"
+              aria-label="Refresh this page"
+            >
+              <RefreshIcon />
+            </button>
+            <button
+              type="button"
+              className="pa-icon-btn"
+              onClick={() => go('demos')}
+              title={demosToday ? `${demosToday} demo${demosToday === 1 ? '' : 's'} still to do today` : 'No demos left today'}
+              aria-label={demosToday ? `Demo requests, ${demosToday} still to do today` : 'Demo requests'}
+              data-testid="pa-bell"
+            >
+              <BellIcon />
+              {demosToday > 0 && <span className="pa-dot-badge">{demosToday > 9 ? '9+' : demosToday}</span>}
+            </button>
+            <div className="pa-user" title="Signed in as the platform super admin">
+              <span className="pa-user-avatar" aria-hidden="true">A</span>
+              <span className="pa-user-text">
+                <strong>Super admin</strong>
+                <small>Platform owner</small>
+              </span>
+            </div>
+          </div>
+        </header>
+
         <main className="pa-main" key={reloadKey}>
           {view === 'dashboard' && <DashboardPage onOpenBusiness={openBusiness} />}
-          {view === 'businesses' && !detailId && <BusinessesPage onOpen={openBusiness} />}
+          {view === 'businesses' && !detailId && <BusinessesPage onOpen={openBusiness} searchRequest={searchRequest} />}
           {view === 'businesses' && detailId && (
             <BusinessDetailPage id={detailId} onBack={() => setDetailId(null)} />
           )}
@@ -144,6 +238,8 @@ export function AdminShell({ onLogout }: { onLogout: () => void }) {
             <BusinessDetailPage id={detailId} onBack={() => setDetailId(null)} />
           )}
         </main>
+
+        <footer className="pa-footer">Copyright © {new Date().getFullYear()} Kapso Solutions. All rights reserved.</footer>
       </div>
     </div>
   );

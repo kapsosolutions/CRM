@@ -28,6 +28,7 @@ import { planState, TRIAL_DAYS } from '../services/plans.js';
 import { grantPlan, BillingError } from '../services/subscriptions.js';
 import { forgetPlan } from '../services/planGate.js';
 import { VERTICALS, DEFAULT_VERTICAL, verticalConfig } from '../services/verticals.js';
+import { dashboardStats } from '../services/platformDashboard.js';
 
 const pickCategory = (c) => (VERTICALS[String(c || '').trim()] ? String(c).trim() : DEFAULT_VERTICAL);
 
@@ -157,6 +158,17 @@ router.get('/stats/overview', async (_req, res) => {
   } catch (err) {
     logger.error('platform stats failed', { error: err.message });
     res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ---------- Admin dashboard: revenue, messages, plans (India time) ----------
+// Two-segment path, so it can't be shadowed by '/:id'.
+router.get('/stats/dashboard', async (_req, res) => {
+  try {
+    res.json({ success: true, data: await dashboardStats() });
+  } catch (err) {
+    logger.error('dashboard stats failed', { error: err.message });
+    res.status(500).json({ success: false, message: 'Could not load the dashboard. Please try again.' });
   }
 });
 

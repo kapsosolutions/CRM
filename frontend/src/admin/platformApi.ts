@@ -129,6 +129,64 @@ export interface PlatformStats {
   recent: { _id: string; name: string; category?: string; active?: boolean; createdAt?: string }[];
 }
 
+/** A plan purchase on the dashboard's "Recent payments". */
+export interface DashboardPayment {
+  _id: string;
+  /** '' when the business was deleted since. */
+  businessId: string;
+  businessName: string;
+  tier: string;
+  name: string;
+  cycle: string;
+  kind: string;
+  amountPaise: number;
+  paidAt: string | null;
+  paymentId: string;
+  method: string;
+}
+
+export type PlanSliceKey = 'premium' | 'pro' | 'basic' | 'trial' | 'free';
+
+/** GET /api/businesses/stats/dashboard. Days and months are India time. */
+export interface DashboardStats {
+  generatedAt: string;
+  timezone: string;
+  currency: string;
+  revenue: {
+    totalPaise: number;
+    payments: number;
+    /** The last 60 days, oldest first, today last. */
+    daily: { date: string; paise: number; count: number }[];
+    /** The last 12 months, oldest first. */
+    monthly: { month: string; paise: number; count: number }[];
+    byTier: { tier: string; name: string; paise: number; count: number }[];
+    recent: DashboardPayment[];
+  };
+  messages: {
+    total: number;
+    last24h: number;
+    daily: { date: string; sent: number; received: number }[];
+    monthly: { month: string; sent: number; received: number }[];
+  };
+  businesses: {
+    total: number;
+    active: number;
+    signupsDaily: { date: string; count: number }[];
+    recent: {
+      _id: string;
+      name: string;
+      category: string;
+      active: boolean;
+      whatsappConnected: boolean;
+      createdAt: string | null;
+      plan: { slice: PlanSliceKey; name: string; status: string; daysLeft: number | null };
+    }[];
+  };
+  plans: { key: PlanSliceKey; label: string; count: number }[];
+  paying: { now: number; daily: { date: string; count: number }[] };
+  activeClients: { current: number; previous: number; daily: { date: string; count: number }[] };
+}
+
 export type DemoStatus = 'scheduled' | 'completed' | 'not_answered' | 'not_interested' | 'cancelled';
 export type DemoView = 'today' | 'upcoming' | 'missed' | DemoStatus | 'all';
 
@@ -243,6 +301,10 @@ export const platformApi = {
   },
   platformStats() {
     return req<{ success: boolean; data: PlatformStats }>('/api/businesses/stats/overview', {}, adminToken());
+  },
+  /** Revenue, messages, sign-ups and plans for the admin Dashboard. */
+  dashboardStats() {
+    return req<{ success: boolean; data: DashboardStats }>('/api/businesses/stats/dashboard', {}, adminToken());
   },
   businessStats(id: string) {
     return req<{ success: boolean; data: BusinessStats }>(`/api/businesses/${id}/stats`, {}, adminToken());

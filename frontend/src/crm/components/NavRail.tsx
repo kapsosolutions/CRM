@@ -19,7 +19,7 @@ interface Props {
 }
 
 /* User-provided vector SVGs matching WATI style navigation */
-function ChatsRailSvg() {
+export function ChatsRailSvg() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 14 14" fill="none" aria-hidden="true">
       <path
@@ -30,7 +30,7 @@ function ChatsRailSvg() {
   );
 }
 
-function TemplatesRailSvg() {
+export function TemplatesRailSvg() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path
@@ -41,7 +41,7 @@ function TemplatesRailSvg() {
   );
 }
 
-function CampaignsRailSvg() {
+export function CampaignsRailSvg() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="17.5" viewBox="0 0 16 14" fill="none" aria-hidden="true">
       <path
@@ -52,7 +52,7 @@ function CampaignsRailSvg() {
   );
 }
 
-function AutomationRailSvg() {
+export function AutomationRailSvg() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="19" viewBox="0 0 20 19" fill="none" aria-hidden="true">
       <path
@@ -63,7 +63,7 @@ function AutomationRailSvg() {
   );
 }
 
-function CatalogRailSvg() {
+export function CatalogRailSvg() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
       <path
@@ -74,7 +74,7 @@ function CatalogRailSvg() {
   );
 }
 
-function OffersRailSvg() {
+export function OffersRailSvg() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M18 10L10 18L2 10V3H9L18 10Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -130,7 +130,7 @@ export function CreateRailSvg({ size = 20 }: { size?: number } = {}) {
   );
 }
 
-function CategoriesRailSvg() {
+export function CategoriesRailSvg() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <rect x="2" y="2" width="6.5" height="6.5" rx="1.5" stroke="currentColor" strokeWidth="1.5" />
@@ -141,7 +141,7 @@ function CategoriesRailSvg() {
   );
 }
 
-function OrdersRailSvg() {
+export function OrdersRailSvg() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path d="M5 2L6.5 3L8.25 2L10 3L11.75 2L13.5 3L15 2V18L13.5 17L11.75 18L10 17L8.25 18L6.5 17L5 18V2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
@@ -159,7 +159,7 @@ export function LogoutSvg({ size = 20, className = '' }: { size?: number; classN
   );
 }
 
-function PaymentConfigRailSvg() {
+export function PaymentConfigRailSvg() {
   return (
     <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
       <path
@@ -174,7 +174,7 @@ function PaymentConfigRailSvg() {
   );
 }
 
-function MembersRailSvg() {
+export function MembersRailSvg() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="20" height="17" viewBox="0 0 20 17" fill="none" aria-hidden="true">
       <path
