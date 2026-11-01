@@ -278,9 +278,16 @@ export function createMetaClient(creds = {}) {
   const client = {
     creds: C,
 
-    async sendText(phone, body) {
+    /**
+     * `reply` (optional): { contextId, replyTo } — send as a reply to the
+     * message with Meta id `contextId` (WhatsApp shows the quote), and keep
+     * `replyTo` with the logged message for the CRM's quote.
+     */
+    async sendText(phone, body, reply = null) {
       try {
-        const { data } = await post({ messaging_product: 'whatsapp', to: clean(phone), type: 'text', text: { body } });
+        const payload = { messaging_product: 'whatsapp', to: clean(phone), type: 'text', text: { body } };
+        if (reply?.contextId) payload.context = { message_id: reply.contextId };
+        const { data } = await post(payload, reply?.replyTo ? { replyTo: reply.replyTo } : null);
         return data;
       } catch (err) {
         logger.error('sendText error', { error: err.response?.data?.error?.message || err.message });

@@ -13,7 +13,7 @@ import {
 import { sendFlowToChat } from '../services/flowMapRuntime.js';
 import { channelClientForChat, chatChannel, channelUnsupported } from '../services/metaChannels.js';
 import { touchOutbound } from '../services/conversationState.js';
-import { emitReaction } from '../services/eventBus.js';
+import { setReaction, resolveAgentReply } from '../services/reactions.js';
 import { notifyTemplateStatus, markChatRead } from '../services/notifications.js';
 import { planState, hasFeature, assertFeature } from '../services/plans.js';
 import {
@@ -274,12 +274,15 @@ router.get('/messages/:phone', async (req, res) => {
 // ---------------- Send a free-text reply (within 24h window) ----------------
 router.post('/send', async (req, res) => {
   try {
-    const { phone, text } = req.body || {};
-    if (!phone || !text?.trim()) {
+    const { phone, text, replyTo } = req.body || {};
+    if (!phone || typeof text !== 'string' || !text.trim()) {
       return res.status(400).json({ success: false, message: 'phone and text required' });
     }
     const clean = String(phone).replace(/\D/g, '');
-    await (await chatClient(req, clean)).sendText(clean, text.trim());
+    // A reply to one of the chat's messages: WhatsApp shows the quote on the
+    // customer's phone, and the CRM keeps it above the bubble.
+    const reply = replyTo ? await resolveAgentReply(replyTo, { businessId: req.business._id, phone: clean }) : null;
+    await (await chatClient(req, clean)).sendText(clean, text.trim(), reply || undefined);
     await touchOutbound(clean, text.trim(), req.business._id, { markRead: true });
     res.json({ success: true });
   } catch (err) {
@@ -324,13 +327,11 @@ router.post('/react', async (req, res) => {
       return res.status(400).json({ success: false, message: 'phone and messageId required' });
     }
     const clean = String(phone).replace(/\D/g, '');
-    await (await chatClient(req, clean)).sendReaction(clean, messageId, emoji || '');
-    await Message.updateOne(
-      { ...owner(req), metaMessageId: messageId },
-      { $set: { reaction: emoji || '' } },
-    );
-    emitReaction({ metaMessageId: messageId, emoji: emoji || '' }, req.business?._id);
-    res.json({ success: true });
+    const value = typeof emoji === 'string' ? emoji.slice(0, 16) : '';
+    await (await chatClient(req, clean)).sendReaction(clean, messageId, value);
+    // The business's reaction; the customer's (if any) stays beside it.
+    const reactions = await setReaction({ businessId: req.business._id, metaMessageId: messageId, side: 'out', emoji: value });
+    res.json({ success: true, ...(reactions || {}) });
   } catch (err) {
     logger.error('crm react failed', { error: err.response?.data?.error?.message || err.message });
     // Carries a closed sandbox window's 409 through, like the other sends.

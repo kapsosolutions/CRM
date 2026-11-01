@@ -737,7 +737,7 @@ export async function sendChannelMessage(business, channel, convo, psid, message
  */
 export function createChannelClient(business, channel, convo) {
   // Messenger needs a messaging type; a reply inside 24 hours is RESPONSE.
-  const post = (psid, message, d) => sendChannelMessage(business, channel, convo, psid, message, d);
+  const post = (psid, message, d, extra = {}) => sendChannelMessage(business, channel, convo, psid, message, d, { extra });
 
   async function sendAttachment(psid, kind, url, filename = '') {
     const d = emptyDescriptor(kind);
@@ -751,7 +751,8 @@ export function createChannelClient(business, channel, convo) {
 
   const client = {
     channel,
-    async sendText(psid, text) {
+    // `reply.replyTo` is kept with the logged message for the CRM's quote.
+    async sendText(psid, text, reply = null) {
       const t = String(text || '');
       const tooLong = channel === 'instagram' ? Buffer.byteLength(t, 'utf8') > TEXT_LIMIT.instagram : t.length > TEXT_LIMIT.messenger;
       if (tooLong) {
@@ -764,7 +765,7 @@ export function createChannelClient(business, channel, convo) {
       }
       const d = emptyDescriptor('text');
       d.body = t;
-      return post(psid, { text: t }, d);
+      return post(psid, { text: t }, d, reply?.replyTo ? { replyTo: reply.replyTo } : {});
     },
     // Messenger / Instagram attachments carry no caption: it goes as a text after.
     async sendImage(psid, url, caption = '') {

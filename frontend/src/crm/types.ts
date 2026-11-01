@@ -2041,7 +2041,11 @@ export interface ChatMessage {
   error?: MessageError | null;
   metaMessageId?: string;
   createdAt: string;
+  /** The latest reaction (older rows only have this one). */
   reaction?: string;
+  /** The customer's reaction and the business's, like WhatsApp keeps one each. */
+  reactionIn?: string;
+  reactionOut?: string;
   /** Owning tenant. Present on live socket events, used to verify scoping. */
   businessId?: string;
   /** 'messenger' | 'instagram' for those channels; empty = WhatsApp. */

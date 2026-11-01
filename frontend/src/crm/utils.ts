@@ -320,6 +320,47 @@ export function orderOf(m: ChatMessage): OrderInfo | null {
   };
 }
 
+/**
+ * A message's reactions, the customer's first then the business's (WhatsApp
+ * keeps one per person). Older rows only have the single `reaction`.
+ */
+export function reactionsOf(m: ChatMessage): { emoji: string; by: 'customer' | 'you' | '' }[] {
+  const list: { emoji: string; by: 'customer' | 'you' | '' }[] = [];
+  if (m.reactionIn) list.push({ emoji: m.reactionIn, by: 'customer' });
+  if (m.reactionOut) list.push({ emoji: m.reactionOut, by: 'you' });
+  // `reaction` is always one of the two sides, so it only stands alone on rows
+  // saved before reactions were kept per side.
+  if (!list.length && m.reaction) list.push({ emoji: m.reaction, by: '' });
+  return list;
+}
+
+/** The business's own reaction (the picker's "remove" applies to that one). */
+export function ownReactionOf(m: ChatMessage): string {
+  if (m.reactionOut) return m.reactionOut;
+  // An older row: the single reaction may be ours.
+  return !m.reactionIn ? m.reaction || '' : '';
+}
+
+// One emoji: a pictograph (with skin tone / joiners / variation selectors), a
+// flag (two regional indicators) or a keycap (1️⃣).
+const ONE_EMOJI_RE =
+  /^(?:\p{Regional_Indicator}{2}|[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})*(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})*)*)$/u;
+
+/**
+ * How many emoji a message is made of when it's only emoji (1–3), else 0.
+ * WhatsApp shows such messages large, without a bubble.
+ */
+export function jumboEmojiCount(text: string | undefined | null): number {
+  const t = String(text || '').replace(/\s+/g, '');
+  if (!t || t.length > 48) return 0;
+  let parts: string[];
+  const Seg = (Intl as unknown as { Segmenter?: new (l?: string, o?: { granularity: string }) => { segment: (s: string) => Iterable<{ segment: string }> } }).Segmenter;
+  if (Seg) parts = Array.from(new Seg(undefined, { granularity: 'grapheme' }).segment(t), (s) => s.segment);
+  else parts = t.match(/\p{Regional_Indicator}{2}|[0-9#*]\uFE0F?\u20E3|\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})*(?:\u200D\p{Extended_Pictographic}(?:\uFE0F|\p{Emoji_Modifier})*)*|./gsu) || [];
+  if (!parts.length || parts.length > 3) return 0;
+  return parts.every((p) => ONE_EMOJI_RE.test(p)) ? parts.length : 0;
+}
+
 /** One-line preview of a message (used for reply quotes + chat list). */
 export function previewOf(m: ChatMessage): string {
   if (m.raw?.order) return '🧾 Order';

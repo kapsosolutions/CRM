@@ -23,7 +23,11 @@ export interface StatusUpdate {
 }
 export interface ReactionUpdate {
   metaMessageId: string;
+  /** The latest reaction. */
   emoji: string;
+  /** Both sides' reactions after this change (absent from older servers). */
+  reactionIn?: string;
+  reactionOut?: string;
   businessId?: string;
 }
 export interface TypingUpdate {

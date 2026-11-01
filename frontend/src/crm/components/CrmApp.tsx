@@ -473,8 +473,20 @@ export function CrmApp({
 
     const offReaction = socket.onReaction((u) => {
       if (!mine(u.businessId)) return;
+      // Both sides come with the update, so the customer's reaction and ours
+      // stay side by side (an older server only sends the latest one).
       setMessages((list) =>
-        list.map((m) => (m.metaMessageId === u.metaMessageId ? { ...m, reaction: u.emoji } : m)),
+        list.map((m) =>
+          m.metaMessageId === u.metaMessageId
+            ? {
+                ...m,
+                reaction: u.emoji,
+                ...(u.reactionIn !== undefined || u.reactionOut !== undefined
+                  ? { reactionIn: u.reactionIn || '', reactionOut: u.reactionOut || '' }
+                  : {}),
+              }
+            : m,
+        ),
       );
     });
 
@@ -592,6 +604,8 @@ export function CrmApp({
       body: text,
       status: 'pending',
       createdAt: new Date().toISOString(),
+      // The quote shows straight away; the saved copy carries the server's.
+      ...(replyTo ? { raw: { replyTo } } : {}),
     };
     setMessages((list) => [...list, temp]);
     scrollToBottom();
@@ -630,7 +644,7 @@ export function CrmApp({
       }
       sendTemplate(tmpl as TemplateItem);
     } else {
-      deliverText(phone, m.body);
+      deliverText(phone, m.body, m.raw?.replyTo);
     }
   }
 
@@ -724,7 +738,12 @@ export function CrmApp({
     const phone = activePhone;
     setReactingId(null);
     if (!phone || !m.metaMessageId) return;
-    setMessages((list) => list.map((x) => (x._id === m._id ? { ...x, reaction: emoji } : x)));
+    // Our side only; the customer's reaction (if any) stays.
+    setMessages((list) =>
+      list.map((x) =>
+        x._id === m._id ? { ...x, reactionOut: emoji, reaction: emoji || x.reactionIn || '' } : x,
+      ),
+    );
     api.reactToMessage(phone, m.metaMessageId, emoji).catch((e: Error) => {
       toast('error', 'Reaction failed', e.message || 'Could not send the reaction.');
     });

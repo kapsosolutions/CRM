@@ -662,7 +662,10 @@ export class MockCrmApi extends CrmApi {
   override reactToMessage(_phone: string, messageId: string, emoji: string): Promise<{ success: boolean }> {
     for (const list of Object.values(messages)) {
       const m = list.find((x) => x.metaMessageId === messageId);
-      if (m) m.reaction = emoji;
+      if (m) {
+        m.reactionOut = emoji;
+        m.reaction = emoji || m.reactionIn || '';
+      }
     }
     return delay({ success: true });
   }

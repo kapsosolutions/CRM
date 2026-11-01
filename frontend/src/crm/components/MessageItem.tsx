@@ -19,6 +19,9 @@ import {
   downloadFile,
   formOf,
   orderOf,
+  reactionsOf,
+  ownReactionOf,
+  jumboEmojiCount,
 } from '../utils';
 import { ReactionPicker } from './ReactionPicker';
 import { LocationMap } from './LocationMap';
@@ -193,6 +196,24 @@ export function MessageItem({
     </button>
   ) : null;
 
+  // Reactions, as WhatsApp shows them: each emoji once, then the count when
+  // both the customer and the business reacted ("😂 ❤️ 2").
+  const reactions = reactionsOf(m);
+  const reactionChip = reactions.length ? (
+    <span
+      className="reaction-chip"
+      title={reactions.map((r) => (r.by === 'you' ? `You: ${r.emoji}` : r.by === 'customer' ? `Customer: ${r.emoji}` : r.emoji)).join(' · ')}
+      data-testid="reaction-chip"
+    >
+      {[...new Set(reactions.map((r) => r.emoji))].join(' ')}
+      {reactions.length > 1 && <span className="reaction-count">{reactions.length}</span>}
+    </span>
+  ) : null;
+
+  // Only emoji (1–3) and nothing else: shown large without a bubble, like WhatsApp.
+  const plainText = d && d.body ? d.body : m.body;
+  const jumbo = !md && !quote && !isRich ? jumboEmojiCount(plainText) : 0;
+
   const metaRow = (
     <span className="meta">
       {timeHHmm(m.createdAt)}
@@ -251,7 +272,7 @@ export function MessageItem({
               );
             })()}
             {metaRow}
-            {m.reaction && <span className="reaction-chip">{m.reaction}</span>}
+            {reactionChip}
           </div>
         ) : payment ? (
           <div className="pay-wrap">
@@ -306,7 +327,7 @@ export function MessageItem({
               )}
             </div>
 
-            {m.reaction && <span className="reaction-chip">{m.reaction}</span>}
+            {reactionChip}
           </div>
         ) : order ? (
           <div className="bubble order-bubble">
@@ -341,7 +362,7 @@ export function MessageItem({
             </div>
             {order.note && <div className="order-note">{order.note}</div>}
             {metaRow}
-            {m.reaction && <span className="reaction-chip">{m.reaction}</span>}
+            {reactionChip}
           </div>
         ) : form ? (
           <div className="bubble form-bubble">
@@ -360,7 +381,7 @@ export function MessageItem({
               </tbody>
             </table>
             {metaRow}
-            {m.reaction && <span className="reaction-chip">{m.reaction}</span>}
+            {reactionChip}
           </div>
         ) : isRich && d ? (
           <div className="rich-card">
@@ -463,12 +484,16 @@ export function MessageItem({
               </div>
             )}
 
-            {m.reaction && <span className="reaction-chip">{m.reaction}</span>}
+            {reactionChip}
           </div>
         ) : (
-          <div className={`bubble${md && !mediaFailed ? '' : ' inline-meta'}${m.reaction ? ' has-reaction' : ''}`}>
+          <div
+            className={`bubble${jumbo ? ` jumbo n${jumbo}` : md && !mediaFailed ? '' : ' inline-meta'}${reactions.length ? ' has-reaction' : ''}`}
+          >
             {quoteBlock}
-            {md && !mediaFailed ? (
+            {jumbo ? (
+              <span className="text jumbo-text" data-testid="jumbo-emoji">{plainText.trim()}</span>
+            ) : md && !mediaFailed ? (
               <>
                 {renderMedia()}
                 {caption && <span className="text">{formatLinks(caption)}</span>}
@@ -478,12 +503,12 @@ export function MessageItem({
               // (WhatsApp style). The spacer reserves room for it, so it only
               // drops to its own line when the last line is too full.
               <span className="text">
-                {formatLinks(d && d.body ? d.body : m.body)}
+                {formatLinks(plainText)}
                 <span className="meta-spacer" aria-hidden="true" />
               </span>
             )}
             {metaRow}
-            {m.reaction && <span className="reaction-chip">{m.reaction}</span>}
+            {reactionChip}
           </div>
         )}
 
@@ -582,7 +607,7 @@ export function MessageItem({
         {reacting && (
           <ReactionPicker
             direction={m.direction}
-            hasReaction={!!m.reaction}
+            hasReaction={!!ownReactionOf(m)}
             onPick={(e) => onReact(m, e)}
             onClose={onCloseReact}
           />

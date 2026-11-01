@@ -24,7 +24,8 @@ import Business from '../models/Business.js';
 import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
 import storage from './storage.js';
-import { emitMessage, emitReaction } from './eventBus.js';
+import { emitMessage } from './eventBus.js';
+import { setReaction } from './reactions.js';
 import { recordOutboundPreview } from './conversationState.js';
 import { handleStatus } from './chatbot.js';
 import { statusesBelow } from './messageStatus.js';
@@ -302,8 +303,8 @@ async function onReaction(row, ev) {
   const r = ev.reaction || {};
   if (!r.mid) return;
   const emoji = r.action === 'unreact' ? '' : r.emoji || (r.reaction === 'love' ? '❤️' : '👍');
-  await Message.updateOne({ businessId, metaMessageId: r.mid }, { $set: { reaction: emoji } });
-  emitReaction({ metaMessageId: r.mid, emoji }, businessId);
+  // The customer's reaction; the business's own (if any) stays beside it.
+  await setReaction({ businessId, metaMessageId: r.mid, side: 'in', emoji });
 }
 
 /** One `messaging` event of an entry that belongs to `row`'s business. */

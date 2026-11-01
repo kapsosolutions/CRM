@@ -9,6 +9,7 @@ import {
 } from './chatbot.js';
 import { buildSubmissionSummary, summaryToText } from './flowSubmission.js';
 import { priceCart, cartToText, cartBubble } from './cart.js';
+import { replyToFromContext } from './reactions.js';
 
 /**
  * Log and handle one entry of a change's `messages` array.
@@ -62,8 +63,15 @@ export async function processInboundMessage(message, names, ctx) {
     }
   }
 
+  // A reply to one of the chat's messages (swiped, or a tapped quick-reply
+  // button): WhatsApp says which in `context.id`. The CRM shows that message
+  // as a quote above this one.
+  const replyTo = message.context?.id
+    ? await replyToFromContext(message.context, { businessId: ctx.tenantId || null, phone: msg.phone, name: msg.name })
+    : null;
+
   logInbound(msg.phone, msg.name, msg.type, msg.logBody, message, message.id, msg.media, {
-    ...ctx, form: msg.form, order: msg.orderInfo,
+    ...ctx, form: msg.form, order: msg.orderInfo, replyTo,
   }).catch(() => {});
   handleMessage(msg, ctx).catch((e) =>
     logger.error('handleMessage error', { error: e.message, stack: e.stack }),

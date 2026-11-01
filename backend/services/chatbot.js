@@ -10,7 +10,8 @@ import storage from './storage.js';
 import logger from './logger.js';
 import Message from '../models/Message.js';
 import Member from '../models/Member.js';
-import { emitMessage, emitStatus, emitReaction } from './eventBus.js';
+import { emitMessage, emitStatus } from './eventBus.js';
+import { setReaction } from './reactions.js';
 import { touchInbound, touchOutbound, getConversation } from './conversationState.js';
 import { runJourney } from './journeyRuntime.js';
 import { tenantHasFeature } from './planGate.js';
@@ -55,6 +56,8 @@ export async function logInbound(phone, name, type, body, raw, metaMessageId, me
     // product names, line totals and photos, which only this side can work out
     // from the retailer ids.
     if (ctx.order) base.order = ctx.order;
+    // A reply to one of the chat's messages: the quote the CRM shows above it.
+    if (ctx.replyTo) base.replyTo = ctx.replyTo;
     const doc = await Message.create({
       phone, name, direction: 'in', type,
       body: media ? media.caption || '' : body || '',
@@ -98,19 +101,13 @@ export async function logInbound(phone, name, type, body, raw, metaMessageId, me
   }
 }
 
-// Inbound emoji reaction on a message -> store it + notify the CRM.
+// Inbound emoji reaction on a message -> store it as the customer's (an empty
+// emoji removes it) + notify the CRM. The business's own reaction stays.
 export async function handleReaction(reaction, ctx = {}) {
   try {
     const messageId = reaction?.message_id;
     if (!messageId) return;
-    const emoji = reaction.emoji || '';
-    // Scoped to the tenant: a message id belongs to one WABA, so a webhook for
-    // one business must never be able to rewrite another's row.
-    await Message.updateOne(
-      { metaMessageId: messageId, ...(ctx.tenantId ? { businessId: ctx.tenantId } : {}) },
-      { $set: { reaction: emoji } },
-    );
-    emitReaction({ metaMessageId: messageId, emoji }, ctx.tenantId);
+    await setReaction({ businessId: ctx.tenantId || null, metaMessageId: messageId, side: 'in', emoji: reaction.emoji || '' });
   } catch (err) {
     logger.debug('handleReaction error', { error: err.message });
   }

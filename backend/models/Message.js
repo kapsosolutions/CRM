@@ -19,7 +19,12 @@ const MessageSchema = new Schema(
     error: { type: Schema.Types.Mixed },
     // The campaign this message went out in (services/campaignRunner.js).
     campaignId: { type: Schema.Types.ObjectId, index: true },
-    reaction: { type: String, default: '' }, // emoji reaction on this message
+    // Emoji reactions, one per side, like WhatsApp: the customer's and the
+    // business's (services/reactions.js). `reaction` is the latest of the two,
+    // kept for older rows and clients.
+    reaction: { type: String, default: '' },
+    reactionIn: { type: String, default: '' },
+    reactionOut: { type: String, default: '' },
     // 'messenger' | 'instagram' for those channels; empty = WhatsApp.
     channel: { type: String, default: '' },
   },

@@ -2,8 +2,22 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNotify } from './Dialogs';
 
-// Downloaded the first time the emoji button is opened.
+// Its own chunk, fetched and built while the browser is idle (see below).
 const EmojiPicker = lazy(() => import('./EmojiPickerLazy'));
+
+/** Run `fn` when the browser has a moment (or after `ms` at the latest). */
+function whenIdle(fn: () => void, ms = 2500): () => void {
+  const w = window as Window & {
+    requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number;
+    cancelIdleCallback?: (id: number) => void;
+  };
+  if (w.requestIdleCallback) {
+    const id = w.requestIdleCallback(fn, { timeout: ms });
+    return () => w.cancelIdleCallback?.(id);
+  }
+  const t = window.setTimeout(fn, Math.min(ms, 1200));
+  return () => window.clearTimeout(t);
+}
 
 interface ReplyTo {
   author: string;
@@ -221,6 +235,14 @@ export function Composer({
   }
 
   const [showEmoji, setShowEmoji] = useState(false);
+  // The picker is built once, hidden, while the browser is idle, and kept
+  // after that: opening it is then instant instead of downloading the emoji
+  // list and drawing ~1,800 emoji on every click.
+  const [emojiBuilt, setEmojiBuilt] = useState(false);
+  useEffect(() => {
+    if (emojiBuilt || !windowOpen) return undefined;
+    return whenIdle(() => setEmojiBuilt(true));
+  }, [emojiBuilt, windowOpen]);
 
   function insertEmoji(emoji: string) {
     const el = inputRef.current;
@@ -325,7 +347,10 @@ export function Composer({
             <div className="emoji-anchor">
               <button
                 className={`icon-btn${showEmoji ? ' active' : ''}`}
-                onClick={() => setShowEmoji((v) => !v)}
+                onClick={() => {
+                  setEmojiBuilt(true);
+                  setShowEmoji((v) => !v);
+                }}
                 title="Emoji"
                 aria-label="Emoji"
                 disabled={locked}
@@ -337,15 +362,15 @@ export function Composer({
                   <path d="M6.5 11.5C7.3 13.2 8.5 14 10 14C11.5 14 12.7 13.2 13.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
                 </svg>
               </button>
-              {showEmoji && (
-                <>
-                  <div className="emoji-pop-backdrop" onClick={() => setShowEmoji(false)} />
-                  <div className="emoji-pop">
-                    <Suspense fallback={<div className="emoji-pop-loading" role="status" aria-label="Loading emoji" />}>
-                      <EmojiPicker onSelect={insertEmoji} />
-                    </Suspense>
-                  </div>
-                </>
+              {showEmoji && <div className="emoji-pop-backdrop" onClick={() => setShowEmoji(false)} />}
+              {(emojiBuilt || showEmoji) && (
+                <div className={`emoji-pop${showEmoji ? '' : ' is-hidden'}`} aria-hidden={!showEmoji} data-testid="emoji-pop">
+                  <Suspense
+                    fallback={showEmoji ? <div className="emoji-pop-loading" role="status" aria-label="Loading emoji" /> : null}
+                  >
+                    <EmojiPicker onSelect={insertEmoji} />
+                  </Suspense>
+                </div>
               )}
             </div>
           </div>
