@@ -7513,10 +7513,19 @@ a.msg-btn {
   border-color: var(--k-danger);
 }
 /* Dark WhatsApp-catalog mobile mock on the product details page */
+/* Product details / editor: a wider column for the wider catalog phone. */
+.composer-split:has(> .composer-preview > .pd-phone) {
+  --composer-preview-w: 420px;
+}
+@media (max-width: 1180px) {
+  .composer-split:has(> .composer-preview > .pd-phone) {
+    --composer-preview-w: 390px;
+  }
+}
 /* The same white phone as the template preview (.tc-phone), showing
    WhatsApp's light catalog "Details" screen. */
 .pd-phone {
-  width: 320px;
+  width: 360px;
   max-width: 100%;
   margin: 0 auto;
   background: #ffffff;
@@ -7562,6 +7571,11 @@ a.msg-btn {
      making the whole device scroll instead of just its screen. */
   min-height: 0;
   overflow-y: auto;
+  /* Scrolls like a phone screen: no scrollbar. */
+  scrollbar-width: none;
+}
+.pd-phone-scroll::-webkit-scrollbar {
+  display: none;
 }
 .pd-phone-hero {
   width: 100%;
@@ -7601,10 +7615,27 @@ a.msg-btn {
   color: #111b21;
   margin: 10px 0 8px;
 }
+/* One row of options that slides sideways, like WhatsApp; no scrollbar. The
+   row runs to the screen's edges so options slide in from the side. */
 .pd-phone-chips {
+  position: relative; /* offsetLeft of the chips is measured from the row */
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scrollbar-width: none;
+  margin: 0 -16px;
+  padding: 0 16px 2px;
+  scroll-padding-inline: 16px;
+}
+.pd-phone-chips::-webkit-scrollbar {
+  display: none;
+}
+.pd-phone-chips > .pd-phone-chip {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 .pd-phone-chip {
   border: 1px solid #d1d7db;

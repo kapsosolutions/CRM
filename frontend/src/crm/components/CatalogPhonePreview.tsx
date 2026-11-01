@@ -9,7 +9,7 @@
 //   • options missing from the current selection are dimmed but tappable;
 //   • a discounted combination shows the sale price with the original struck
 //     through, the way Meta renders a catalog item's sale_price.
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import type { Product, ProductVariant } from '../types';
 import { PhotoCarousel } from './PhotoCarousel';
 import { PhoneStatusBar } from './TemplatePhonePreview';
@@ -77,6 +77,41 @@ export function deliveryNoteOf(p: Product): string {
     : 'Free delivery';
 }
 
+/**
+ * One row of options that slides sideways (no scrollbar, like WhatsApp). A
+ * mouse wheel scrolls it sideways too, and the chosen option is kept in view.
+ */
+function ChipRow({ active, children }: { active: string; children: ReactNode }) {
+  const ref = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      if (el.scrollWidth <= el.clientWidth || Math.abs(e.deltaY) <= Math.abs(e.deltaX)) return;
+      const atStart = el.scrollLeft <= 0 && e.deltaY < 0;
+      const atEnd = el.scrollLeft + el.clientWidth >= el.scrollWidth - 1 && e.deltaY > 0;
+      if (atStart || atEnd) return; // let the screen scroll on
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+  useEffect(() => {
+    const el = ref.current;
+    const on = el?.querySelector<HTMLElement>('.pd-phone-chip.on');
+    if (!el || !on) return;
+    const left = on.offsetLeft - 16;
+    const right = on.offsetLeft + on.offsetWidth + 16;
+    if (left < el.scrollLeft) el.scrollLeft = left;
+    else if (right > el.scrollLeft + el.clientWidth) el.scrollLeft = right - el.clientWidth;
+  }, [active]);
+  return (
+    <div className="pd-phone-chips" ref={ref}>
+      {children}
+    </div>
+  );
+}
 export function CatalogPhonePreview({
   name,
   description,
@@ -183,7 +218,7 @@ export function CatalogPhonePreview({
           {allColors.length > 0 && (
             <>
               <div className="pd-phone-lbl">{colorLabel || 'Color'}</div>
-              <div className="pd-phone-chips">
+              <ChipRow active={activeColor}>
                 {allColors.map((c) => (
                   <button
                     type="button"
@@ -197,14 +232,14 @@ export function CatalogPhonePreview({
                     {c}
                   </button>
                 ))}
-              </div>
+              </ChipRow>
             </>
           )}
 
           {priced.length > 0 && variants.some((v) => v.label) && (
             <>
               <div className="pd-phone-lbl">Size</div>
-              <div className="pd-phone-chips">
+              <ChipRow active={String(sIdx)}>
                 {variants.map((v, i) => (
                   <button
                     type="button"
@@ -217,7 +252,7 @@ export function CatalogPhonePreview({
                     {v.label || `Size ${i + 1}`}
                   </button>
                 ))}
-              </div>
+              </ChipRow>
             </>
           )}
 
