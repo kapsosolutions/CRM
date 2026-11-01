@@ -951,8 +951,9 @@
   margin-bottom: 6px;
 }
 /* Leave room below the bubble so the reaction chip doesn't touch the next message. */
-.bubble.has-reaction {
-  margin-bottom: 18px;
+.bubble.has-reaction,
+.bubble:has(> .reaction-chip) {
+  margin-bottom: 22px;
 }
 .msg.out .bubble {
   background: #d9fdd3;
@@ -1169,7 +1170,9 @@
 /* Reaction chip overlapping the bubble bottom edge (WhatsApp style). */
 .reaction-chip {
   position: absolute;
-  bottom: -12px;
+  /* Hangs below the bubble (only its top edge overlaps), so it never covers
+     the time and ticks, like WhatsApp. */
+  bottom: -19px;
   right: 8px;
   background: var(--wa-surface);
   border: 1px solid var(--wa-hairline);
@@ -1349,8 +1352,12 @@ button.rx-row:hover {
   font-size: 24px;
   line-height: 1;
 }
+/* Under the time pill, not on it. */
 .bubble.jumbo > .reaction-chip {
-  bottom: -16px;
+  bottom: -25px;
+}
+.bubble.jumbo:has(> .reaction-chip) {
+  margin-bottom: 28px;
 }
 .reaction-count {
   margin-left: 4px;
