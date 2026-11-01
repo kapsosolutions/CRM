@@ -16,6 +16,7 @@
 // an outside mousedown instead of an overlay leaves scrolling untouched.
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import { uiScale } from '../uiScale';
 import './Dropdown.css';
 
 export interface KOption {
@@ -65,8 +66,12 @@ export function Dropdown({
   const place = useCallback(() => {
     const el = triggerRef.current;
     if (!el) return;
-    const r = el.getBoundingClientRect();
-    const below = window.innerHeight - r.bottom - GAP;
+    // Rects are in screen px; the panel's styles are in CSS px (they differ in the 90% view).
+    const s = uiScale();
+    const b = el.getBoundingClientRect();
+    const r = { left: b.left / s, top: b.top / s, bottom: b.bottom / s, width: b.width / s };
+    const viewH = window.innerHeight / s;
+    const below = viewH - r.bottom - GAP;
     const above = r.top - GAP;
     // Prefer below, but flip up when space below is cramped and more room exists above
     const flip = below < 240 && above > below;
@@ -75,7 +80,7 @@ export function Dropdown({
     setBox({
       left: r.left,
       top: flip ? undefined : r.bottom + GAP,
-      bottom: flip ? window.innerHeight - r.top + GAP : undefined,
+      bottom: flip ? viewH - r.top + GAP : undefined,
       width: Math.max(r.width, size === 'sm' ? 140 : r.width),
       maxHeight,
     });

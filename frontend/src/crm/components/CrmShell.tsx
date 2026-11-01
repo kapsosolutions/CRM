@@ -14,6 +14,7 @@ import { MockCrmApi } from '../demo/mockApi';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, type CrmView, SettingsRailSvg, ProfileRailSvg } from './NavRail';
 import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
+import { useCrmScale } from '../uiScale';
 import { ProfileSidebarDrawer } from './ProfileSidebarDrawer';
 import { NotificationDrawer } from './NotificationDrawer';
 import { verticalConfig, type LabelOverrides } from '../verticals';
@@ -49,6 +50,7 @@ import type { SignupActivation } from '../types';
 import './CrmApp.css';
 import './Sidebar.css';
 import '../theme/dark.css';
+import '../theme/scale.css';
 
 interface Props {
   config?: Partial<CrmConfig>;
@@ -813,6 +815,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   // ---- Sidebar (collapsible; a drawer on small screens) + light / dark theme ----
   const [theme, toggleTheme] = useCrmTheme();
+  useCrmScale();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
       return localStorage.getItem('crm_sidebar_collapsed') === '1';

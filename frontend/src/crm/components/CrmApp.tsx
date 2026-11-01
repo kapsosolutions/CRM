@@ -29,6 +29,7 @@ import { FlowDrawer } from './FlowDrawer';
 import { Lightbox, type ViewMedia } from './Lightbox';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ConnectWhatsAppOnboarding } from './ConnectWhatsAppOnboarding';
+import { uiScale } from '../uiScale';
 import './CrmApp.css';
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -847,10 +848,12 @@ export function CrmApp({
     if (!el) return;
     // Scroll only the message list. scrollIntoView() would also scroll every
     // ancestor (even overflow:hidden ones) and shift the whole CRM.
+    // Rects are screen px, scrollTop / clientHeight are CSS px (they differ in the 90% view).
+    const s = uiScale();
     const boxRect = box!.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
     box!.scrollTo({
-      top: box!.scrollTop + (elRect.top - boxRect.top) - (box!.clientHeight - elRect.height) / 2,
+      top: box!.scrollTop + (elRect.top - boxRect.top) / s - (box!.clientHeight - elRect.height / s) / 2,
       behavior: 'smooth',
     });
     el.classList.remove('flash');

@@ -4,6 +4,7 @@
 // move) and rotated left/right with reset. Per-file caption. Light CRM theme.
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBackHandler } from '../useBackHandler';
+import { uiScale } from '../uiScale';
 
 interface Item {
   file: File;
@@ -149,8 +150,10 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
     if (!d || !img) return;
     const W = img.clientWidth;
     const H = img.clientHeight;
-    const dx = e.clientX - d.startX;
-    const dy = e.clientY - d.startY;
+    // Mouse moves are screen px; the crop box is in the image's CSS px.
+    const s = uiScale();
+    const dx = (e.clientX - d.startX) / s;
+    const dy = (e.clientY - d.startY) / s;
     const b = d.box;
     if (d.mode === 'move') {
       setBox({ x: clamp(b.x + dx, 0, W - b.w), y: clamp(b.y + dy, 0, H - b.h), w: b.w, h: b.h });

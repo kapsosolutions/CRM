@@ -13,6 +13,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useBackHandler } from '../useBackHandler';
 import type { PdfElement, PdfElementType, PdfTemplate } from '../types';
 import { useMedia } from './uploadCtx';
+import { uiScale } from '../uiScale';
 
 export const PDF_A4 = { width: 794, height: 1123 };
 
@@ -396,8 +397,10 @@ export function PdfDesigner({ template, fileName = '', onClose, onSave }: Props)
     (e: PointerEvent) => {
       const d = drag.current;
       if (!d) return;
-      const dx = (e.clientX - d.sx) / zoom;
-      const dy = (e.clientY - d.sy) / zoom;
+      // Mouse moves are screen px: undo the 90% view too, not just the preview zoom.
+      const k = zoom * uiScale();
+      const dx = (e.clientX - d.sx) / k;
+      const dy = (e.clientY - d.sy) / k;
       if (d.mode === 'move') {
         patch(d.id, {
           x: Math.max(0, Math.round(d.ox + dx)),
