@@ -1,4 +1,4 @@
-// Vertical icon rail (WhatsApp-web style) to switch between CRM views.
+// The CRM sidebar: grouped sections with labels (collapses to icons, and is a drawer on small screens).
 import type { ReactNode } from 'react';
 
 export type CrmView = 'chats' | 'templates' | 'campaigns' | 'flows' | 'catalog' | 'categories' | 'members' | 'offers' | 'orders' | 'ads' | 'create' | 'payment-config' | 'profile' | 'settings' | 'channel-status';
@@ -207,35 +207,110 @@ const ITEMS: RailItem[] = [
   { key: 'payment-config', svg: <PaymentConfigRailSvg />, label: 'Payment Configuration' },
 ];
 
-export function NavRail({ view, onChange, allowed, labels, badges, soon, locked: planLocked }: Props) {
-  const items = allowed ? ITEMS.filter((it) => allowed.includes(it.key)) : ITEMS;
+// Sidebar sections, in order. A section with no item for this business type is left out.
+const GROUPS: { label?: string; keys: CrmView[] }[] = [
+  { keys: ['chats'] },
+  { label: 'Messaging', keys: ['templates', 'campaigns', 'flows'] },
+  { label: 'Commerce', keys: ['catalog', 'categories', 'offers', 'orders', 'payment-config'] },
+  { label: 'Team', keys: ['members'] },
+  { label: 'Marketing', keys: ['ads', 'create'] },
+];
+
+const EXTRA_TITLES: Partial<Record<CrmView, string>> = {
+  'channel-status': 'Channels',
+  profile: 'Business profile',
+  settings: 'Business profile',
+};
+
+/** The page's name, as the sidebar and the top bar show it. */
+export function viewLabel(view: CrmView, labels?: Partial<Record<CrmView, string>>): string {
+  return labels?.[view] || ITEMS.find((it) => it.key === view)?.label || EXTRA_TITLES[view] || '';
+}
+
+function CollapseSvg() {
   return (
-    <nav className="nav-rail">
-      <div className="nav-rail-top">
-        {items.map((it) => {
-          const label = labels?.[it.key] || it.label;
-          const count = badges?.[it.key] || 0;
-          const isSoon = !!soon?.[it.key];
-          const needs = !isSoon ? planLocked?.[it.key] : undefined;
-          const locked = isSoon || !!needs;
+    <svg width="18" height="18" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 4V16" />
+      <path d="M16.5 10H7.5M11 6.5L7.5 10L11 13.5" />
+    </svg>
+  );
+}
+
+interface SidebarProps extends Props {
+  /** Icons only (wide screens). */
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
+  /** Picks the logo that reads on the background. */
+  theme?: 'light' | 'dark';
+  /** The logo goes back to Chats. */
+  onHome?: () => void;
+}
+
+export function NavRail({
+  view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome,
+}: SidebarProps) {
+  const shown = (key: CrmView) => !allowed || allowed.includes(key);
+  const byKey = new Map(ITEMS.map((it) => [it.key, it]));
+  return (
+    <nav className={`nav-rail crm-sidebar${collapsed ? ' collapsed' : ''}`} aria-label="CRM sections">
+      <div className="crm-side-brand">
+        <button type="button" className="crm-side-logo" onClick={onHome} title="Kapso CRM - Home">
+          <img src={theme === 'dark' ? '/logo1.png' : '/logo.png'} alt="Kapso Solutions" className="crm-side-logo-full" />
+          <span className="crm-side-logo-mark" aria-hidden="true">K</span>
+        </button>
+        {onToggleCollapsed && (
+          <button
+            type="button"
+            className="crm-side-collapse"
+            onClick={onToggleCollapsed}
+            aria-label={collapsed ? 'Expand the menu' : 'Collapse the menu'}
+            title={collapsed ? 'Expand the menu' : 'Collapse the menu'}
+          >
+            <CollapseSvg />
+          </button>
+        )}
+      </div>
+      <div className="nav-rail-top crm-side-menu">
+        {GROUPS.map((g) => {
+          const items = g.keys.filter(shown).map((k) => byKey.get(k)!).filter(Boolean);
+          if (!items.length) return null;
           return (
-            <button
-              key={it.key}
-              className={`rail-btn${view === it.key ? ' active' : ''}${locked ? ' soon' : ''}`}
-              onClick={() => onChange(it.key)}
-              title={needs ? `${label} · ${needs} plan` : label}
-              aria-label={isSoon ? `${label}, coming soon` : needs ? `${label}, needs the ${needs} plan` : count > 0 ? `${label}, ${count} unread` : label}
-              data-soon={isSoon ? 'true' : undefined}
-              data-plan-locked={needs || undefined}
-            >
-              {it.svg ? it.svg : <span className="material-icons">{it.icon}</span>}
-              {locked && (
-                <span className="rail-soon" aria-hidden="true"><span className="material-icons">lock</span></span>
-              )}
-              {count > 0 && (
-                <span className="rail-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>
-              )}
-            </button>
+            <div className="crm-side-group" key={g.label || 'main'}>
+              {g.label && <div className="crm-side-label">{g.label}</div>}
+              {items.map((it) => {
+                const label = labels?.[it.key] || it.label;
+                const count = badges?.[it.key] || 0;
+                const isSoon = !!soon?.[it.key];
+                const needs = !isSoon ? planLocked?.[it.key] : undefined;
+                const locked = isSoon || !!needs;
+                return (
+                  <button
+                    key={it.key}
+                    type="button"
+                    className={`rail-btn crm-side-item${view === it.key ? ' active' : ''}${locked ? ' soon' : ''}`}
+                    onClick={() => onChange(it.key)}
+                    title={needs ? `${label} · ${needs} plan` : label}
+                    aria-label={isSoon ? `${label}, coming soon` : needs ? `${label}, needs the ${needs} plan` : count > 0 ? `${label}, ${count} unread` : label}
+                    aria-current={view === it.key ? 'page' : undefined}
+                    data-soon={isSoon ? 'true' : undefined}
+                    data-plan-locked={needs || undefined}
+                  >
+                    <span className="crm-side-icon">
+                      {it.svg ? it.svg : <span className="material-icons">{it.icon}</span>}
+                      {locked && (
+                        <span className="rail-soon" aria-hidden="true"><span className="material-icons">lock</span></span>
+                      )}
+                    </span>
+                    <span className="crm-side-text">{label}</span>
+                    {isSoon && <span className="crm-side-pill soon" aria-hidden="true">Soon</span>}
+                    {needs && <span className="crm-side-pill plan" aria-hidden="true">{needs}</span>}
+                    {count > 0 && (
+                      <span className="rail-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
           );
         })}
       </div>

@@ -1,5 +1,6 @@
 import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
+import crmDarkTheme from './build/crmDarkTheme';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -12,6 +13,8 @@ export default defineConfig(({ mode }) => {
   const backend = env.BACKEND_URL || 'http://localhost:5055';
   return {
     plugins: [react()],
+    // Dark copies of the CRM's colour rules (switched on by <html data-theme="dark">).
+    css: { postcss: { plugins: [crmDarkTheme()] } },
     build: {
       rollupOptions: {
         output: {

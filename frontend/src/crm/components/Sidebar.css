@@ -1,0 +1,322 @@
+/* =============================================================================
+   CRM frame: sidebar (grouped sections, collapses to icons, a drawer on small
+   screens) next to the top bar + the page. Same layout as the admin panel.
+   Light by default; the dark variant comes from theme/dark.css plus the rules
+   the build generates (build/crmDarkTheme.ts).
+   ========================================================================== */
+.crm-frame {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  position: relative;
+}
+.crm-frame-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- sidebar ---- */
+.crm-sidebar {
+  width: 240px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+  transition: width 0.2s ease;
+  z-index: 41;
+}
+.crm-side-brand {
+  height: 52px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 0 10px 0 16px;
+  border-bottom: 1px solid #e5e7eb;
+}
+.crm-side-logo {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+}
+.crm-side-logo:focus-visible {
+  outline: none;
+  box-shadow: var(--wa-focus-ring);
+}
+.crm-side-logo-full {
+  display: block;
+  height: 30px;
+  width: auto;
+  max-width: 150px;
+  object-fit: contain;
+}
+.crm-side-logo-mark {
+  display: none;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  align-items: center;
+  justify-content: center;
+  background: #24d06e;
+  color: #ffffff;
+  font-size: 19px;
+  font-weight: 800;
+}
+.crm-side-collapse {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #64748b;
+  cursor: pointer;
+}
+.crm-side-collapse:hover,
+.crm-side-collapse:focus-visible {
+  background: #f1f5f9;
+  color: #0f172a;
+  outline: none;
+}
+.crm-side-collapse svg {
+  transition: transform 0.2s ease;
+}
+
+.crm-side-menu {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 10px 10px 16px;
+  scrollbar-width: thin;
+}
+.crm-side-group + .crm-side-group {
+  margin-top: 12px;
+}
+.crm-side-label {
+  padding: 4px 10px 6px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #94a3b8;
+  white-space: nowrap;
+}
+.crm-side-item {
+  position: relative;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 10px;
+  margin-bottom: 2px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #334155;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.crm-side-item:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+.crm-side-item:focus-visible {
+  outline: none;
+  box-shadow: var(--wa-focus-ring);
+}
+.crm-side-item.active {
+  background: #e9fbf1;
+  color: #0f7a46;
+  font-weight: 600;
+}
+.crm-side-icon {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #475569;
+}
+.crm-side-item:hover .crm-side-icon {
+  color: #0f172a;
+}
+.crm-side-item.active .crm-side-icon {
+  color: #16a34a;
+}
+.crm-side-icon > svg {
+  display: block;
+  max-width: 20px;
+  max-height: 20px;
+}
+.crm-side-icon .material-icons {
+  font-size: 20px;
+}
+.crm-side-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.rail-btn.soon .crm-side-icon > svg {
+  opacity: 0.55;
+}
+.rail-btn.soon .crm-side-text {
+  opacity: 0.75;
+}
+.crm-side-pill {
+  flex-shrink: 0;
+  padding: 1px 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 16px;
+}
+.crm-side-pill.soon {
+  background: #fef3c7;
+  color: #92400e;
+}
+.crm-side-pill.plan {
+  background: #e0f2fe;
+  color: #075985;
+}
+/* The small lock and the unread count: on the icon when collapsed only. */
+.crm-sidebar .rail-soon {
+  display: none;
+}
+.crm-sidebar .rail-badge {
+  position: static;
+  flex-shrink: 0;
+  box-shadow: none;
+}
+
+/* ---- top bar: page title + menu button ---- */
+.crm-main-nav-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+  color: #0f172a;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.crm-main-nav-left {
+  min-width: 0;
+}
+.crm-nav-icon-btn.crm-nav-burger {
+  display: none;
+}
+.crm-drawer-backdrop {
+  display: none;
+}
+
+/* ---- collapsed: icons only (wide screens) ---- */
+@media (min-width: 1025px) {
+  .crm-sidebar.collapsed {
+    width: 68px;
+  }
+  .crm-sidebar.collapsed .crm-side-brand {
+    flex-direction: column;
+    justify-content: center;
+    height: auto;
+    min-height: 52px;
+    gap: 4px;
+    padding: 8px 0 6px;
+  }
+  .crm-sidebar.collapsed .crm-side-logo-full,
+  .crm-sidebar.collapsed .crm-side-text,
+  .crm-sidebar.collapsed .crm-side-label,
+  .crm-sidebar.collapsed .crm-side-pill {
+    display: none;
+  }
+  .crm-sidebar.collapsed .crm-side-logo-mark {
+    display: inline-flex;
+  }
+  .crm-sidebar.collapsed .crm-side-collapse svg {
+    transform: rotate(180deg);
+  }
+  .crm-sidebar.collapsed .crm-side-group + .crm-side-group {
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid #eef0f3;
+  }
+  .crm-sidebar.collapsed .crm-side-item {
+    justify-content: center;
+    padding: 10px 0;
+  }
+  .crm-sidebar.collapsed .rail-soon {
+    display: flex;
+    right: -5px;
+    bottom: -4px;
+  }
+  .crm-sidebar.collapsed .rail-badge {
+    position: absolute;
+    top: 2px;
+    right: 8px;
+    box-shadow: 0 0 0 2px #ffffff;
+  }
+}
+
+/* ---- tablet / phone: the sidebar is a drawer ---- */
+@media (max-width: 1024px) {
+  .crm-sidebar,
+  .crm-sidebar.collapsed {
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 260px;
+    transform: translateX(-100%);
+    transition: transform 0.22s ease;
+    z-index: 1001;
+  }
+  .crm-frame.drawer-open .crm-sidebar {
+    transform: translateX(0);
+    box-shadow: 0 0 40px rgba(15, 23, 42, 0.25);
+  }
+  .crm-frame.drawer-open .crm-drawer-backdrop {
+    display: block;
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    background: rgba(15, 23, 42, 0.45);
+  }
+  .crm-side-collapse {
+    display: none;
+  }
+  .crm-nav-icon-btn.crm-nav-burger {
+    display: inline-flex;
+  }
+}
+@media (max-width: 640px) {
+  .crm-main-nav-title {
+    font-size: 15px;
+  }
+}
+/* Phones: the top bar's buttons fill the row; the open item is marked in the drawer. */
+@media (max-width: 480px) {
+  .crm-main-nav-title {
+    display: none;
+  }
+}

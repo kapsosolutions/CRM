@@ -1,0 +1,178 @@
+/* =============================================================================
+   CRM dark theme: token values + hand-tuned spots.
+   Active only while the CRM sets <html data-theme="dark"> (src/crm/theme.tsx).
+   Most dark colours are generated at build time from the CRM stylesheets
+   (build/crmDarkTheme.ts); this file holds what a colour formula can't decide.
+   Overrides use :root[data-theme="dark"], which outranks the original rules
+   and their generated :where(...) copies whatever order the stylesheets load in.
+   ========================================================================== */
+html[data-theme='dark'] {
+  color-scheme: dark;
+  --wa-primary-soft: rgba(36, 208, 110, 0.14);
+  --wa-secondary: #005c4b;
+  --wa-ink: #e9ecef;
+  --wa-ink-muted: #8d949b;
+  --wa-ink-inverse: #ffffff;
+  --wa-link: #60a5fa;
+  --wa-canvas: #0f1214;
+  --wa-surface: #171a1e;
+  --wa-surface-2: #1e2226;
+  --wa-surface-dark: #0b0d10;
+  --wa-chat-bg: #0b141a;
+  --wa-panel: #1a1d21;
+  --wa-hairline: rgba(255, 255, 255, 0.08);
+  --wa-hairline-strong: rgba(255, 255, 255, 0.14);
+  --wa-focus-ring: 0 0 0 3px rgba(36, 208, 110, 0.3);
+  --wa-shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --wa-shadow-md: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --wa-shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.55);
+  --wati-text-body: #e9ecef;
+  --base-color: #171a1e;
+  --switch-bg: #3a4048;
+}
+
+:root[data-theme='dark'] body {
+  background: var(--wa-canvas);
+  color: var(--wa-ink);
+}
+
+/* ---- sidebar ---- */
+:root[data-theme='dark'] .crm-sidebar {
+  background: #14171b;
+  border-right-color: rgba(255, 255, 255, 0.07);
+}
+:root[data-theme='dark'] .crm-side-brand {
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+:root[data-theme='dark'] .crm-side-label {
+  color: #6b737c;
+}
+:root[data-theme='dark'] .crm-side-item {
+  color: #c3c9cf;
+}
+:root[data-theme='dark'] .crm-side-icon {
+  color: #9aa2ab;
+}
+:root[data-theme='dark'] .crm-side-item:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
+}
+:root[data-theme='dark'] .crm-side-item:hover .crm-side-icon {
+  color: #ffffff;
+}
+:root[data-theme='dark'] .crm-side-item.active {
+  background: rgba(36, 208, 110, 0.14);
+  color: #4ade80;
+}
+:root[data-theme='dark'] .crm-side-item.active .crm-side-icon {
+  color: #4ade80;
+}
+:root[data-theme='dark'] .crm-side-collapse {
+  color: #9aa2ab;
+}
+:root[data-theme='dark'] .crm-side-collapse:hover,
+:root[data-theme='dark'] .crm-side-collapse:focus-visible {
+  background: rgba(255, 255, 255, 0.06);
+  color: #ffffff;
+}
+:root[data-theme='dark'] .crm-side-pill.soon {
+  background: rgba(245, 158, 11, 0.16);
+  color: #fbbf24;
+}
+:root[data-theme='dark'] .crm-side-pill.plan {
+  background: rgba(56, 189, 248, 0.16);
+  color: #7dd3fc;
+}
+@media (min-width: 1025px) {
+  :root[data-theme='dark'] .crm-sidebar.collapsed .crm-side-group + .crm-side-group {
+    border-top-color: rgba(255, 255, 255, 0.07);
+  }
+  :root[data-theme='dark'] .crm-sidebar.collapsed .rail-badge {
+    box-shadow: 0 0 0 2px #14171b;
+  }
+}
+:root[data-theme='dark'] .rail-soon {
+  box-shadow: 0 0 0 2px #14171b;
+}
+
+/* ---- top bar ---- */
+:root[data-theme='dark'] .crm-main-nav {
+  background: #14171b;
+  border-bottom-color: rgba(255, 255, 255, 0.07);
+}
+:root[data-theme='dark'] .crm-main-nav-title {
+  color: #f1f3f5;
+}
+:root[data-theme='dark'] .crm-nav-icon-btn {
+  color: #c3c9cf;
+}
+:root[data-theme='dark'] .crm-nav-icon-btn:hover,
+:root[data-theme='dark'] .crm-nav-icon-btn.active,
+:root[data-theme='dark'] .crm-nav-icon-btn:focus-visible {
+  color: #24d06e;
+}
+:root[data-theme='dark'] .crm-nav-sep {
+  background: rgba(255, 255, 255, 0.1);
+}
+:root[data-theme='dark'] .crm-nav-connected-status.connected {
+  color: #38bdf8;
+}
+
+/* ---- chat thread: WhatsApp's dark wallpaper colour ---- */
+:root[data-theme='dark'] .thread.has-active-chat {
+  background-color: var(--wa-chat-bg);
+}
+
+/* ---- message bubbles: WhatsApp dark colours ---- */
+:root[data-theme='dark'] .bubble {
+  background-color: #202c33;
+  color: #e9edef;
+}
+:root[data-theme='dark'] .msg.out .bubble {
+  background-color: #005c4b;
+  color: #e9edef;
+}
+
+/* ---- bright illustrations: tone them down a little ---- */
+:root[data-theme='dark'] .no-chat-img {
+  opacity: 0.82;
+  filter: brightness(0.88);
+}
+
+/* ---- inputs: native controls follow color-scheme, placeholders stay dim ---- */
+:root[data-theme='dark'] input::placeholder,
+:root[data-theme='dark'] textarea::placeholder {
+  color: #6b737c;
+}
+
+/* ---- scrollbars ---- */
+:root[data-theme='dark'] *::-webkit-scrollbar-thumb {
+  background: #2c3238;
+}
+
+/* ---- flow builder (reactflow ships its own light stylesheet) ---- */
+:root[data-theme='dark'] .react-flow__pane,
+:root[data-theme='dark'] .react-flow__renderer {
+  background: transparent;
+}
+:root[data-theme='dark'] .react-flow__controls-button {
+  background: #1e2226;
+  border-bottom-color: rgba(255, 255, 255, 0.08);
+  color: #e9ecef;
+  fill: #e9ecef;
+}
+:root[data-theme='dark'] .react-flow__controls-button svg {
+  fill: #e9ecef;
+}
+:root[data-theme='dark'] .react-flow__minimap {
+  background: #171a1e;
+}
+:root[data-theme='dark'] .react-flow__minimap-mask {
+  fill: rgba(0, 0, 0, 0.55);
+}
+:root[data-theme='dark'] .react-flow__attribution {
+  background: transparent;
+}
+:root[data-theme='dark'] .react-flow__edge-path {
+  stroke: #5b636c;
+}

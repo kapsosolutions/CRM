@@ -12,7 +12,8 @@ import { PlanLockedPage } from './PlanLocked';
 import { WalletButton } from './WalletButton';
 import { MockCrmApi } from '../demo/mockApi';
 import { defaultConfig, type CrmConfig } from '../config';
-import { NavRail, type CrmView, SettingsRailSvg, ProfileRailSvg } from './NavRail';
+import { NavRail, viewLabel, type CrmView, SettingsRailSvg, ProfileRailSvg } from './NavRail';
+import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
 import { ProfileSidebarDrawer } from './ProfileSidebarDrawer';
 import { NotificationDrawer } from './NotificationDrawer';
 import { verticalConfig, type LabelOverrides } from '../verticals';
@@ -46,6 +47,8 @@ import { numberStatusTone, CHANNEL_STATUS_EVENT, NUMBER_ACTIVATION_EVENT } from 
 import { preloadMetaSdk } from '../metaSdk';
 import type { SignupActivation } from '../types';
 import './CrmApp.css';
+import './Sidebar.css';
+import '../theme/dark.css';
 
 interface Props {
   config?: Partial<CrmConfig>;
@@ -277,6 +280,12 @@ interface CrmTopNavProps {
   onToggleNotifications: () => void;
   /** Meta's live status of the number; null = not read yet, '' = Meta gave none. */
   numberStatus: string | null;
+  /** The open page's name (left of the bar). */
+  title: string;
+  /** Small screens: opens the sidebar drawer. */
+  onOpenMenu: () => void;
+  theme: CrmTheme;
+  onToggleTheme: () => void;
 }
 
 function CrmTopNav({
@@ -291,6 +300,10 @@ function CrmTopNav({
   notificationsOpen,
   onToggleNotifications,
   numberStatus,
+  title,
+  onOpenMenu,
+  theme,
+  onToggleTheme,
 }: CrmTopNavProps) {
   const rawNum = (
     business?.meta?.displayPhoneNumber ||
@@ -311,14 +324,12 @@ function CrmTopNav({
   return (
     <header className="crm-main-nav">
       <div className="crm-main-nav-left">
-        <button
-          type="button"
-          className="crm-main-nav-logo-btn"
-          onClick={() => onNavigate('chats')}
-          title="Kapso CRM - Home"
-        >
-          <img src="/logo.png" alt="Kapso Solutions" className="crm-main-nav-logo" />
+        <button type="button" className="crm-nav-icon-btn crm-nav-burger" onClick={onOpenMenu} aria-label="Open the menu" title="Menu">
+          <svg width="20" height="20" viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
+            <path d="M3 5.5H17M3 10H17M3 14.5H17" />
+          </svg>
         </button>
+        <h1 className="crm-main-nav-title" data-testid="crm-page-title">{title}</h1>
       </div>
 
       <div className="crm-main-nav-right">
@@ -337,6 +348,19 @@ function CrmTopNav({
         <WalletButton business={business} />
 
         <div className="crm-nav-sep" />
+
+        {/* Light / dark theme */}
+        <button
+          type="button"
+          className="crm-nav-icon-btn crm-nav-theme"
+          onClick={onToggleTheme}
+          title={theme === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
+          aria-label={theme === 'dark' ? 'Switch to the light theme' : 'Switch to the dark theme'}
+          aria-pressed={theme === 'dark'}
+          data-testid="crm-theme-toggle"
+        >
+          <ThemeToggleSvg theme={theme} />
+        </button>
 
         {/* Notifications Icon */}
         <button
@@ -787,6 +811,34 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   }
   const focusFor = (p: CrmView) => (focusRequest?.view === p ? focusRequest : null);
 
+  // ---- Sidebar (collapsible; a drawer on small screens) + light / dark theme ----
+  const [theme, toggleTheme] = useCrmTheme();
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
+    try {
+      return localStorage.getItem('crm_sidebar_collapsed') === '1';
+    } catch {
+      return false;
+    }
+  });
+  const toggleSidebar = useCallback(() => {
+    setSidebarCollapsed((c) => {
+      try {
+        localStorage.setItem('crm_sidebar_collapsed', c ? '0' : '1');
+      } catch {
+        /* private mode */
+      }
+      return !c;
+    });
+  }, []);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  useBackHandler(drawerOpen, () => setDrawerOpen(false));
+  const railLabels: Partial<Record<CrmView, string>> = {
+    members: vertical.memberLabel,
+    orders: vertical.ordersLabel,
+    categories: vertical.categoryPlural,
+    flows: canUseFlows ? 'Automation' : 'Journeys',
+  };
+
   // Registered but WhatsApp not connected yet: every page is there, with a bar
   // on top to connect the number (Embedded Signup).
   const needsConnect = !demo && !!business && !business.whatsappConnected;
@@ -814,6 +866,28 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         needsConnect={needsConnect}
         onConnectClick={() => navigate('channel-status')}
       />
+      <div className={`crm-frame${sidebarCollapsed ? ' sidebar-collapsed' : ''}${drawerOpen ? ' drawer-open' : ''}`}>
+        <NavRail
+          view={view}
+          onChange={(v) => {
+            setDrawerOpen(false);
+            navigate(v);
+          }}
+          allowed={vertical.pages}
+          badges={{ chats: unreadChats }}
+          soon={{ ads: COMING_SOON.ads, create: COMING_SOON.create }}
+          locked={lockedRail}
+          labels={railLabels}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={toggleSidebar}
+          theme={theme}
+          onHome={() => {
+            setDrawerOpen(false);
+            navigate('chats');
+          }}
+        />
+        <div className="crm-drawer-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
+        <div className="crm-frame-main">
       <CrmTopNav
         business={business}
         demo={demo}
@@ -826,23 +900,13 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         notificationsOpen={notificationsOpen}
         onToggleNotifications={() => setNotificationsOpen((o) => !o)}
         numberStatus={numberStatus}
+        title={viewLabel(view, railLabels)}
+        onOpenMenu={() => setDrawerOpen(true)}
+        theme={theme}
+        onToggleTheme={toggleTheme}
       />
 
       <div className={`crm-shell${needsConnect ? ' has-connect-bar' : ''}`}>
-        <NavRail
-          view={view}
-          onChange={navigate}
-          allowed={vertical.pages}
-          badges={{ chats: unreadChats }}
-          soon={{ ads: COMING_SOON.ads, create: COMING_SOON.create }}
-          locked={lockedRail}
-          labels={{
-            members: vertical.memberLabel,
-            orders: vertical.ordersLabel,
-            categories: vertical.categoryPlural,
-            flows: canUseFlows ? 'Automation' : 'Journeys',
-          }}
-        />
         <div className="crm-shell-main">
           <div className="crm-shell-content">
             {/* Keep the chat view mounted so its socket + state persist across tabs. */}
@@ -1009,6 +1073,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
               />
             )}
           </div>
+        </div>
+      </div>
         </div>
       </div>
 
