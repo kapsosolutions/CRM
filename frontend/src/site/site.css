@@ -1202,24 +1202,25 @@ html.lenis .au-page {
 }
 
 /* Theme variations matching the image */
+/* Card colours: clear tints, so each plan reads at a glance. */
 .lp-plan-card.lp-plan-slate {
-  background-color: #f8fafc;
+  background-color: #f1f5f9;
   border: 1.5px solid #cbd5e1;
 }
 
 .lp-plan-card.lp-plan-blue {
-  background-color: #f0f9ff;
+  background-color: #e0f2fe;
   border: 1.5px solid #7dd3fc;
 }
 
 .lp-plan-card.lp-plan-green {
-  background-color: #eafaf1;
+  background-color: #c9f7dd;
   border: 1.5px solid #22c55e;
   box-shadow: 0 8px 24px rgba(34, 197, 94, 0.12);
 }
 
 .lp-plan-card.lp-plan-purple {
-  background-color: #faf5ff;
+  background-color: #fae8ff;
   border: 1.5px solid #f0abfc;
 }
 
@@ -1253,7 +1254,7 @@ html.lenis .au-page {
 
 /* Description */
 .lp-plan-card-desc {
-  color: #475569;
+  color: #1e293b;
   font-size: 13px;
   line-height: 1.5;
   margin: 0 0 20px;
