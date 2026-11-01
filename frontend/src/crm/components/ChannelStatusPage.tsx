@@ -1110,6 +1110,20 @@ export function ChannelStatusPage({
                   : `Couldn't load this number's status from Meta: ${status.error}`}
               </span>
             )}
+            {activeTab === 'whatsapp' && isConnected && !!status?.otherApps?.length && (
+              <div className="cs-other-apps" role="alert" data-testid="cs-other-apps">
+                <strong>
+                  Another app is connected to this WhatsApp number:{' '}
+                  {status.otherApps.map((a) => `${a.name || 'App'} (ID ${a.id})`).join(', ')}
+                </strong>
+                <span>
+                  WhatsApp lets only one app answer each chat. While this app is attached it can take your chats,
+                  so its old automation replies and your messages from the CRM may be refused. Remove it in
+                  Meta Business Suite → Settings → WhatsApp accounts → this account → Partners, or delete that app
+                  in developers.facebook.com. Messages it holds still appear here.
+                </span>
+              </div>
+            )}
           </div>
 
           {!isCurrentChannelConnected ? (

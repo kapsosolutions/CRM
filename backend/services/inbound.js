@@ -73,6 +73,10 @@ export async function processInboundMessage(message, names, ctx) {
   logInbound(msg.phone, msg.name, msg.type, msg.logBody, message, message.id, msg.media, {
     ...ctx, form: msg.form, order: msg.orderInfo, replyTo,
   }).catch(() => {});
+  // Delivered on `standby`: another Meta app on the same number holds the
+  // chat, so it's the one answering. The CRM shows the message, but our
+  // automation stays quiet (its reply would be refused, or answer twice).
+  if (ctx.standby) return;
   handleMessage(msg, ctx).catch((e) =>
     logger.error('handleMessage error', { error: e.message, stack: e.stack }),
   );

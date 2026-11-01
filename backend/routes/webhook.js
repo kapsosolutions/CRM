@@ -8,6 +8,7 @@ import { processInboundMessage, contactNames, parseIncoming } from '../services/
 import { getClientForBusiness } from '../services/metaCloud.js';
 import { handleSandboxValue, isSandboxNumber } from '../services/sandbox.js';
 import { notifyTemplateStatus } from '../services/notifications.js';
+import { logEcho } from '../services/otherApps.js';
 
 // mergeParams so the :tenantId from the mount path is available here.
 const router = express.Router({ mergeParams: true });
@@ -209,8 +210,21 @@ router.post('/', async (req, res) => {
             .catch((e) => logger.error('template status update failed', { error: e.message }));
           continue;
         }
-        if (change.field !== 'messages') continue;
-        const value = change.value || {};
+        // Another app on this number took or passed the chat (thread control).
+        if (change.field === 'messaging_handovers') {
+          logger.info('WhatsApp thread control changed', {
+            urlTenant: req.params.tenantId || '(none)',
+            value: JSON.stringify(change.value || {}).slice(0, 300),
+          });
+          continue;
+        }
+        // `standby`: the chat is held by another Meta app on this number, so the
+        // message comes here instead of on `messages`. Same shape (sometimes
+        // nested under `standby`), plus `message_echoes` for what that app sent.
+        const standby = change.field === 'standby';
+        if (change.field !== 'messages' && !standby) continue;
+        const raw = change.value || {};
+        const value = standby && raw.standby && typeof raw.standby === 'object' ? { ...raw, ...raw.standby } : raw;
 
         // The shared "try it" number belongs to no business: each sender is
         // routed to the business whose join code they sent. Checked before any
@@ -253,8 +267,15 @@ router.post('/', async (req, res) => {
         const names = contactNames(value);
         for (const message of value.messages || []) {
           // Logging, media, flow submissions, carts and automation — shared
-          // with the sandbox number (services/inbound.js).
-          await processInboundMessage(message, names, { meta, tenantId, tenantName });
+          // with the sandbox number (services/inbound.js). On standby the
+          // message is logged but our automation doesn't answer.
+          await processInboundMessage(message, names, { meta, tenantId, tenantName, standby });
+        }
+        if (standby) {
+          if (value.messages?.length) {
+            logger.warn('WhatsApp chat held by another app on this number (standby)', { tenant: biz.username || tenantName });
+          }
+          for (const echo of value.message_echoes || []) await logEcho(echo, { tenantId });
         }
       }
     }

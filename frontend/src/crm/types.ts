@@ -1412,6 +1412,8 @@ export interface MessagingLimit {
 export interface ChannelStatus {
   success: boolean;
   connected: boolean;
+  /** Other Meta apps still attached to the WhatsApp account (they can hold chats). */
+  otherApps?: { id: string; name: string }[];
   /** When Meta was last read (ISO); null if it never answered. */
   fetchedAt?: string | null;
   cached?: boolean;

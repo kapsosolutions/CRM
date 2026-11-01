@@ -18,6 +18,7 @@ import Business from '../models/Business.js';
 import Message from '../models/Message.js';
 import { isWhatsAppConnected } from './sandbox.js';
 import { getNumberStatus } from './metaAccount.js';
+import { otherSubscribedApps } from './otherApps.js';
 import { dayKeys, istStart, TZ } from './platformDashboard.js';
 
 export const TARGETS = { messagesPerDay: 2500, activeClients: 10, qualityPct: 90 };
@@ -72,7 +73,10 @@ export async function fetchTechPartnerRaw(now = new Date(), { refresh = false } 
   // number), else the snapshot stored when it was connected.
   const connected = businesses.filter((b) => isWhatsAppConnected(b));
   const numbers = await Promise.all(connected.map(async (b) => {
-    const s = await getNumberStatus(b, { refresh }).catch(() => null);
+    const [s, other] = await Promise.all([
+      getNumberStatus(b, { refresh }).catch(() => null),
+      otherSubscribedApps(b, { refresh }).catch(() => null),
+    ]);
     const live = s?.number || null;
     return {
       businessId: String(b._id),
@@ -84,6 +88,8 @@ export async function fetchTechPartnerRaw(now = new Date(), { refresh = false } 
       status: up(live?.status) || up(b.meta?.numberStatus),
       limit: s?.limit?.label || '',
       error: s?.error || '',
+      // Other Meta apps on the WhatsApp account: they can hold chats away from us.
+      otherApps: other?.ok ? other.apps : [],
     };
   }));
 

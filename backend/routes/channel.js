@@ -5,6 +5,7 @@ import express from 'express';
 import { requireBusiness } from '../middleware/auth.js';
 import { getNumberStatus } from '../services/metaAccount.js';
 import { activateNumber, ActivationError } from '../services/numberActivation.js';
+import { otherSubscribedApps } from '../services/otherApps.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
@@ -15,7 +16,10 @@ router.use(requireBusiness);
 router.get('/status', async (req, res) => {
   const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
   const data = await getNumberStatus(req.business, { refresh });
-  res.json({ success: true, ...data });
+  // Other Meta apps still attached to the WhatsApp account (an old automation):
+  // they can hold chats away from the CRM, so the page names them.
+  const other = data.connected ? await otherSubscribedApps(req.business, { refresh }).catch(() => null) : null;
+  res.json({ success: true, ...data, otherApps: other?.ok ? other.apps : [] });
 });
 
 // Register the number with Cloud API: { pin: '123456' } or { useSavedPin: true }.

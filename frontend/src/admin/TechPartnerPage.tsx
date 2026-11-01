@@ -268,6 +268,7 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
                       <th>Limit</th>
                       <th className="num">Messages (7 days)</th>
                       <th>Active client</th>
+                      <th>Other apps</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -288,6 +289,19 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
                         <td>{n.limit || '—'}</td>
                         <td className="num">{whole.format(n.messages7d)}</td>
                         <td>{n.activeClient ? <span className="pa-badge num-green">Yes</span> : <span className="pa-badge num-grey">No</span>}</td>
+                        <td>
+                          {n.otherApps?.length ? (
+                            <span
+                              className="pa-badge num-red"
+                              title={`Also attached: ${n.otherApps.map((a) => `${a.name || 'App'} (${a.id})`).join(', ')}. It can hold this number's chats away from the CRM.`}
+                              data-testid="tp-other-apps"
+                            >
+                              {n.otherApps.map((a) => a.name || a.id).join(', ')}
+                            </span>
+                          ) : (
+                            <span className="pa-badge num-grey">None</span>
+                          )}
+                        </td>
                       </tr>
                     ))}
                   </tbody>

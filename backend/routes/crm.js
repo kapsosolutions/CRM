@@ -14,6 +14,7 @@ import { sendFlowToChat } from '../services/flowMapRuntime.js';
 import { channelClientForChat, chatChannel, channelUnsupported } from '../services/metaChannels.js';
 import { touchOutbound } from '../services/conversationState.js';
 import { setReaction, resolveAgentReply } from '../services/reactions.js';
+import { THREAD_CONTROLLED_ELSEWHERE, THREAD_CONTROL_MESSAGE } from '../services/otherApps.js';
 import { notifyTemplateStatus, markChatRead } from '../services/notifications.js';
 import { planState, hasFeature, assertFeature } from '../services/plans.js';
 import {
@@ -80,7 +81,10 @@ const sandboxRefusal = (res) =>
 const channelRefusal = (res, channel) =>
   res.status(409).json({ success: false, code: 'CHANNEL_UNSUPPORTED', message: channelUnsupported(channel) });
 
-const errMessage = (err) => err.response?.data?.error?.message || err.message;
+const errMessage = (err) =>
+  err.response?.data?.error?.code === THREAD_CONTROLLED_ELSEWHERE
+    ? THREAD_CONTROL_MESSAGE
+    : err.response?.data?.error?.message || err.message;
 // Honour an error's own status so a spent free trial reports 402 with its own
 // explanation rather than a generic 500.
 const sendFailure = (res, err) => {

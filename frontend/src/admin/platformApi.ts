@@ -240,6 +240,8 @@ export interface TechPartnerNumber {
   error: string;
   messages7d: number;
   activeClient: boolean;
+  /** Other Meta apps still attached to this WhatsApp account. */
+  otherApps?: { id: string; name: string }[];
 }
 export interface TechPartnerDay {
   date: string;

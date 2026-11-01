@@ -54,7 +54,7 @@ function headerJson(header) {
 }
 
 // Describe an outbound payload so the CRM renders it richly.
-function describeOutbound(payload) {
+export function describeOutbound(payload) {
   const type = payload.type;
   const d = {
     type, body: '', headerImageUrl: '', headerText: '', headerDocName: '', headerDocUrl: '', footer: '',

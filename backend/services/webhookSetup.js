@@ -19,7 +19,11 @@ import logger from './logger.js';
 const OBJECT = 'whatsapp_business_account';
 // Always keep these, whatever the app had before: without `messages` no inbound
 // message is delivered at all.
-const REQUIRED_FIELDS = ['messages', 'message_template_status_update'];
+// `standby` + `messaging_handovers`: when another Meta app on a business's
+// number holds a chat (an old automation still attached), its messages come on
+// `standby` instead of `messages`, and would otherwise never reach the CRM
+// (services/otherApps.js).
+const REQUIRED_FIELDS = ['messages', 'message_template_status_update', 'standby', 'messaging_handovers'];
 
 const graph = (business) =>
   `https://graph.facebook.com/${business.graphVersion || process.env.WA_GRAPH_VERSION || 'v22.0'}`;
@@ -65,8 +69,9 @@ export async function syncPlatformWebhook() {
   } catch (e) {
     return { ok: false, changed: false, reason: e.response?.data?.error?.message || e.message };
   }
-  if (current?.callback_url === want && current?.active) return { ok: true, changed: false, to: want };
   const existing = (current?.fields || []).map((f) => f.name || f).filter(Boolean);
+  const hasFields = REQUIRED_FIELDS.every((f) => existing.includes(f));
+  if (current?.callback_url === want && current?.active && hasFields) return { ok: true, changed: false, to: want };
   try {
     await axios.post(
       `${graph(app)}/${appId}/subscriptions`,
