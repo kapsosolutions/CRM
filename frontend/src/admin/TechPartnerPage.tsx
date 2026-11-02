@@ -177,7 +177,7 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
               <>
                 Sent + received on WhatsApp, averaged over the last 7 full days: {whole.format(m.total7)} in total
                 {m.shortBy7 > 0 ? <> · {whole.format(m.shortBy7)} more needed over 7 days</> : null}. Today so far:{' '}
-                {whole.format(m.today.total)}.
+                {whole.format(m.today.total)} (counted in the average from tomorrow, as Meta does).
               </>
             }
           />
@@ -226,25 +226,32 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
 
         <section className="pd-box">
           <header className="pd-box-head">
-            <h2>Messages a day · last 7 days</h2>
+            <h2>Messages a day · last 7 days and today</h2>
             <span className="tp-legend">Target {whole.format(data.targets.messagesPerDay)} a day</span>
           </header>
           <div className="pd-box-body">
-            <BarChart
-              ariaLabel={`WhatsApp messages sent and received each day, last 7 days; target ${data.targets.messagesPerDay} a day`}
-              labels={m.daily.map((d) => dayShort(d.date))}
-              titles={m.daily.map((d) => dayLong(d.date))}
-              values={m.daily.map((d) => d.total)}
-              axisFormat={axisCount}
-              tooltip={(i) => (
-                <>
-                  <TipRow color="#ff6a00" label="Total" value={whole.format(m.daily[i].total)} />
-                  <TipRow color="#008cff" label="Sent" value={whole.format(m.daily[i].sent)} />
-                  <TipRow color="#15ca20" label="Received" value={whole.format(m.daily[i].received)} />
-                  <TipRow color="#6c757d" label="Target" value={whole.format(data.targets.messagesPerDay)} />
-                </>
-              )}
-            />
+            {(() => {
+              // The 7 full days the average uses, then today so far (counted from tomorrow).
+              const bars = [...m.daily, m.today];
+              const last = bars.length - 1;
+              return (
+                <BarChart
+                  ariaLabel={`WhatsApp messages sent and received each day, last 7 days and today so far; target ${data.targets.messagesPerDay} a day`}
+                  labels={bars.map((d, i) => (i === last ? 'Today' : dayShort(d.date)))}
+                  titles={bars.map((d, i) => (i === last ? `Today so far (${dayLong(d.date)}): joins the average tomorrow` : dayLong(d.date)))}
+                  values={bars.map((d) => d.total)}
+                  axisFormat={axisCount}
+                  tooltip={(i) => (
+                    <>
+                      <TipRow color="#ff6a00" label="Total" value={whole.format(bars[i].total)} />
+                      <TipRow color="#008cff" label="Sent" value={whole.format(bars[i].sent)} />
+                      <TipRow color="#15ca20" label="Received" value={whole.format(bars[i].received)} />
+                      <TipRow color="#6c757d" label="Target" value={whole.format(data.targets.messagesPerDay)} />
+                    </>
+                  )}
+                />
+              );
+            })()}
           </div>
         </section>
 
