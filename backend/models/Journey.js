@@ -8,7 +8,8 @@ const JourneySchema = new Schema(
     name: { type: String, required: true },
     nodes: { type: [Schema.Types.Mixed], default: [] },
     edges: { type: [Schema.Types.Mixed], default: [] },
-    active: { type: Boolean, default: true }, // the bot is on for this journey's channel
+    // No longer read: a saved journey always runs (journeyRuntime.pickJourney).
+    active: { type: Boolean, default: true },
     // '' (or missing, older rows) = WhatsApp; 'instagram' | 'messenger' run on
     // those chats (services/channelJourney.js). One journey per channel is used.
     channel: { type: String, default: '' },

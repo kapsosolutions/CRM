@@ -153,14 +153,19 @@ async function setState(phone, journeyState, businessId) {
 
 /**
  * The channel's journey: the most recently updated one for that channel ('' /
- * missing = WhatsApp), or null when there is none or its bot is switched off
- * (an older journey of the channel is not used instead).
+ * missing = WhatsApp), or null when there is none.
+ *
+ * A saved journey always runs. The journey editor no longer has a Bot on /
+ * off switch, so an old `active: false` is ignored (nothing could switch it
+ * back). On WhatsApp, Flows take over when the Flows tab's switch is on
+ * (flowMapRuntime.pickEntryFlow runs first); a single chat can be set to
+ * Manual in Chats (Conversation.botPaused).
  */
 export async function pickJourney(businessId, channel = '') {
   const want = channel === 'instagram' || channel === 'messenger' ? channel : '';
   const rows = await Journey.find({ businessId }).sort({ updatedAt: -1 }).lean();
   const j = rows.find((r) => ((r.channel === 'instagram' || r.channel === 'messenger') ? r.channel : '') === want);
-  return j && j.active !== false ? j : null;
+  return j || null;
 }
 export { nodeById, edgesFrom, startNode, edgeTarget };
 

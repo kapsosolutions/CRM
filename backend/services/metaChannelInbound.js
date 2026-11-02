@@ -16,7 +16,7 @@
 // The WhatsApp automation (flow maps, keyword templates, the WhatsApp journey)
 // doesn't run here. The channel's own journey (Automation → Instagram /
 // Messenger, services/channelJourney.js) answers a newly filed message or
-// tapped button, unless the chat is set to Manual or that bot is off.
+// tapped button, unless the chat is set to Manual.
 // ---------------------------------------------------------------------------
 import axios from 'axios';
 import ChannelConnection from '../models/ChannelConnection.js';
@@ -226,7 +226,7 @@ async function onInbound(row, channel, ev, items) {
 
 /**
  * The channel's journey (Automation → Instagram / Messenger), for a message
- * just filed. Skipped when the chat is set to Manual or the bot is off.
+ * just filed. Skipped when the chat is set to Manual.
  */
 async function automate(row, channel, ev, payload) {
   const psid = digits(ev.sender?.id);

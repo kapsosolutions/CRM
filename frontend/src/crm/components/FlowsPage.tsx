@@ -273,7 +273,8 @@ function WaNode({ id, data }: NodeProps<WaData>) {
         <Handle type="target" position={Position.Left} className="fl-handle" />
       )}
 
-      {data.kind !== 'start' && (
+      {/* Start can go too: a new one is dragged in from the blocks list. */}
+      {(
         <button className="fl-del" onClick={del} title="Delete block">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
             <line x1="5" y1="5" x2="19" y2="19" />
@@ -640,7 +641,9 @@ const metaPalette = (channel: 'instagram' | 'messenger'): PaletteItem[] => [
   { kind: 'carousel', count: 2, label: 'Carousel' },
   { kind: 'end', label: 'End' },
 ];
-const paletteFor = (channel: JourneyChannel): PaletteItem[] => (channel === 'whatsapp' ? WHATSAPP_PALETTE : metaPalette(channel));
+/** Where the journey begins; one per journey (the runtime starts at it). */
+const START_ITEM: PaletteItem = { kind: 'start', label: 'Start' };
+const paletteFor = (channel: JourneyChannel): PaletteItem[] => [START_ITEM, ...(channel === 'whatsapp' ? WHATSAPP_PALETTE : metaPalette(channel))];
 
 interface FlowCanvasProps {
   nodes: Node<WaData>[];
@@ -677,11 +680,18 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
       if (!raw) return;
       const { kind, count, header } = JSON.parse(raw) as { kind: Kind; count?: number; header?: HeaderType };
       const position = rf.screenToFlowPosition({ x: e.clientX, y: e.clientY });
-      const id = `n${idCounter++}`;
-      setNodes((nds) => [...nds, { id, type: 'wa', position, data: makeData(kind, count, header) }]);
+      setNodes((nds) => {
+        // One Start per journey.
+        if (kind === 'start' && nds.some((n) => n.data?.kind === 'start')) return nds;
+        // Ids already on the canvas (a saved journey) are never reused.
+        let id = `n${idCounter++}`;
+        while (nds.some((n) => n.id === id)) id = `n${idCounter++}`;
+        return [...nds, { id, type: 'wa', position, data: makeData(kind, count, header) }];
+      });
     },
     [rf, setNodes],
   );
+  const hasStart = nodes.some((n) => n.data?.kind === 'start');
 
   function onPaletteDragStart(e: React.DragEvent, p: PaletteItem) {
     e.dataTransfer.setData('application/reactflow', JSON.stringify({ kind: p.kind, count: p.count, header: p.header }));
@@ -695,12 +705,16 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         <p className="fp-hint">Drag a block onto the canvas, then connect the ports.</p>
         {palette.map((p) => {
           const k = KINDS[p.kind];
+          // Start: only when the canvas has none (delete the old one to move it).
+          const off = p.kind === 'start' && hasStart;
           return (
             <div
               key={p.label}
-              className="pal-item"
-              draggable
-              onDragStart={(e) => onPaletteDragStart(e, p)}
+              className={`pal-item${off ? ' off' : ''}`}
+              draggable={!off}
+              aria-disabled={off || undefined}
+              title={off ? 'This journey already has a Start block. Delete it (✕) to place a new one.' : p.kind === 'start' ? 'Where the journey begins: connect it to the first message' : undefined}
+              onDragStart={(e) => (off ? e.preventDefault() : onPaletteDragStart(e, p))}
               data-testid={`pal-${p.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
             >
               <span className="material-icons" style={{ color: k.color }}>
@@ -772,31 +786,28 @@ function JourneyEditor({
   const [edges, setEdges, onEdgesChange] = useEdgesState(seedEdges);
   const [savedId, setSavedId] = useState(journey?._id || '');
   const [saving, setSaving] = useState(false);
-  // Bot on / off for this channel (Journey.active). Saved at once for a saved journey.
-  const [active, setActive] = useState(journey?.active !== false);
-  const [activeBusy, setActiveBusy] = useState(false);
+  // The journey always runs (no Bot on / off here any more). Whether Flows
+  // take over WhatsApp is the Flows tab's switch; a single chat can still be
+  // set to Manual in Chats.
   const [error, setError] = useState<{ message: string; problems: string[] } | null>(null);
-  async function toggleActive() {
-    const next = !active;
-    setActive(next);
-    if (!savedId) return;
-    setActiveBusy(true);
-    try {
-      const res = await api.updateJourney(savedId, { active: next });
-      onSaved(next ? `${CHANNEL_NAME[channel]} bot is on.` : `${CHANNEL_NAME[channel]} bot is off: the team answers these chats.`, res.data);
-    } catch (e) {
-      setActive(!next);
-      setError({ message: (e as Error).message || 'Could not switch the bot.', problems: [] });
-    } finally {
-      setActiveBusy(false);
-    }
-  }
-  // Tracks media uploaded in this editing session so replaced files can be
-  // reclaimed immediately; already-saved media is cleaned up server-side.
+  // Media uploaded in this session and then replaced or removed. Deleted only
+  // at save (or on leaving), and only if nothing points at it any more, so an
+  // undo can bring a replaced photo back. Already-saved media is cleaned up
+  // server-side.
+  const replaced = useRef(new Set<string>());
   const media = useMediaApi(
     (f) => api.uploadMedia(f, 'journeys'),
-    (url) => api.deleteMedia(url),
+    async (url) => {
+      replaced.current.add(url);
+    },
   );
+  const reclaim = (stillUsed: string) => {
+    for (const url of [...replaced.current]) {
+      if (stillUsed.includes(url)) continue;
+      replaced.current.delete(url);
+      api.deleteMedia(url).catch(() => {});
+    }
+  };
 
   // A snapshot of only what the business actually authored, so "unsaved
   // changes" means what they'd expect. React Flow writes `selected`,
@@ -862,17 +873,108 @@ function JourneyEditor({
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
+  // Leaving the editor: replaced uploads the saved journey doesn't use go.
+  useEffect(() => () => reclaim(baseline.current), []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // ---- Undo / redo (like the Flows builder) ----
+  // Each change is a step: typing is grouped until a short pause, and a drag
+  // counts once, when it ends. Ctrl+Z / Ctrl+Y (or Ctrl+Shift+Z) outside text boxes.
+  const snap = snapshot();
+  const [hist, setHist] = useState<{ stack: string[]; idx: number }>(() => ({ stack: [snap], idx: 0 }));
+  const histTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const draggingNow = nodes.some((n) => n.dragging);
+  const record = (s: string) =>
+    setHist((h) => {
+      if (h.stack[h.idx] === s) return h;
+      const stack = [...h.stack.slice(0, h.idx + 1), s].slice(-80);
+      return { stack, idx: stack.length - 1 };
+    });
+  useEffect(() => {
+    if (draggingNow) return undefined;
+    histTimer.current = setTimeout(() => record(snap), 350);
+    return () => {
+      if (histTimer.current) clearTimeout(histTimer.current);
+    };
+  }, [snap, draggingNow]); // eslint-disable-line react-hooks/exhaustive-deps
+  const stroke = EDGE_COLOR[channel];
+  function applySnap(str: string) {
+    const o = JSON.parse(str) as {
+      name: string;
+      nodes: { id: string; type?: string; x: number; y: number; data: WaData }[];
+      edges: { id: string; source: string; target: string; sourceHandle: string | null; targetHandle: string | null; label: string | null }[];
+    };
+    setName(o.name || '');
+    setNodes(o.nodes.map((n) => ({ id: n.id, type: n.type || 'wa', position: { x: n.x, y: n.y }, data: n.data })));
+    setEdges(o.edges.map((e) => ({
+      id: e.id,
+      source: e.source,
+      target: e.target,
+      sourceHandle: e.sourceHandle,
+      targetHandle: e.targetHandle,
+      ...(e.label ? { label: e.label } : {}),
+      animated: true,
+      style: { stroke, strokeWidth: 2 },
+    })));
+  }
+  // A change not recorded yet (still typing) counts as the newest step.
+  const pendingStep = hist.stack[hist.idx] !== snap;
+  const canUndo = hist.idx > 0 || pendingStep;
+  const canRedo = !pendingStep && hist.idx < hist.stack.length - 1;
+  function undo() {
+    if (histTimer.current) clearTimeout(histTimer.current);
+    let { stack, idx } = hist;
+    if (pendingStep) {
+      stack = [...stack.slice(0, idx + 1), snap];
+      idx = stack.length - 1;
+    }
+    if (idx <= 0) return;
+    idx -= 1;
+    applySnap(stack[idx]);
+    setHist({ stack, idx });
+  }
+  function redo() {
+    if (!canRedo) return;
+    const idx = hist.idx + 1;
+    applySnap(hist.stack[idx]);
+    setHist((h) => ({ ...h, idx }));
+  }
+  const undoRef = useRef(undo);
+  undoRef.current = undo;
+  const redoRef = useRef(redo);
+  redoRef.current = redo;
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.altKey) return;
+      const t = e.target as HTMLElement | null;
+      // Text boxes keep their own undo.
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return;
+      // Only while the journey is on screen (not under a dialog).
+      if (document.querySelector('.disc-backdrop, .demo-backdrop, [role="dialog"]')) return;
+      const k = e.key.toLowerCase();
+      if (k === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undoRef.current();
+      } else if (k === 'y' || (k === 'z' && e.shiftKey)) {
+        e.preventDefault();
+        redoRef.current();
+      }
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, []);
 
   async function save() {
     setSaving(true);
     setError(null);
-    const body: Partial<Journey> = { name: name.trim() || 'Untitled journey', nodes, edges, active };
+    // `active` is always true now: journeys run unless Flows take over.
+    const body: Partial<Journey> = { name: name.trim() || 'Untitled journey', nodes, edges, active: true };
     if (!savedId) body.channel = channel;
     try {
       const res = savedId ? await api.updateJourney(savedId, body) : await api.createJourney(body);
       setSavedId(res.data._id);
       // Saving is what clears "unsaved changes".
       baseline.current = snapshot();
+      reclaim(baseline.current);
       onSaved('Journey saved.', res.data);
     } catch (e) {
       // Instagram / Messenger: the server lists what Meta wouldn't accept, block by block.
@@ -893,17 +995,12 @@ function JourneyEditor({
         )}
         <input className="flow-name-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Journey name" />
         <div className="flow-head-actions">
-          <label
-            className={`jr-bot${active ? ' on' : ''}`}
-            title={active ? `The bot answers new ${CHANNEL_NAME[channel]} chats with this journey. Click to switch it off.` : `The bot is off: no automatic replies on ${CHANNEL_NAME[channel]}. Click to switch it on.`}
-            data-testid="jr-bot"
-          >
-            <span className="jr-bot-label">{active ? 'Bot on' : 'Bot off'}</span>
-            <span className="jr-switch">
-              <input type="checkbox" checked={active} disabled={activeBusy} onChange={toggleActive} data-testid="jr-bot-toggle" />
-              <span className="jr-knob" />
-            </span>
-          </label>
+          <button className="k-btn ghost sm icon-only" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo" data-testid="jr-undo">
+            <span className="material-icons">undo</span>
+          </button>
+          <button className="k-btn ghost sm icon-only" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" aria-label="Redo" data-testid="jr-redo">
+            <span className="material-icons">redo</span>
+          </button>
           {/* Nothing to save is worth saying out loud — it's the difference
               between "my work is stored" and "I forgot to press the button". */}
           {dirty ? (
@@ -936,6 +1033,22 @@ function JourneyEditor({
           </span>
         </p>
       )}
+      {(() => {
+        // The journey begins at its Start block: without one, or with Start
+        // not wired to anything, nothing gets sent.
+        const start = nodes.find((n) => n.data?.kind === 'start');
+        if (start && edges.some((e) => e.source === start.id)) return null;
+        return (
+          <p className="jr-note warn" data-testid="jr-no-start">
+            <span className="material-icons">play_arrow</span>
+            <span>
+              {start
+                ? <>Connect the <b>Start</b> block to your first message: until then this journey doesn’t reply.</>
+                : <>This journey has no <b>Start</b> block, so it doesn’t reply. Drag <b>Start</b> from the blocks list and connect it to your first message.</>}
+            </span>
+          </p>
+        );
+      })()}
       {error && (
         <div className="jr-note err" role="alert" data-testid="jr-save-error">
           <span className="material-icons">error_outline</span>
@@ -984,7 +1097,8 @@ const channelOfJourney = (j: Journey): JourneyChannel => (j.channel === 'instagr
 
 /**
  * One journey per channel, picked with the tabs on top (WhatsApp, Instagram,
- * Messenger). Each channel has its own blocks and its own Bot on / off.
+ * Messenger). Each channel has its own blocks; a saved journey always answers
+ * its chats (unless Flows take over WhatsApp, or a chat is set to Manual).
  */
 function JourneyManager({
   api,
@@ -1084,8 +1198,8 @@ function JourneyManager({
               <span className="material-icons jr-channel-lock" aria-label="Locked">lock</span>
             ) : byChannel && (
               <span
-                className={`jr-channel-dot${byChannel[c] && byChannel[c]!.active !== false ? ' on' : ''}`}
-                title={byChannel[c] ? (byChannel[c]!.active !== false ? 'Bot on' : 'Bot off') : 'No journey yet'}
+                className={`jr-channel-dot${byChannel[c] ? ' on' : ''}`}
+                title={byChannel[c] ? 'Journey saved: it answers these chats' : 'No journey saved yet'}
               />
             )}
           </button>
