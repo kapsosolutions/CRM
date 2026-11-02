@@ -48,6 +48,7 @@ import { verticalConfig, type ConfirmWording, type VerticalConfig } from '../ver
 import { useConfirm, useFlash, useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { BladeSpinner } from './BladeSpinner';
+import { PhoneStatusBar } from './PhoneStatusBar';
 
 // Sample categories shown in the preview for a dynamic "Category list" block.
 // At runtime the backend endpoint serves the business's real categories (1:1).
@@ -3530,16 +3531,20 @@ function PhonePreview({ screen }: { screen?: FlowScreen }) {
   if (!screen) return null;
   const footer = screen.components.find((c) => c.type === 'Footer');
   return (
-    <div className="flow-device">
-      <div className="flow-device-island" />
+    <div className="flow-device" data-testid="flow-phone">
+      <PhoneStatusBar />
+      {/* The chat behind the flow, dimmed: the flow opens as a sheet over it,
+          a little below the top, as WhatsApp shows it. */}
       <div className="flow-device-screen">
+        <div className="flow-chat-peek" aria-hidden="true">
+          <span className="flow-peek-avatar" />
+        </div>
         <div className="flow-phone">
       <div className="flow-phone-top">
         <span className="material-icons">close</span>
         <span className="flow-phone-ttl">{screen.title || 'Screen'}</span>
-        <span className="material-icons">more_horiz</span>
+        <span className="material-icons">more_vert</span>
       </div>
-      <div className="flow-phone-progress" />
       <div className="flow-phone-body">
         {screen.components.map((c) => {
           switch (c.type) {
@@ -3669,7 +3674,6 @@ function PhonePreview({ screen }: { screen?: FlowScreen }) {
       </div>
         </div>
       </div>
-      <div className="flow-device-bar" />
     </div>
   );
 }

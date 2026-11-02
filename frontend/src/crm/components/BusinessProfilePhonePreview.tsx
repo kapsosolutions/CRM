@@ -1,4 +1,5 @@
 import { useMemo } from 'react';
+import { PhoneStatusBar } from './PhoneStatusBar';
 import './BusinessProfilePhonePreview.css';
 
 export interface BusinessProfilePhonePreviewProps {
@@ -122,29 +123,7 @@ export function BusinessProfilePhonePreview({
       </div>
 
       <div className="bpp-phone-frame">
-        {/* Top iOS Status Bar */}
-        <div className="bpp-status-bar">
-          <span className="bpp-status-time">12:34</span>
-          <div className="bpp-dynamic-island">
-            <span className="bpp-island-dot" />
-          </div>
-          <div className="bpp-status-icons">
-            {/* Cellular */}
-            <svg width="14" height="10" viewBox="0 0 16 12" fill="#0f172a" aria-hidden="true">
-              <rect x="0.5" y="8" width="2" height="4" rx="0.5" />
-              <rect x="4" y="6" width="2" height="6" rx="0.5" />
-              <rect x="7.5" y="3.5" width="2" height="8.5" rx="0.5" />
-              <rect x="11" y="0.5" width="2" height="11.5" rx="0.5" />
-            </svg>
-            <span className="bpp-status-5g">5G</span>
-            {/* Battery */}
-            <svg width="18" height="10" viewBox="0 0 22 12" fill="none" stroke="#0f172a" strokeWidth="1.2" aria-hidden="true">
-              <rect x="0.6" y="0.6" width="18" height="10.8" rx="2.5" />
-              <rect x="2.5" y="2.5" width="14" height="7" rx="1.5" fill="#16a34a" />
-              <path d="M20 4.5v3" strokeLinecap="round" />
-            </svg>
-          </div>
-        </div>
+        <PhoneStatusBar />
 
         {/* Top Navigation Bar */}
         <div className="bpp-nav-bar">

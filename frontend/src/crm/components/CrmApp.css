@@ -3259,9 +3259,8 @@ a.msg-btn {
   width: 100%;
   max-width: 330px;
   height: 480px;
-  border-radius: 28px;
-  border-width: 5px;
-  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+  border-radius: 32px;
+  border-width: 7px;
 }
 .drawer-head-preview-title {
   flex: 1;
@@ -3567,24 +3566,20 @@ a.msg-btn {
   letter-spacing: -0.01em;
 }
 
-/* Modern white mobile device frame */
+/* The phone: same frame as the business profile preview (PhoneFrame.css). */
 .tc-phone {
   width: 320px;
   max-width: 100%;
-  height: 560px;
+  height: 610px;
   max-height: calc(100vh - 140px);
   margin: 0 auto;
   background: #ffffff;
-  border: 7px solid #ffffff;
-  border-radius: 38px;
-  outline: 1px solid #e2e8f0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
-/* Status Bar */
+/* Old status bar (replaced by PhoneStatusBar's .pf-status). */
 .tc-phone-bar {
   display: flex;
   align-items: center;
@@ -7860,13 +7855,10 @@ a.msg-btn {
   margin: 0 auto;
   background: #ffffff;
   color: #111b21;
-  border: 7px solid #ffffff;
-  border-radius: 38px;
-  outline: 1px solid #e2e8f0;
+  /* Frame: PhoneFrame.css (same as the business profile preview). */
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
   /* Details page: tall, but never taller than the viewport allows. */
   height: min(720px, calc(100vh - 170px));
   min-height: 520px;
@@ -10748,91 +10740,77 @@ button.pd-phone-chip:hover {
   width: 100%;
 }
 
-/* iPhone device frame */
+/* The phone: same frame and status bar as the business profile preview
+   (PhoneFrame.css, PhoneStatusBar). */
 .flow-device {
   position: relative;
   width: 100%;
-  max-width: 300px;
-  aspect-ratio: 300 / 620;
-  background: #0b0b0e;
-  border-radius: 46px;
-  padding: 12px;
-  box-shadow:
-    0 0 0 2px #2a2a2e,
-    0 18px 40px rgba(0, 0, 0, 0.4);
+  max-width: 320px;
+  aspect-ratio: 320 / 640;
+  background: #ffffff;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
 }
-/* Dynamic island */
-.flow-device-island {
-  position: absolute;
-  top: 20px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 92px;
-  height: 26px;
-  background: #0b0b0e;
-  border-radius: 14px;
-  z-index: 3;
-}
-/* Home indicator */
-.flow-device-bar {
-  position: absolute;
-  bottom: 9px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 110px;
-  height: 4px;
-  background: rgba(255, 255, 255, 0.6);
-  border-radius: 3px;
-  z-index: 3;
-}
+/* Under the status bar: the chat the flow was opened from, dimmed, with the
+   flow on top as a sheet that starts a little lower (WhatsApp's look). */
 .flow-device-screen {
+  position: relative;
   flex: 1;
   min-height: 0;
-  border-radius: 36px;
-  overflow: hidden;
-  background: #e9edef;
+  background: #b3b3b3;
   display: flex;
   flex-direction: column;
+}
+.flow-chat-peek {
+  height: 30px;
+  flex-shrink: 0;
+  padding: 2px 0 0 14px;
+  overflow: hidden;
+}
+.flow-peek-avatar {
+  display: block;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: #0f6e3c;
+  opacity: 0.8;
 }
 
-/* Phone preview (WhatsApp flow sheet, fills the device screen) */
+/* The WhatsApp flow sheet over it */
 .flow-phone {
+  position: relative;
   flex: 1;
   min-height: 0;
+  margin-top: -6px;
   background: #fff;
+  border-radius: 14px 14px 0 0;
+  box-shadow: 0 -2px 10px rgba(0, 0, 0, 0.12);
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 .flow-phone-top {
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 40px 16px 8px;
-  color: #1c1e21;
+  padding: 12px 14px 11px;
+  color: #111b21;
+  border-bottom: 1px solid #e9edef;
 }
 .flow-phone-top .material-icons {
-  font-size: 20px;
-  color: #54656f;
+  font-size: 22px;
+  color: #111b21;
 }
 .flow-phone-ttl {
-  font-size: 14px;
-  font-weight: 600;
-}
-.flow-phone-progress {
-  flex-shrink: 0;
-  height: 3px;
-  background: #1dbf73;
-  width: 42%;
-  margin: 0 16px 6px;
-  border-radius: 2px;
+  font-size: 15px;
+  font-weight: 700;
 }
 .flow-phone-body {
   flex: 1;
   min-height: 0;
-  padding: 6px 16px 10px;
+  padding: 16px 16px 10px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -10855,7 +10833,7 @@ button.pd-phone-chip:hover {
   object-fit: cover;
 }
 .fpp-heading {
-  font-size: 17px;
+  font-size: 20px;
   font-weight: 700;
   color: #111b21;
 }
@@ -11007,8 +10985,8 @@ button.pd-phone-chip:hover {
 }
 .fpp-cta {
   width: 100%;
-  background: #1dbf73;
-  color: #06340f;
+  background: #1daa61;
+  color: #ffffff;
   border: none;
   border-radius: var(--wa-radius-pill);
   padding: 12px;

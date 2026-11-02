@@ -1,0 +1,66 @@
+/* One phone design for every preview: the business profile ("Customer view
+   on WhatsApp"), templates, catalog and flows. A dark slate bezel, rounded
+   corners, and the iOS status bar with the dynamic island (PhoneStatusBar). */
+.pf-frame,
+.bpp-phone-frame,
+.tc-phone,
+.pd-phone,
+.flow-device {
+  border: 8px solid #1e293b;
+  border-radius: 38px;
+  outline: none;
+  box-shadow: 0 20px 48px -12px rgba(15, 23, 42, 0.22), 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-sizing: border-box;
+}
+
+/* Status bar */
+.pf-status {
+  height: 38px;
+  background: #ffffff;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 18px;
+  flex-shrink: 0;
+  position: relative;
+  z-index: 10;
+}
+.pf-time {
+  font-size: 12px;
+  font-weight: 700;
+  color: #0f172a;
+}
+.pf-island {
+  position: absolute;
+  top: 7px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 74px;
+  height: 18px;
+  background: #000000;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 9px;
+  box-sizing: border-box;
+}
+.pf-island-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1e293b;
+}
+.pf-icons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #0f172a;
+}
+.pf-5g {
+  font-size: 9px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+}
