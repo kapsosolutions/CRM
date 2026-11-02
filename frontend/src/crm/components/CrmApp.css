@@ -1582,28 +1582,20 @@ button.rx-row:hover {
 .rp-x .material-icons {
   font-size: 16px;
 }
-.emoji-grid {
-  position: absolute;
-  bottom: 50%;
-  margin-bottom: 8px;
-  z-index: 21;
-  width: 260px;
-  max-height: 220px;
-  overflow-y: auto;
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
-  background: var(--wa-surface);
+/* "+" on the reaction row: the full emoji picker, floating next to the
+   message (ReactionPicker.tsx), above everything in the chat. */
+.rp-full-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+}
+.rp-full {
+  position: fixed;
+  z-index: 1201;
+  border-radius: 12px;
   border: 1px solid var(--wa-hairline);
-  border-radius: var(--wa-radius-tile);
-  padding: 8px;
-  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.25);
-}
-.emoji-grid.out {
-  right: 0;
-}
-.emoji-grid.in {
-  left: 0;
+  box-shadow: 0 10px 32px rgba(0, 0, 0, 0.28);
+  overflow: hidden;
 }
 
 /* Media download button overlay */
