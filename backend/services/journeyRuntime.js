@@ -232,17 +232,27 @@ export async function runJourney(meta, businessId, msg, convo) {
     return false;
   }
 
-  // 3) Plain text. If we're not currently waiting at an interactive node,
-  //    (re)start the journey from the top. If we ARE waiting (e.g. for a button
-  //    tap) a stray text is ignored so the agent/auto-reply can handle it.
-  const waiting = !!(convo?.context?.journey?.nodeId);
-  if (!waiting) {
-    const start = startNode(journey);
-    const first = start ? edgeTarget(journey, start.id, null) : journey.nodes.find((n) => n.data?.kind !== 'start');
-    if (first) {
-      await sendChain(meta, phone, journey, first, { phone }, tokens);
+  // 3) Anything else (typed text, a photo, …) starts the journey again from
+  //    the top, as Flows do. This includes a chat parked at a block that waits
+  //    for a tap: ignoring a typed "hi" there left the customer with no reply
+  //    for good. A location block that is waiting takes its "Not valid" branch
+  //    when one is wired.
+  const curId = convo?.context?.journey?.nodeId;
+  const cur = curId ? nodeById(journey, curId) : null;
+  if (cur?.data?.kind === 'location') {
+    // Exact handle only: edgeTarget falls back to the first edge ("Valid").
+    const edge = edgesFrom(journey, cur.id).find((e) => (e.sourceHandle || '') === 'loc-no');
+    const notValid = edge ? nodeById(journey, edge.target) : null;
+    if (notValid) {
+      await sendChain(meta, phone, journey, notValid, { phone }, tokens);
       return true;
     }
+  }
+  const start = startNode(journey);
+  const first = start ? edgeTarget(journey, start.id, null) : journey.nodes.find((n) => n.data?.kind !== 'start');
+  if (first) {
+    await sendChain(meta, phone, journey, first, { phone }, tokens);
+    return true;
   }
   return false;
 }

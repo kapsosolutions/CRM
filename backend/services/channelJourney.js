@@ -308,9 +308,9 @@ export async function runChannelJourney(business, channel, psid, { payload = '' 
       return true;
     }
 
-    // Anything else: start from the top, unless the journey waits for a tap
-    // (then a typed message is left for the team).
-    if (convo.context?.journey?.nodeId) return false;
+    // Anything else starts from the top, also when the chat is parked at a
+    // block that waits for a tap (ignoring a typed "hi" there left the
+    // customer with no reply for good).
     const start = startNode(journey);
     const first = start ? edgeTarget(journey, start.id, null) : null;
     if (!first) return false;

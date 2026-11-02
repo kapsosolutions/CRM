@@ -352,6 +352,9 @@ export async function handleMessage(msg, ctx = {}) {
         error: e.message,
         tenant: ctx.tenantName || String(ctx.tenantId),
         metaError: metaErr ? { message: metaErr.message, code: metaErr.code, details: metaErr.error_data?.details } : undefined,
+        hint: metaErr?.code === 131056
+          ? 'Meta pair rate limit: too many messages to this customer in a short time (fast testing). Meta clears it after a short wait.'
+          : undefined,
       });
     }
   }
