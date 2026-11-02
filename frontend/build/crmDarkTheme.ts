@@ -178,7 +178,7 @@ const COLOR_RE = /#[0-9a-fA-F]{3,8}\b|rgba?\([^()]*\)|\b(?:white|black)\b/g;
  * Background images with a dark twin in public/ (the light ones have a white /
  * beige backdrop baked in). Regenerate the twins with build/make-dark-images.mjs.
  */
-const DARK_IMAGES: Record<string, string> = { '/bg.svg': '/bg-dark.webp', '/crm_bg.png': '/crm_bg-dark.webp' };
+const DARK_IMAGES: Record<string, string> = { '/crm_bg.png': '/crm_bg-dark.webp' };
 
 /** Replace every colour in a value (outside url(...)), and swap images that have a dark twin. */
 function mapValue(value: string, role: Role): string {

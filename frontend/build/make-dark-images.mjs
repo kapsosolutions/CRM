@@ -68,7 +68,5 @@ async function unblend(src, out, { bg, strength, greyAs = [255, 255, 255], resiz
   console.log(`${out}: ${info.width}x${info.height}`);
 }
 
-// Dotted page backdrop (white): grey dots -> faint white dots, green dots stay green.
-await unblend(join(PUBLIC, 'bg.svg'), 'bg-dark.webp', { bg: [255, 255, 255], strength: { grey: 0.55, color: 1 } });
 // Chat wallpaper (beige doodles): doodles -> faint light lines.
 await unblend(join(PUBLIC, 'crm_bg.png'), 'crm_bg-dark.webp', { bg: 'mode', strength: { grey: 0.45, color: 0.45 }, floor: 0.04, darkOnly: true });

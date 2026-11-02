@@ -19891,7 +19891,7 @@ label.k-label,
 
 /* Orders Page Empty State Background */
 .page.ord-empty-bg {
-  background: #ffffff url('/bg.svg') no-repeat center center / cover;
+  background: #ffffff;
 }
 
 .page.ord-empty-bg .page-body {

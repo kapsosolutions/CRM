@@ -398,7 +398,7 @@
 
 .cs-content-body:has(.cs-unconnected-hero-box),
 .cs-content-body.has-unconnected-hero {
-  background: #ffffff url('/bg.svg') no-repeat center center / cover;
+  background: #ffffff;
 }
 
 /* Two-Column Layout (Matching Image 1 and Image 2) */
