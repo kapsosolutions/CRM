@@ -218,6 +218,12 @@ function WaNode({ id, data }: NodeProps<WaData>) {
 
   const setButton = (i: number, v: string) =>
     patch({ buttons: (data.buttons || []).map((b, idx) => (idx === i ? v : b)) });
+  // Buttons whose title repeats an earlier one (WhatsApp refuses those).
+  const dupButtons = new Set<number>();
+  (data.buttons || []).forEach((b, i, all) => {
+    const t = String(b || '').trim().toLowerCase();
+    if (t && all.slice(0, i).some((x) => String(x || '').trim().toLowerCase() === t)) dupButtons.add(i);
+  });
   const setOption = (i: number, v: string) =>
     patch({ options: (data.options || []).map((o, idx) => (idx === i ? v : o)) });
   const addOption = () => {
@@ -367,9 +373,16 @@ function WaNode({ id, data }: NodeProps<WaData>) {
       {data.kind === 'reply' && (
         <div className="fl-rows">
           {(data.buttons || []).map((b, i) => (
-            <div className="fl-row reply" key={i}>
+            <div className={`fl-row reply${dupButtons.has(i) ? ' dup' : ''}`} key={i}>
               <span className="material-icons fl-row-ic">reply</span>
-              <input value={b} onChange={(e) => setButton(i, e.target.value)} placeholder="Button" maxLength={titleMax} />
+              <input
+                value={b}
+                onChange={(e) => setButton(i, e.target.value)}
+                placeholder="Button"
+                maxLength={titleMax}
+                aria-invalid={dupButtons.has(i) || undefined}
+                title={dupButtons.has(i) ? 'Another button has this title: give each button its own' : undefined}
+              />
               <Handle
                 type="source"
                 id={`btn-${i}`}
@@ -378,6 +391,12 @@ function WaNode({ id, data }: NodeProps<WaData>) {
               />
             </div>
           ))}
+          {dupButtons.size > 0 && (
+            <div className="fl-dup-note" data-testid="fl-dup-note">
+              <span className="material-icons">error_outline</span>
+              Give each button its own title: WhatsApp doesn’t accept two buttons with the same one.
+            </div>
+          )}
         </div>
       )}
 

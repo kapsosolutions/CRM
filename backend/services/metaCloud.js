@@ -335,10 +335,26 @@ export function createMetaClient(creds = {}) {
     // ---------- Interactive messages (used by the journey runtime) ----------
     // header: { type:'image'|'video'|'document', link } | { type:'text', text } | null
     async sendButtons(phone, { body, header = null, footer = '', buttons = [] }) {
+      // WhatsApp refuses buttons with the same title (#131009 "Duplicate
+      // button title"), so the whole message would go nowhere: a repeated
+      // title gets a number ("click", "click 2").
+      const seen = new Map();
+      const titled = buttons.slice(0, 3).map((b) => {
+        let title = String(b.title || '').trim().slice(0, 20) || 'Button';
+        const key = title.toLowerCase();
+        const n = (seen.get(key) || 0) + 1;
+        seen.set(key, n);
+        if (n > 1) {
+          const suffix = ` ${n}`;
+          title = `${title.slice(0, 20 - suffix.length).trimEnd()}${suffix}`;
+          seen.set(title.toLowerCase(), 1);
+        }
+        return { type: 'reply', reply: { id: b.id, title } };
+      });
       const interactive = {
         type: 'button',
         body: { text: body || ' ' },
-        action: { buttons: buttons.slice(0, 3).map((b) => ({ type: 'reply', reply: { id: b.id, title: (b.title || 'Button').slice(0, 20) } })) },
+        action: { buttons: titled },
       };
       if (header) interactive.header = headerJson(header);
       if (footer) interactive.footer = { text: footer.slice(0, 60) };

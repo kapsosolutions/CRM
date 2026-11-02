@@ -345,7 +345,14 @@ export async function handleMessage(msg, ctx = {}) {
         return;
       }
     } catch (e) {
-      logger.warn('journey run failed', { error: e.message });
+      // Meta's reason, not just "status code 400" (that hid a duplicate
+      // button title that stopped a whole journey).
+      const metaErr = e.response?.data?.error;
+      logger.warn('journey run failed', {
+        error: e.message,
+        tenant: ctx.tenantName || String(ctx.tenantId),
+        metaError: metaErr ? { message: metaErr.message, code: metaErr.code, details: metaErr.error_data?.details } : undefined,
+      });
     }
   }
 

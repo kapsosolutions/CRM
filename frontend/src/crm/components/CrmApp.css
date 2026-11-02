@@ -7295,6 +7295,24 @@ a.msg-btn {
 .fl-row-ic.bad {
   color: var(--k-danger);
 }
+/* Two reply buttons with the same title: WhatsApp refuses the message. */
+.fl-row.reply.dup {
+  border-color: rgba(234, 67, 53, 0.55);
+  background: rgba(234, 67, 53, 0.07);
+}
+.fl-dup-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 5px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: #c0392b;
+  padding: 2px 2px 0;
+}
+.fl-dup-note .material-icons {
+  font-size: 14px;
+  flex-shrink: 0;
+}
 .fl-select {
   margin-top: 8px;
   width: 100%;
