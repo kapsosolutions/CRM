@@ -14,7 +14,8 @@ import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { defaultConfig, type CrmConfig } from '../config';
 import type { Chat, ChatMessage, SandboxContacts, TemplateItem, WaFlowDef } from '../types';
 import { authBodyWithCode, isAuthTemplate } from '../authTemplate';
-import { playBeep, notify, previewOf, laterStatus, dayKey, dayLabel, chatDisplayName, isMetaChannelChat } from '../utils';
+import { notify, previewOf, laterStatus, dayKey, dayLabel, chatDisplayName, isMetaChannelChat } from '../utils';
+import { loadPrefs, playSound, wants } from '../notifyPrefs';
 import { CountryFlag } from './CountryFlag';
 import { ChatList } from './ChatList';
 import { DefaultAvatar } from './DefaultAvatar';
@@ -435,13 +436,19 @@ export function CrmApp({
         if (m.direction === 'in' && isWatching()) api.markRead(m.phone).catch(() => {});
       }
       if (m.direction === 'in') {
-        playBeep();
-        const known = chatsRef.current.find((c) => c.phone === m.phone);
-        const sender = known
-          ? chatDisplayName(known)
-          : m.name || (m.channel === 'messenger' ? 'Messenger user' : m.channel === 'instagram' ? 'Instagram user' : `+${m.phone}`);
-        if (!isWatching() || m.phone !== activePhoneRef.current) {
-          notify(sender, m.body?.trim() || 'New message');
+        // Sound and desktop nudge come with the message's notification
+        // (CrmShell, per Settings → Manage Notifications). The demo has no
+        // notifications, so it alerts here.
+        if (demo) {
+          const prefs = loadPrefs();
+          if (wants(prefs, 'message', 'sound')) playSound(prefs.soundType);
+          const known = chatsRef.current.find((c) => c.phone === m.phone);
+          const sender = known
+            ? chatDisplayName(known)
+            : m.name || (m.channel === 'messenger' ? 'Messenger user' : m.channel === 'instagram' ? 'Instagram user' : `+${m.phone}`);
+          if (wants(prefs, 'message', 'desktop') && (!isWatching() || m.phone !== activePhoneRef.current)) {
+            notify(sender, m.body?.trim() || 'New message');
+          }
         }
         // A message from the customer reopens the 24h window. The open chat's
         // timer and composer follow it straight away, not on the next refresh.

@@ -13,6 +13,8 @@
 // ---------------------------------------------------------------------------
 import Notification from '../models/Notification.js';
 import { emitNotification, emitNotificationCount } from './eventBus.js';
+import { categoryOf } from './notificationCategories.js';
+import { sendPush } from './webPush.js';
 import logger from './logger.js';
 
 const TITLE_MAX = 200;
@@ -28,6 +30,8 @@ export function present(n) {
   return {
     _id: String(n._id),
     type: n.type,
+    // The Settings → Manage Notifications row it falls under.
+    category: categoryOf(n.type, n.title),
     title: n.title || '',
     body: n.body || '',
     target: {
@@ -115,6 +119,8 @@ export async function notify(businessId, n = {}) {
     const notification = present(doc);
     const unread = await unreadCount(bid);
     emitNotification(bid, { notification, unread });
+    // Desktop notifications for browsers with no CRM tab open (Web Push).
+    sendPush(bid, notification).catch(() => {});
     return notification;
   } catch (err) {
     logger.warn('notification not saved', { type: n.type, businessId: bid, error: err.message });
@@ -137,15 +143,18 @@ const MEDIA_LABEL = {
   flow_reply: '📝 Form submitted',
 };
 
-/** A customer wrote in: one unread row per chat, updated per message. */
-export function notifyChatMessage(businessId, { phone, name, type, body }) {
+/**
+ * A customer wrote in: one unread row per chat, updated per message.
+ * `isNew`: their first message ever to this business (a new chat).
+ */
+export function notifyChatMessage(businessId, { phone, name, type, body, isNew = false }) {
   const p = digits(phone);
   if (!p) return Promise.resolve(null);
   const who = String(name || '').trim() || `+${p}`;
   const preview = String(body || '').trim() || MEDIA_LABEL[type] || 'New message';
   return notify(businessId, {
-    type: 'message',
-    title: (count) => (count > 1 ? `${count} new messages from ${who}` : `New message from ${who}`),
+    type: isNew ? 'chat_new' : 'message',
+    title: (count) => (count > 1 ? `${count} new messages from ${who}` : isNew ? `New chat from ${who}` : `New message from ${who}`),
     body: preview,
     target: { view: 'chats', phone: p },
     groupKey: `chat:${p}`,

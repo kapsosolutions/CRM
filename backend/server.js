@@ -25,6 +25,7 @@ import sandboxRouter from './routes/sandbox.js';
 import channelRouter from './routes/channel.js';
 import campaignsRouter from './routes/campaigns.js';
 import notificationsRouter from './routes/notifications.js';
+import pushRouter from './routes/push.js';
 import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import businessesRouter from './routes/businesses.js';
@@ -242,6 +243,7 @@ app.use('/api/channel', channelRouter); // Channel Status: live number status fr
 // Cancelling or deleting a campaign stays possible after a downgrade.
 app.use('/api/campaigns', requireFeature('campaigns', { only: (req) => req.method !== 'DELETE' && !/\/cancel$/.test(req.path) }), campaignsRouter); // Campaigns: server-side sends and real stats
 app.use('/api/notifications', notificationsRouter); // header bell + notification drawer
+app.use('/api/push', pushRouter); // desktop notifications (Web Push) for this browser
 app.use('/api/demo', demosRouter); // public: book a demo
 app.use('/api/admin/demos', demoAdminRouter); // super admin: Demo Requests
 app.use('/api/ads', requireFeature('ads', { only: (req) => !(req.method === 'DELETE' && req.path === '/meta') }), adsRouter); // Click-to-WhatsApp ad leads + the connected Meta ad account (/api/ads/meta)

@@ -31,6 +31,7 @@ import '../models/Offer.js';
 import '../models/Order.js';
 import '../models/PlanRequest.js';
 import '../models/Product.js';
+import '../models/PushSubscription.js';
 import '../models/QuickMessage.js';
 import '../models/Registration.js';
 import '../models/SandboxLink.js';

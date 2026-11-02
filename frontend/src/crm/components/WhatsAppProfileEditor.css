@@ -394,7 +394,8 @@
   color: #b45309;
 }
 
-/* From Uiverse.io by santhoshsj-dev (modified to use green #22cf6e) */
+/* From Uiverse.io by santhoshsj-dev. Grey gears straight on the page, no box:
+   --base-color is the page colour (the gears' holes and teeth gaps use it). */
 .wpe-loading-pane {
   display: flex;
   flex-direction: column;
@@ -410,7 +411,8 @@
   padding: 20px;
   border-radius: 10px;
   background-color: var(--base-color);
-  --base-color: #ffffff;
+  --base-color: var(--wpe-loader-page, #ffffff);
+  --wpe-gear: #9ca3af;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -432,7 +434,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  background-color: #22cf6e;
+  background-color: var(--wpe-gear);
   background-image:
     radial-gradient(circle 8px at 18px 18px, var(--base-color) 100%, transparent 0),
     radial-gradient(circle 4px at 18px 0px, var(--base-color) 100%, transparent 0),
@@ -457,7 +459,7 @@
   width: 24px;
   height: 24px;
   border-radius: 50%;
-  background-color: #22cf6e;
+  background-color: var(--wpe-gear);
   background-image:
     radial-gradient(circle 5px at 12px 12px, var(--base-color) 100%, transparent 0),
     radial-gradient(circle 2.5px at 12px 0px, var(--base-color) 100%, transparent 0),

@@ -19827,6 +19827,48 @@ label.k-label,
   border-color: #22c55e;
 }
 
+/* The master switch above is off: the box keeps its choice but doesn't apply. */
+.mn-checkbox.muted {
+  opacity: 0.4;
+}
+
+/* Desktop notifications in this browser: on, blocked, not set up… */
+.mn-push-status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: -12px 0 24px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: #f1f5f9;
+  color: #334155;
+  font-size: 13px;
+  line-height: 1.45;
+}
+.mn-push-status .material-icons {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+.mn-push-status .mn-push-text {
+  flex: 1;
+}
+.mn-push-status .k-btn {
+  flex-shrink: 0;
+}
+.mn-push-status.on {
+  background: #ecfdf5;
+  color: #065f46;
+}
+.mn-push-status.blocked,
+.mn-push-status.error {
+  background: #fef2f2;
+  color: #991b1b;
+}
+.mn-push-status.ask {
+  background: #fffbeb;
+  color: #78350f;
+}
+
 /* Notification Sound Radio List */
 .mn-sound-list {
   display: flex;

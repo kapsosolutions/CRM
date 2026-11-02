@@ -227,3 +227,10 @@ html[data-theme='dark'] {
 :root[data-theme='dark'] .react-flow__edge-path {
   stroke: #5b636c;
 }
+
+/* Settings loader (WhatsAppProfileEditor.css): grey gears straight on the
+   page. The box takes the page colour, as its gears' holes and gaps use it. */
+:root[data-theme='dark'] .wpe-loading-pane .bg {
+  --wpe-loader-page: var(--wa-surface, #171a1e);
+  --wpe-gear: #6b7280;
+}

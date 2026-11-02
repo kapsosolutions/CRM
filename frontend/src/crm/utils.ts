@@ -195,7 +195,7 @@ export function playBeep(): void {
 export function notify(title: string, body: string): void {
   try {
     if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
-    const n = new Notification(title, { body, icon: '/favicon.svg', tag: 'crm' });
+    const n = new Notification(title, { body, icon: '/image.png', tag: 'crm' });
     n.onclick = () => {
       window.focus();
       n.close();

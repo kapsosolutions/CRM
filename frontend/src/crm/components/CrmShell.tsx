@@ -48,6 +48,8 @@ import { BookDemoSvg, NavConnectSvg, BuyNowSvg } from './TemplateIcons';
 import { numberStatusTone, CHANNEL_STATUS_EVENT, NUMBER_ACTIVATION_EVENT } from '../numberStatus';
 import { preloadMetaSdk } from '../metaSdk';
 import type { SignupActivation } from '../types';
+import { loadPrefs, playSound, wants, PREFS_EVENT, type NotifyPrefs } from '../notifyPrefs';
+import { onPushOpen, pushActive, pushPrefsChanged, syncPush } from '../push';
 import './CrmApp.css';
 import './Sidebar.css';
 import '../theme/dark.css';
@@ -687,6 +689,73 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   const show = (p: CrmView) => vertical.showsPage(p);
 
+  // ---- Sound and desktop nudge for every notification ----------------------
+  // Settings → Manage Notifications decides, per kind of event (the
+  // notification's category). A subscribed browser gets its desktop
+  // notifications from the service worker (also when the CRM is closed), so
+  // the page only shows one itself when push isn't available here.
+  const openRef = useRef<(n: AppNotification) => void>(() => {});
+  const alertFor = (n: AppNotification) => {
+    const prefs = loadPrefs();
+    const cat = n.category || 'account';
+    if (wants(prefs, cat, 'sound')) playSound(prefs.soundType);
+    if (!wants(prefs, cat, 'desktop') || pushActive()) return;
+    if (document.visibilityState === 'visible' && document.hasFocus()) return;
+    try {
+      if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+      const note = new Notification(n.title || 'Kapso CRM', { body: n.body || '', icon: '/image.png', tag: `crm-${n._id}` });
+      note.onclick = () => {
+        window.focus();
+        note.close();
+        openRef.current(n);
+      };
+    } catch {
+      /* notifications not available */
+    }
+  };
+
+  // This browser's push subscription follows the signed-in business and the
+  // choices on Settings; the browser's permission can change at any time too.
+  useEffect(() => {
+    if (demo || !businessId) return undefined;
+    void syncPush(api);
+    const onPrefs = (e: Event) => void pushPrefsChanged(api, ((e as CustomEvent).detail as NotifyPrefs) || loadPrefs());
+    window.addEventListener(PREFS_EVENT, onPrefs);
+    let status: PermissionStatus | null = null;
+    const onPerm = () => void syncPush(api);
+    navigator.permissions?.query({ name: 'notifications' as PermissionName })
+      .then((st) => {
+        status = st;
+        st.addEventListener('change', onPerm);
+      })
+      .catch(() => {});
+    return () => {
+      window.removeEventListener(PREFS_EVENT, onPrefs);
+      status?.removeEventListener('change', onPerm);
+    };
+  }, [api, demo, businessId]);
+
+  // A click on a desktop notification: open what it is about (and mark it read).
+  useEffect(() => {
+    if (demo || !businessId) return undefined;
+    const open = (d: { id?: string; target?: { view?: string; id?: string; phone?: string } }) => {
+      const target = { view: d.target?.view || '', id: d.target?.id || '', phone: d.target?.phone || '' };
+      if (d.id && !String(d.id).startsWith('test-')) api.markNotificationRead(d.id).then((r) => setNotificationsUnread(r.unread || 0)).catch(() => {});
+      openRef.current({ _id: d.id || '', type: '', title: '', body: '', target, count: 1, createdAt: null, lastAt: null, readAt: null, read: true });
+    };
+    // Opened from a notification while no tab was open: /?crmOpen={…}
+    try {
+      const q = new URLSearchParams(window.location.search).get('crmOpen');
+      if (q) {
+        window.history.replaceState(null, '', window.location.pathname + window.location.hash);
+        open(JSON.parse(q));
+      }
+    } catch {
+      /* ignore */
+    }
+    return onPushOpen(open);
+  }, [api, demo, businessId]);
+
   // The bell's unread count: fetched once signed in, then kept live over the
   // shell's own socket (CrmApp owns the chat socket and disconnects it). It
   // is re-read on every reconnect, so events missed while offline are caught up.
@@ -703,7 +772,10 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     if (!businessId) return undefined;
     const s = new CrmSocket(cfg.apiBase, cfg.tokenKey);
     const offs = [
-      s.onNotification((e) => setNotificationsUnread(e?.unread ?? 0)),
+      s.onNotification((e) => {
+        setNotificationsUnread(e?.unread ?? 0);
+        if (e?.notification) alertFor(e.notification);
+      }),
       s.onNotificationCount((e) => setNotificationsUnread(e?.unread ?? 0)),
       s.onConnect(refresh),
     ];
@@ -784,6 +856,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   const closeNotifications = useCallback(() => setNotificationsOpen(false), []);
 
+  openRef.current = (n) => openNotification(n);
   /** Open what a notification is about: the chat, or the record's page. */
   function openNotification(n: AppNotification) {
     const { view: target, id, phone } = n.target || { view: '', id: '', phone: '' };
@@ -793,16 +866,16 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     }
     const page = target as CrmView;
     const always: CrmView[] = ['channel-status', 'settings', 'profile', 'payment-config'];
-    // A plan change opens Settings → Billing.
-    if (page === 'profile' && id === 'billing') {
+    // A plan change opens Settings → Billing (the test notification: Manage Notifications).
+    if (page === 'profile' && (id === 'billing' || id === 'notifications')) {
       try {
-        localStorage.setItem('crm_settings_active_tab', 'billing');
-        window.dispatchEvent(new CustomEvent('crm_set_profile_tab', { detail: 'billing' }));
+        localStorage.setItem('crm_settings_active_tab', id);
+        window.dispatchEvent(new CustomEvent('crm_set_profile_tab', { detail: id }));
       } catch {
         // ignore
       }
       // The plan badge / credits follow the new plan.
-      loadMe();
+      if (id === 'billing') loadMe();
     }
     // Messenger / Instagram connected or disconnected: open that channel's tab.
     if (page === 'channel-status' && (id === 'messenger' || id === 'instagram')) {

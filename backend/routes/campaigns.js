@@ -17,6 +17,26 @@ import {
 } from '../services/metaCampaigns.js';
 import logger from '../services/logger.js';
 import { assertCampaignAllowed, sendPlanError } from '../services/planGate.js';
+import { notify } from '../services/notifications.js';
+
+const whenIST = (d) => new Date(d).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+const people = (n) => `${n || 0} customer${n === 1 ? '' : 's'}`;
+
+/**
+ * The bell for a campaign that was just created, scheduled or launched.
+ * `edited`: an existing draft / scheduled campaign saved again.
+ */
+function notifyCampaignSaved(businessId, c, mode, { edited = false } = {}) {
+  if (!c) return;
+  const q = `“${c.name}”`;
+  const n = mode === 'now'
+    ? { title: `Campaign ${q} is sending`, body: `Sending to ${people(c.total)} now.` }
+    : mode === 'schedule'
+      ? { title: `Campaign ${q} scheduled`, body: `Goes out ${whenIST(c.scheduledAt)} to ${people(c.total)}.` }
+      : edited ? null : { title: `Campaign ${q} saved as a draft`, body: `${people(c.total)} so far. Schedule or send it when it’s ready.` };
+  if (!n) return;
+  notify(businessId, { type: 'campaign_created', ...n, target: { view: 'campaigns', id: String(c._id) } }).catch(() => {});
+}
 
 const router = express.Router();
 router.use(requireBusiness);
@@ -372,6 +392,7 @@ router.post('/', async (req, res) => {
       throw err;
     }
     if (lease) runCampaign(String(doc._id), lease);
+    notifyCampaignSaved(req.business._id, doc, mode);
     res.status(201).json({ success: true, data: present(doc) });
   } catch (err) {
     fail(res, err);
@@ -404,6 +425,7 @@ router.put('/:id', async (req, res) => {
     }
     if (lease) runCampaign(String(req.params.id), lease);
     const c = await Campaign.findOne({ _id: req.params.id, ...owner(req) }).select('-recipients').lean();
+    notifyCampaignSaved(req.business._id, c, mode, { edited: true });
     res.json({ success: true, data: present(c) });
   } catch (err) {
     fail(res, err);
@@ -422,6 +444,18 @@ router.post('/:id/cancel', async (req, res) => {
       if (!exists) return res.status(404).json({ success: false, message: 'Campaign not found' });
       return res.status(409).json({ success: false, message: 'Only scheduled or sending campaigns can be cancelled.' });
     }
+    Campaign.findOne({ _id: req.params.id, ...owner(req) }).select('name recipients').lean()
+      .then((c) => {
+        if (!c) return null;
+        const sent = (c.recipients || []).filter((x) => x.state === 'sent').length;
+        return notify(req.business._id, {
+          type: 'campaign_cancelled',
+          title: `Campaign “${c.name}” cancelled`,
+          body: sent ? `Stopped after ${people(sent)}. The rest won’t get it.` : 'Nothing was sent.',
+          target: { view: 'campaigns', id: String(c._id) },
+        });
+      })
+      .catch(() => {});
     res.json({ success: true });
   } catch (err) {
     fail(res, err);

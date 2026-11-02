@@ -26,10 +26,16 @@ interface Props {
 /** Material icon + colour per type. */
 const LOOK: Record<string, { icon: string; tone: string; label: string }> = {
   message: { icon: 'chat', tone: 'blue', label: 'New message' },
+  chat_new: { icon: 'mark_chat_unread', tone: 'green', label: 'New chat' },
+  campaign_created: { icon: 'campaign', tone: 'blue', label: 'Campaign' },
+  campaign_started: { icon: 'send', tone: 'blue', label: 'Campaign started' },
+  campaign_failed: { icon: 'error', tone: 'red', label: 'Campaign failed' },
+  campaign_cancelled: { icon: 'cancel_schedule_send', tone: 'amber', label: 'Campaign cancelled' },
+  meta_template_status: { icon: 'description', tone: 'blue', label: 'Messenger template' },
   template_approved: { icon: 'task_alt', tone: 'green', label: 'Template approved' },
   template_rejected: { icon: 'cancel', tone: 'red', label: 'Template rejected' },
   template_paused: { icon: 'pause_circle', tone: 'amber', label: 'Template paused' },
-  campaign_finished: { icon: 'campaign', tone: 'violet', label: 'Campaign' },
+  campaign_finished: { icon: 'campaign', tone: 'violet', label: 'Campaign completed' },
   order_new: { icon: 'shopping_bag', tone: 'green', label: 'New order' },
   booking_new: { icon: 'event', tone: 'blue', label: 'Booking' },
   booking_cancelled: { icon: 'event_busy', tone: 'red', label: 'Cancellation' },

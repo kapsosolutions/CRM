@@ -2814,11 +2814,15 @@ export type AppNotificationType =
   | 'ads_connected' | 'ads_disconnected' | 'ad_lead'
   | 'catalog_connected'
   // Ads Manager
-  | 'ad_campaign_created' | 'ad_rejected' | 'ad_audience_ready' | 'ad_rule_triggered' | 'ad_test_winner';
+  | 'ad_campaign_created' | 'ad_rejected' | 'ad_audience_ready' | 'ad_rule_triggered' | 'ad_test_winner'
+  // Chats and campaigns
+  | 'chat_new' | 'campaign_created' | 'campaign_started' | 'campaign_failed' | 'campaign_cancelled';
 
 export interface AppNotification {
   _id: string;
   type: AppNotificationType | string;
+  /** The Settings → Manage Notifications row it falls under (backend notificationCategories.js). */
+  category?: string;
   title: string;
   body: string;
   /** What a click opens: a CRM view plus the record id (template name, campaign/order id) or chat phone. */

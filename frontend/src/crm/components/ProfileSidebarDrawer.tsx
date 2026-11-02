@@ -9,6 +9,7 @@ import { useConfirm } from './Dialogs';
 import type { CrmApi } from '../api';
 import type { WhatsAppProfile } from '../types';
 import { PROFILE_UPDATED_EVENT } from './WhatsAppProfileEditor';
+import { pushSignOut } from '../push';
 import { COMING_SOON } from '../features';
 import { SoonPill } from './ComingSoon';
 import './WhatsAppProfileEditor.css';
@@ -312,6 +313,8 @@ export function ProfileSidebarDrawer({
   const handleConfirmSignOut = () => {
     onClose();
     resetBackHandler();
+    // This browser stops getting desktop notifications for the business (needs the token, so first).
+    if (api && !demo) pushSignOut(api);
     platformApi.businessLogout();
     try {
       localStorage.removeItem('crm_business_jwt');

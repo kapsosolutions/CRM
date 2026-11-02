@@ -1132,6 +1132,54 @@ export class CrmApi {
     });
   }
 
+  // ---------- Desktop notifications (Web Push) ----------
+  /** The key browsers subscribe with; enabled: false when the server has none set. */
+  getPushKey(): Promise<{ success: boolean; enabled: boolean; publicKey: string }> {
+    return this.request('/api/push/key', { headers: this.authHeaders() });
+  }
+
+  pushSubscribe(subscription: PushSubscriptionJSON, prefs: unknown): Promise<{ success: boolean }> {
+    return this.request('/api/push/subscribe', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ subscription, prefs }),
+    });
+  }
+
+  pushPrefs(endpoint: string, prefs: unknown): Promise<{ success: boolean; found: boolean }> {
+    return this.request('/api/push/prefs', {
+      method: 'PUT',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ endpoint, prefs }),
+    });
+  }
+
+  pushUnsubscribe(endpoint: string): Promise<{ success: boolean }> {
+    return this.request('/api/push/unsubscribe', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ endpoint }),
+    });
+  }
+
+  /** Sign-out: stop this browser's pushes. Sent with keepalive so it survives the reload that follows. */
+  pushUnsubscribeOnLeave(endpoint: string): void {
+    try {
+      void fetch(`${this.config.apiBase}/api/push/unsubscribe`, {
+        method: 'POST',
+        keepalive: true,
+        headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+        body: JSON.stringify({ endpoint }),
+      }).catch(() => {});
+    } catch {
+      /* ignore */
+    }
+  }
+
+  pushTest(): Promise<{ success: boolean; sent: number }> {
+    return this.request('/api/push/test', { method: 'POST', headers: this.authHeaders() });
+  }
+
   /** Push a published Flow into the chat as an interactive form message. */
   sendFlow(phone: string, flowId: string): Promise<{ success: boolean }> {
     return this.request('/api/crm/send-flow', {

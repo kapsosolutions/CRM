@@ -109,7 +109,19 @@ export async function claimCampaign(id) {
     { $set: { status: 'sending', lockedBy: lease.by, lockedUntil: lease.until } },
   );
   if (!res.matchedCount) return null;
-  await Campaign.updateOne({ _id: id, startedAt: null }, { $set: { startedAt: now } });
+  const first = await Campaign.updateOne({ _id: id, startedAt: null }, { $set: { startedAt: now } });
+  // A scheduled campaign begins (once: a drip's later steps claim it again,
+  // and "Send now" sets startedAt when it is created).
+  if (first.modifiedCount) {
+    Campaign.findById(id).select('name businessId total').lean()
+      .then((c) => c && notify(c.businessId, {
+        type: 'campaign_started',
+        title: `Campaign “${c.name}” started`,
+        body: `Sending to ${c.total || 0} customer${c.total === 1 ? '' : 's'} now.`,
+        target: { view: 'campaigns', id: String(id) },
+      }))
+      .catch(() => {});
+  }
   return lease;
 }
 
@@ -469,8 +481,8 @@ async function finish(c, id, recipients, { stopError, cancelled, lost, save, lea
     campaignId: id, business: String(c.businessId), status, recipients: recipients.length, accepted,
     ...(c.channel ? { channel: c.channel, skipped } : {}),
   });
-  // The bell, with the counts as they stand now. A cancel was the owner's own
-  // doing, so it isn't announced back to them.
+  // The bell, with the counts as they stand now. A cancel is announced by the
+  // Cancel action itself (routes/campaigns.js), so not again here.
   if (status !== 'cancelled') {
     notifyCampaignFinished(c, status)
       .catch((e) => logger.warn('campaign notification failed', { campaignId: id, error: e.message }));
@@ -481,8 +493,8 @@ async function notifyCampaignFinished(c, status) {
   const stats = (await campaignStats(c.businessId, [{ _id: c._id, status }]))?.get(String(c._id));
   const s = stats || { accepted: 0, delivered: 0, failed: 0, skipped: 0 };
   return notify(c.businessId, {
-    type: 'campaign_finished',
-    title: status === 'failed' ? `Campaign “${c.name}” failed` : `Campaign “${c.name}” finished`,
+    type: status === 'failed' ? 'campaign_failed' : 'campaign_finished',
+    title: status === 'failed' ? `Campaign “${c.name}” failed` : `Campaign “${c.name}” completed`,
     body: `Sent ${s.accepted} · Delivered ${s.delivered} · Failed ${s.failed}${s.skipped ? ` · Skipped ${s.skipped} (outside the 24-hour window)` : ''}`,
     target: { view: 'campaigns', id: String(c._id) },
   });
