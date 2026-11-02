@@ -64,6 +64,9 @@ export async function logInbound(phone, name, type, body, raw, metaMessageId, me
       raw: base,
       metaMessageId, status: 'received',
       ...(businessId ? { businessId } : {}),
+      // When the customer sent it (services/inbound.js inboundTime), so quick
+      // messages and photos stay in the order they were sent.
+      ...(ctx.at instanceof Date && !Number.isNaN(ctx.at.getTime()) ? { createdAt: ctx.at } : {}),
     });
     // Conversation first (24h window, unread, last message), then the CRM is
     // told — so the chat list it refreshes on that event is already current.

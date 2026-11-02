@@ -11,6 +11,38 @@ import { buildSubmissionSummary, summaryToText } from './flowSubmission.js';
 import { priceCart, cartToText, cartBubble } from './cart.js';
 import { replyToFromContext } from './reactions.js';
 
+// Per chat and second: the last time handed out, so messages sent in the same
+// second keep the order they reached us in.
+const lastAtBySecond = new Map();
+
+/**
+ * When to file a customer message in the chat: when the customer sent it
+ * (Meta's `timestamp`), not when it reached us. Meta delivers each message as
+ * its own webhook and doesn't promise their order, and a photo is only saved
+ * after its download, so messages sent back to back could show up swapped.
+ *
+ * Meta's time is in whole seconds. The latest moment of that second is used
+ * (but never later than now), so a customer's reply never lands above our
+ * message it answered; messages in the same second follow arrival order, 1 ms
+ * apart. A missing or far-future timestamp falls back to now.
+ * @returns {Date}
+ */
+export function inboundTime(message, tenantId, now = Date.now()) {
+  const sec = Number(message?.timestamp);
+  if (!Number.isFinite(sec) || sec <= 0 || sec * 1000 > now + 5 * 60 * 1000) return new Date(now);
+  let at = Math.max(sec * 1000, Math.min(now, sec * 1000 + 999));
+  const key = `${tenantId || ''}|${message.from || ''}|${sec}`;
+  const prev = lastAtBySecond.get(key);
+  if (prev !== undefined && at <= prev) at = prev + 1;
+  lastAtBySecond.set(key, at);
+  if (lastAtBySecond.size > 5000) {
+    // Forget seconds older than an hour (Meta retries arrive well within it).
+    const cutoff = Math.floor(now / 1000) - 3600;
+    for (const k of lastAtBySecond.keys()) if (Number(k.slice(k.lastIndexOf('|') + 1)) < cutoff) lastAtBySecond.delete(k);
+  }
+  return new Date(at);
+}
+
 /**
  * Log and handle one entry of a change's `messages` array.
  * @param {object} message Meta's message object
@@ -29,12 +61,14 @@ export async function processInboundMessage(message, names, ctx) {
   const msg = parseIncoming(message);
   if (!msg) return;
   msg.name = names[message.from] || '';
+  // Taken now, before any download or lookup, so arrival order is kept.
+  const at = inboundTime(message, ctx.tenantId);
 
   // A payment outcome isn't a chat message: it settles the order and
   // resumes the flow on the paid / not-paid branch. Logged so the CRM
   // shows it in the thread, then handled and skipped.
   if (msg.type === 'payment') {
-    logInbound(msg.phone, msg.name, 'payment', msg.logBody, message, message.id, null, ctx).catch(() => {});
+    logInbound(msg.phone, msg.name, 'payment', msg.logBody, message, message.id, null, { ...ctx, at }).catch(() => {});
     handlePaymentUpdate(msg.payment, ctx).catch((e) =>
       logger.error('handlePaymentUpdate error', { error: e.message }),
     );
@@ -71,7 +105,7 @@ export async function processInboundMessage(message, names, ctx) {
     : null;
 
   logInbound(msg.phone, msg.name, msg.type, msg.logBody, message, message.id, msg.media, {
-    ...ctx, form: msg.form, order: msg.orderInfo, replyTo,
+    ...ctx, form: msg.form, order: msg.orderInfo, replyTo, at,
   }).catch(() => {});
   // Delivered on `standby`: another Meta app on the same number holds the
   // chat, so it's the one answering. The CRM shows the message, but our

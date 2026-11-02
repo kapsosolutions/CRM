@@ -412,8 +412,22 @@ export function CrmApp({
               next[i] = fresh;
               return next;
             }
+            return [...list, fresh];
           }
-          return [...list, fresh];
+          // A customer message is filed at the time they sent it, which can be
+          // before a message that reached us first (Meta doesn't keep the
+          // order): slot it in after the last saved message that isn't later.
+          // Messages still being sent stay where they are.
+          const at = new Date(m.createdAt || 0).getTime();
+          if (!(at > 0)) return [...list, fresh];
+          let pos = list.length;
+          while (pos > 0) {
+            const prev = list[pos - 1];
+            const prevAt = new Date(prev.createdAt || 0).getTime();
+            if (isTemp(prev) || !(prevAt > at)) break;
+            pos -= 1;
+          }
+          return [...list.slice(0, pos), fresh, ...list.slice(pos)];
         });
         scrollToBottom();
         // Only mark it read if the chat is really on screen; otherwise it waits

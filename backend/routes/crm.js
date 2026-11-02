@@ -266,10 +266,12 @@ router.post('/chats', async (req, res) => {
 // ---------------- Messages for a phone ----------------
 router.get('/messages/:phone', async (req, res) => {
   const phone = req.params.phone.replace(/\D/g, '');
-  const messages = await Message.find({ ...owner(req), phone })
-    .sort({ createdAt: 1 })
+  // The newest 500, oldest first on screen. Taking the first 500 instead hid
+  // every message after the 500th in a long chat.
+  const messages = (await Message.find({ ...owner(req), phone })
+    .sort({ createdAt: -1 })
     .limit(500)
-    .lean();
+    .lean()).reverse();
   await Conversation.updateOne({ ...owner(req), phone }, { $set: { unread: 0 } });
   markChatRead(req.business._id, phone).catch(() => {});
   res.json({ success: true, data: messages });
