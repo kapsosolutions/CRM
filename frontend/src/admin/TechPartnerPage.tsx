@@ -266,7 +266,7 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
                       <th>Quality</th>
                       <th>Status</th>
                       <th>Limit</th>
-                      <th className="num">Messages (7 days)</th>
+                      <th className="num" title="WhatsApp messages sent and received in the last 7 days, today included">Messages (7 days)</th>
                       <th>Active client</th>
                       <th>Other apps</th>
                     </tr>

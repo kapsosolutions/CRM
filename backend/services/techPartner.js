@@ -53,12 +53,14 @@ export async function fetchTechPartnerRaw(now = new Date(), { refresh = false } 
             FROM ${M}
            WHERE created_at >= $1 AND ${WHATSAPP} AND ${DELIVERED}
            GROUP BY 1`, [from]),
-    // Each client's own volume over the same 7 days (for the numbers table).
+    // Each client's own volume in the last 7 days, today included (the
+    // numbers table): 6 complete India-time days plus today so far. Leaving
+    // today out showed 0 for every client that started this week.
     rows(`SELECT business_id, count(*) AS n
             FROM ${M}
-           WHERE created_at >= $1 AND created_at < $2 AND ${WHATSAPP} AND ${DELIVERED}
+           WHERE created_at >= $1 AND ${WHATSAPP} AND ${DELIVERED}
              AND business_id IS NOT NULL AND business_id <> ''
-           GROUP BY 1`, [from, istStart(days[7])]),
+           GROUP BY 1`, [istStart(days[1])]),
     // Active clients: sent at least one message of their own in 30 days.
     rows(`SELECT m.business_id, b.name, count(*) AS sent, max(m.created_at) AS last_sent
             FROM ${M} m JOIN ${B} b ON b.id = m.business_id
