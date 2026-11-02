@@ -13,6 +13,11 @@ const JourneySchema = new Schema(
     // '' (or missing, older rows) = WhatsApp; 'instagram' | 'messenger' run on
     // those chats (services/channelJourney.js). One journey per channel is used.
     channel: { type: String, default: '' },
+    // Unpublished changes, { name, nodes, edges, savedAt }, or null. Customers
+    // always get the published `nodes` / `edges` above; the editor opens the
+    // draft when there is one. A journey saved only as a draft has no nodes,
+    // so it doesn't reply until it's published.
+    draft: { type: Schema.Types.Mixed, default: null },
   },
   { timestamps: true, minimize: false },
 );

@@ -10,8 +10,9 @@ router.use(requireBusiness);
 
 /**
  * The fields a request may set. On create everything has a value; on update
- * only what was sent changes (so { active } alone switches the bot on/off).
- * The channel is fixed when the journey is created.
+ * only what was sent changes (so { draft } alone leaves the published journey
+ * as it is). The channel is fixed when the journey is created. Only published
+ * blocks are checked against Meta's limits: a draft may be unfinished.
  */
 const pick = (b, { create = false } = {}) => {
   const out = {};
@@ -20,8 +21,21 @@ const pick = (b, { create = false } = {}) => {
   if (create || Array.isArray(b.edges)) out.edges = Array.isArray(b.edges) ? b.edges : [];
   if (typeof b.active === 'boolean') out.active = b.active;
   if (create) out.channel = journeyChannel(b.channel);
+  // { draft: {...} } saves unpublished changes; { draft: null } drops them
+  // (sent with a publish, or "Discard draft").
+  if ('draft' in b) out.draft = cleanDraft(b.draft);
   return out;
 };
+
+function cleanDraft(d) {
+  if (!d || typeof d !== 'object' || Array.isArray(d)) return null;
+  return {
+    name: String(d.name || '').trim() || 'Untitled journey',
+    nodes: Array.isArray(d.nodes) ? d.nodes : [],
+    edges: Array.isArray(d.edges) ? d.edges : [],
+    savedAt: new Date().toISOString(),
+  };
+}
 
 /** Instagram / Messenger journeys must fit what Meta's Send API accepts. */
 function invalid(res, channel, nodes) {

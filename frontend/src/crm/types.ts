@@ -2518,8 +2518,19 @@ export interface Journey {
   channel?: 'whatsapp' | 'instagram' | 'messenger';
   /** Bot on (default) / off for that channel. */
   active?: boolean;
+  /**
+   * Unpublished changes (null: none). Customers get `nodes` / `edges`; a
+   * journey saved only as a draft has none, so it doesn't reply yet.
+   */
+  draft?: JourneyDraft | null;
   createdAt?: string;
   updatedAt?: string;
+}
+export interface JourneyDraft {
+  name: string;
+  nodes: unknown[];
+  edges: unknown[];
+  savedAt?: string;
 }
 
 export interface FlowComponent {

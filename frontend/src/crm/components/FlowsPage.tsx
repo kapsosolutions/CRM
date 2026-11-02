@@ -29,7 +29,7 @@ import type { BusinessProfile, TemplateItem, Journey } from '../types';
 import type { VerticalConfig } from '../verticals';
 import { FlowBuilderPage } from './FlowBuilderPage';
 import { MediaCtx, useMedia, useMediaApi } from './uploadCtx';
-import { useFlash } from './Dialogs';
+import { useConfirm, useFlash } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { BladeSpinner } from './BladeSpinner';
 import { COMING_SOON } from '../features';
@@ -821,13 +821,23 @@ function JourneyEditor({
   // Only when opened as a sub-page (it has a back arrow); as a tab's main
   // view, Back is the shell's (return to Chats, asking if unsaved).
   useBackHandler(!!onBack, () => onBack?.());
-  const seedNodes = (journey?.nodes?.length ? (journey.nodes as Node<WaData>[]) : seedNodesFor(channel));
-  const seedEdges = (journey?.edges?.length ? (journey.edges as Edge[]) : initialEdges);
-  const [name, setName] = useState(journey?.name || (channel === 'whatsapp' ? 'My Journey' : `My ${CHANNEL_NAME[channel]} journey`));
+  // A saved draft opens in place of the published journey (customers keep
+  // getting the published one until Publish).
+  const draft = journey?.draft && Array.isArray(journey.draft.nodes) && journey.draft.nodes.length ? journey.draft : null;
+  const source = draft || journey;
+  const seedNodes = (source?.nodes?.length ? (source.nodes as Node<WaData>[]) : seedNodesFor(channel));
+  const seedEdges = (source?.nodes?.length ? ((source.edges || []) as Edge[]) : initialEdges);
+  const [name, setName] = useState(source?.name || (channel === 'whatsapp' ? 'My Journey' : `My ${CHANNEL_NAME[channel]} journey`));
   const [nodes, setNodes, onNodesChange] = useNodesState<WaData>(seedNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(seedEdges);
   const [savedId, setSavedId] = useState(journey?._id || '');
-  const [saving, setSaving] = useState(false);
+  const [saving, setSaving] = useState<'' | 'draft' | 'publish' | 'discard'>('');
+  // On the server: unpublished changes, and whether anything is live yet.
+  const [hasDraft, setHasDraft] = useState(!!draft);
+  const [hasPublished, setHasPublished] = useState(!!journey?.nodes?.length);
+  // The live version, for "Discard draft".
+  const published = useRef({ name: journey?.name || '', nodes: (journey?.nodes || []) as Node<WaData>[], edges: (journey?.edges || []) as Edge[] });
+  const confirm = useConfirm();
   // The journey always runs (no Bot on / off here any more). Whether Flows
   // take over WhatsApp is the Flows tab's switch; a single chat can still be
   // set to Manual in Chats.
@@ -855,7 +865,8 @@ function JourneyEditor({
   // changes" means what they'd expect. React Flow writes `selected`,
   // `dragging` and measured sizes back onto its nodes, and reorders them for
   // z-index — comparing the raw arrays would call a single click a change.
-  const snapshot = () =>
+  const snapshot = () => snapshotOf(name, nodes, edges);
+  const snapshotOf = (name: string, nodes: Node<WaData>[], edges: Edge[]) =>
     JSON.stringify({
       name: name.trim(),
       nodes: [...nodes]
@@ -1005,25 +1016,77 @@ function JourneyEditor({
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  async function save() {
-    setSaving(true);
+  /**
+   * "Save draft" keeps the changes without touching what customers get;
+   * "Publish" makes them live and clears the draft.
+   */
+  async function save(mode: 'draft' | 'publish') {
+    setSaving(mode);
     setError(null);
+    const title = name.trim() || 'Untitled journey';
     // `active` is always true now: journeys run unless Flows take over.
-    const body: Partial<Journey> = { name: name.trim() || 'Untitled journey', nodes, edges, active: true };
-    if (!savedId) body.channel = channel;
+    const body: Partial<Journey> = mode === 'publish'
+      ? { name: title, nodes, edges, active: true, draft: null }
+      : { draft: { name: title, nodes, edges } };
+    if (!savedId) {
+      body.channel = channel;
+      if (mode === 'draft') body.name = title;
+    }
     try {
       const res = savedId ? await api.updateJourney(savedId, body) : await api.createJourney(body);
       setSavedId(res.data._id);
       // Saving is what clears "unsaved changes".
       baseline.current = snapshot();
       reclaim(baseline.current);
-      onSaved('Journey saved.', res.data);
+      if (mode === 'publish') {
+        published.current = { name: title, nodes, edges };
+        setHasPublished(true);
+        setHasDraft(false);
+        onSaved('Journey published. It now answers your customers.', res.data);
+      } else {
+        setHasDraft(true);
+        onSaved(
+          hasPublished ? 'Draft saved. Customers still get the published journey until you publish.' : 'Draft saved. It doesn’t reply to customers until you publish it.',
+          res.data,
+        );
+      }
     } catch (e) {
       // Instagram / Messenger: the server lists what Meta wouldn't accept, block by block.
       const problems = ((e as { data?: { problems?: { message: string }[] } }).data?.problems || []).map((p) => p.message);
       setError({ message: (e as Error).message || 'The journey could not be saved.', problems: [...new Set(problems)].slice(0, 6) });
     } finally {
-      setSaving(false);
+      setSaving('');
+    }
+  }
+
+  /** Drop the draft (saved and unsaved changes) and go back to the published journey. */
+  async function discardDraft() {
+    if (!savedId || !hasPublished) return;
+    const ok = await confirm({
+      title: 'Discard the draft?',
+      message: 'Your draft changes are deleted and the editor goes back to the published journey. Customers aren’t affected.',
+      confirmLabel: 'Discard draft',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    setSaving('discard');
+    setError(null);
+    try {
+      const res = hasDraft ? await api.updateJourney(savedId, { draft: null }) : null;
+      const p = published.current;
+      const pub = snapshotOf(p.name, p.nodes, p.edges);
+      applySnap(pub);
+      baseline.current = pub;
+      // Undo can't bring back the dropped draft (its photos may be deleted).
+      if (histTimer.current) clearTimeout(histTimer.current);
+      setHist({ stack: [pub], idx: 0 });
+      reclaim(pub);
+      setHasDraft(false);
+      onSaved('Draft discarded. The editor shows the published journey.', res?.data);
+    } catch (e) {
+      setError({ message: (e as Error).message || 'The draft could not be discarded.', problems: [] });
+    } finally {
+      setSaving('');
     }
   }
 
@@ -1045,17 +1108,43 @@ function JourneyEditor({
           </button>
           {/* Nothing to save is worth saying out loud — it's the difference
               between "my work is stored" and "I forgot to press the button". */}
-          {dirty ? (
-            <button className="k-btn sm" onClick={save} disabled={saving}>
-              <span className="material-icons">save</span> {saving ? 'Saving…' : 'Save'}
-            </button>
-          ) : (
-            <span className="jr-saved" title="All changes are saved">
-              <span className="material-icons">cloud_done</span> Saved
+          {!dirty && hasDraft && (
+            <span className="jr-saved draft" title="Your changes are saved as a draft. Customers get the published journey." data-testid="jr-draft-saved">
+              <span className="material-icons">edit_note</span> Draft saved
             </span>
+          )}
+          {!dirty && !hasDraft && (
+            <span className="jr-saved" title="Customers get this journey" data-testid="jr-published">
+              <span className="material-icons">cloud_done</span> Published
+            </span>
+          )}
+          {hasDraft && hasPublished && (
+            <button className="k-btn ghost sm" onClick={discardDraft} disabled={!!saving} data-testid="jr-discard-draft" title="Go back to the published journey">
+              <span className="material-icons">delete_outline</span> {saving === 'discard' ? 'Discarding…' : 'Discard draft'}
+            </button>
+          )}
+          {dirty && (
+            <button className="k-btn ghost sm" onClick={() => save('draft')} disabled={!!saving} data-testid="jr-save-draft" title="Save without changing what customers get">
+              <span className="material-icons">edit_note</span> {saving === 'draft' ? 'Saving…' : 'Save draft'}
+            </button>
+          )}
+          {(dirty || hasDraft) && (
+            <button className="k-btn sm" onClick={() => save('publish')} disabled={!!saving} data-testid="jr-publish" title="Make this journey live for your customers">
+              <span className="material-icons">publish</span> {saving === 'publish' ? 'Publishing…' : 'Publish'}
+            </button>
           )}
         </div>
       </header>
+      {(hasDraft || !hasPublished) && (
+        <p className="jr-note draft" data-testid="jr-draft-note">
+          <span className="material-icons">edit_note</span>
+          <span>
+            {hasPublished
+              ? <>You’re editing a <b>draft</b>. Customers still get the published journey until you press <b>Publish</b>.</>
+              : <>This journey isn’t published yet, so it doesn’t reply to customers. Press <b>Publish</b> when it’s ready{hasDraft ? '' : <>, or <b>Save draft</b> to finish it later</>}.</>}
+          </span>
+        </p>
+      )}
       {channel !== 'whatsapp' && (connection === 'none' || connection === 'disconnected') && (
         <p className="jr-note warn" data-testid="jr-conn-note">
           <span className="material-icons">link_off</span>
@@ -1240,8 +1329,8 @@ function JourneyManager({
               <span className="material-icons jr-channel-lock" aria-label="Locked">lock</span>
             ) : byChannel && (
               <span
-                className={`jr-channel-dot${byChannel[c] ? ' on' : ''}`}
-                title={byChannel[c] ? 'Journey saved: it answers these chats' : 'No journey saved yet'}
+                className={`jr-channel-dot${byChannel[c]?.nodes?.length ? ' on' : ''}`}
+                title={byChannel[c]?.nodes?.length ? 'Journey published: it answers these chats' : byChannel[c] ? 'Draft only: not published yet' : 'No journey saved yet'}
               />
             )}
           </button>

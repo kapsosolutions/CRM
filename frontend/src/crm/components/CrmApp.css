@@ -2249,6 +2249,11 @@ button.rx-row:hover {
 .jr-saved .material-icons {
   font-size: 16px;
 }
+/* Saved as a draft: stored, but not what customers get yet. */
+.jr-saved.draft {
+  color: #92400e;
+  background: rgba(245, 158, 11, 0.16);
+}
 /* -------- Full-screen image lightbox -------- */
 .clickable {
   cursor: pointer;
@@ -20165,6 +20170,10 @@ label.k-label,
 .jr-note.err {
   background: #fef2f2;
   color: #991b1b;
+}
+.jr-note.draft {
+  background: #fff7ed;
+  color: #9a3412;
 }
 .jr-note ul {
   margin: 4px 0 0;

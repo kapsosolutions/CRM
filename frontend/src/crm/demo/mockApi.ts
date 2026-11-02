@@ -1043,6 +1043,8 @@ export class MockCrmApi extends CrmApi {
       name: body.name || 'Untitled journey',
       nodes: body.nodes || [],
       edges: body.edges || [],
+      channel: body.channel || 'whatsapp',
+      draft: body.draft ? { ...body.draft, savedAt: now } : null,
       createdAt: now,
       updatedAt: now,
     };
@@ -1051,7 +1053,9 @@ export class MockCrmApi extends CrmApi {
   }
   override updateJourney(id: string, body: Partial<Journey>): Promise<{ success: boolean; data: Journey }> {
     const i = journeys.findIndex((j) => j._id === id);
-    if (i >= 0) journeys[i] = { ...journeys[i], ...body, _id: id, updatedAt: new Date().toISOString() };
+    const now = new Date().toISOString();
+    const patch = 'draft' in body ? { ...body, draft: body.draft ? { ...body.draft, savedAt: now } : null } : body;
+    if (i >= 0) journeys[i] = { ...journeys[i], ...patch, _id: id, updatedAt: now };
     return delay({ success: true, data: this.cloneJourney(journeys[i] || ({} as Journey)) }, 300);
   }
   override deleteJourney(id: string): Promise<{ success: boolean }> {
