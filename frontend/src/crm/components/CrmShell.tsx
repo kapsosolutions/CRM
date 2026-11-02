@@ -194,7 +194,11 @@ function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: Plan
   const pad = (n: number) => String(n).padStart(2, '0');
   const totalSec = Math.floor((msLeft || 0) / 1000);
   const timerText = `${pad(Math.floor(totalSec / 3600))} : ${pad(Math.floor((totalSec % 3600) / 60))} : ${pad(totalSec % 60)}`;
-  const daysLeft = msLeft === null ? 0 : Math.max(1, Math.ceil(msLeft / ONE_DAY_MS));
+  // Counted on this computer's clock (so it ticks down while the page stays
+  // open), but never above the server's count: a clock that runs even a
+  // second behind would otherwise turn a fresh 7-day trial into "8 days".
+  const localDays = msLeft === null ? 0 : Math.max(1, Math.ceil(msLeft / ONE_DAY_MS));
+  const daysLeft = typeof plan?.daysLeft === 'number' && plan.daysLeft > 0 ? Math.min(localDays, plan.daysLeft) : localDays;
 
   const currentMsg = needsConnect
     ? (view ? UNCONNECTED_MARQUEE_MESSAGES[view] : undefined) || 'Connect your WhatsApp account to unlock unlimited messaging and features.'
