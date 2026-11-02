@@ -3,7 +3,7 @@ import { lazy, Suspense, useEffect, useRef, useState } from 'react';
 import { useNotify } from './Dialogs';
 
 // Its own chunk, fetched and built while the browser is idle (see below).
-const EmojiPicker = lazy(() => import('./EmojiPickerLazy'));
+const EmojiPicker = lazy(() => import('./FastEmojiPicker'));
 
 /** Run `fn` when the browser has a moment (or after `ms` at the latest). */
 function whenIdle(fn: () => void, ms = 2500): () => void {
