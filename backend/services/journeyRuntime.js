@@ -127,7 +127,22 @@ async function sendChain(meta, phone, journey, node, convo, tokens = {}) {
   // The journey carries its owner, so state writes land on the right tenant's
   // chat even when two tenants are talking to the same customer.
   const businessId = journey?.businessId || null;
+  const sent = new Set();
   while (current && guard++ < 20) {
+    // "Start again" sends nothing: it goes back to the block after Start, as a
+    // fresh "hi" would. Not when that block already went out for this message
+    // (Start → … → Start again with no question in between would repeat it).
+    if (current.data?.kind === 'restart') {
+      const start = startNode(journey);
+      const first = start ? edgeTarget(journey, start.id, null) : null;
+      if (!first || first.data?.kind === 'restart' || sent.has(first.id)) {
+        await setState(convo.phone, { nodeId: null, done: true }, businessId);
+        return;
+      }
+      current = first;
+      continue;
+    }
+    sent.add(current.id);
     const status = await sendNode(meta, phone, current, tokens);
     if (status === 'wait') {
       await setState(convo.phone, { nodeId: current.id }, businessId);

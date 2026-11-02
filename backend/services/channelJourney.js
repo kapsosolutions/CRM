@@ -34,8 +34,8 @@ export const CHANNEL_LIMITS = {
   instagram: { text: 1000, templateText: 640, buttons: 3, buttonTitle: 20, quickReplies: 13, quickReplyTitle: 20, cards: 10, cardTitle: 80, cardSubtitle: 80 },
 };
 const KINDS = {
-  messenger: ['start', 'message', 'reply', 'quick', 'cta', 'call', 'carousel', 'end'],
-  instagram: ['start', 'message', 'reply', 'quick', 'cta', 'carousel', 'end'],
+  messenger: ['start', 'message', 'reply', 'quick', 'cta', 'call', 'carousel', 'restart', 'end'],
+  instagram: ['start', 'message', 'reply', 'quick', 'cta', 'carousel', 'restart', 'end'],
 };
 const MEDIA = ['image', 'video', 'audio', 'pdf'];
 const isHttps = (u) => /^https:\/\/[^\s]+$/i.test(String(u || '').trim());
@@ -243,7 +243,22 @@ async function tokensFor(businessId, convo) {
 async function sendChain(business, channel, convo, journey, node, tokens) {
   const businessId = String(business._id);
   let current = node;
+  const sent = new Set();
   for (let guard = 0; current && guard < 20; guard += 1) {
+    // "Start again": back to the block after Start, unless that block already
+    // went out for this message (a loop with no question in between).
+    if (current.data?.kind === 'restart') {
+      const start = startNode(journey);
+      const first = start ? edgeTarget(journey, start.id, null) : null;
+      if (!first || first.data?.kind === 'restart' || sent.has(first.id)) {
+        // eslint-disable-next-line no-await-in-loop
+        await setState(businessId, convo.phone, { nodeId: null, done: true });
+        return;
+      }
+      current = first;
+      continue;
+    }
+    sent.add(current.id);
     const { sends, wait } = channelNodeSends(channel, current, tokens);
     for (const s of sends) {
       // eslint-disable-next-line no-await-in-loop

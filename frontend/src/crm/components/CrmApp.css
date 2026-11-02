@@ -6988,14 +6988,6 @@ a.msg-btn {
 .pal-item:active {
   cursor: grabbing;
 }
-/* A block that can't be added right now (Start, when the canvas has one). */
-.pal-item.off {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-.pal-item.off:hover {
-  background: transparent;
-}
 .pal-item .material-icons {
   font-size: 20px;
 }

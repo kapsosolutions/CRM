@@ -46,7 +46,8 @@ type Kind =
   | 'template'
   | 'quick'
   | 'carousel'
-  | 'end';
+  | 'end'
+  | 'restart';
 
 type HeaderType = 'none' | 'image' | 'video' | 'audio' | 'pdf';
 
@@ -107,6 +108,8 @@ const KINDS: Record<Kind, { title: string; icon: string; color: string }> = {
   quick: { title: 'Quick replies', icon: 'bubble_chart', color: '#ec4899' },
   carousel: { title: 'Cards', icon: 'view_carousel', color: '#0ea5e9' },
   end: { title: 'End', icon: 'stop', color: '#ea4335' },
+  // Like the Flows builder's "Start over": back to Start, as if the customer said "hi".
+  restart: { title: 'Start again', icon: 'restart_alt', color: '#25d366' },
 };
 
 const HEADER_KINDS = new Set<Kind>(['message', 'reply', 'cta', 'call']);
@@ -273,8 +276,7 @@ function WaNode({ id, data }: NodeProps<WaData>) {
         <Handle type="target" position={Position.Left} className="fl-handle" />
       )}
 
-      {/* Start can go too: a new one is dragged in from the blocks list. */}
-      {(
+      {data.kind !== 'start' && (
         <button className="fl-del" onClick={del} title="Delete block">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
             <line x1="5" y1="5" x2="19" y2="19" />
@@ -330,6 +332,16 @@ function WaNode({ id, data }: NodeProps<WaData>) {
             </div>
           )}
           <input ref={fileRef} type="file" hidden accept={ACCEPT[data.header || 'none']} onChange={onHeaderFile} />
+        </div>
+      )}
+
+      {/* Sends nothing itself: it loops back to Start, so it has an input and no output. */}
+      {data.kind === 'restart' && (
+        <div className="fl-restart" data-testid="fl-restart">
+          <span className="material-icons">replay</span>
+          <div>
+            Goes back to <strong>Start</strong> and runs the journey again, exactly like the customer typing &quot;hi&quot;.
+          </div>
         </div>
       )}
 
@@ -620,6 +632,7 @@ const WHATSAPP_PALETTE: PaletteItem[] = [
   { kind: 'location', label: 'Ask location' },
   { kind: 'list', label: 'List menu' },
   { kind: 'template', label: 'Template' },
+  { kind: 'restart', label: 'Start again' },
   { kind: 'end', label: 'End' },
 ];
 // What Meta's Send API can send on Instagram / Messenger: the same message
@@ -639,11 +652,18 @@ const metaPalette = (channel: 'instagram' | 'messenger'): PaletteItem[] => [
   ...(channel === 'messenger' ? [{ kind: 'call' as Kind, label: 'Call button' }] : []),
   { kind: 'carousel', count: 1, label: 'Card', icon: 'crop_landscape' },
   { kind: 'carousel', count: 2, label: 'Carousel' },
+  { kind: 'restart', label: 'Start again' },
   { kind: 'end', label: 'End' },
 ];
-/** Where the journey begins; one per journey (the runtime starts at it). */
+/**
+ * Where the journey begins. Every journey comes with one (it has no ✕); it's
+ * offered here only to put it back if it was removed (e.g. with Backspace).
+ */
 const START_ITEM: PaletteItem = { kind: 'start', label: 'Start' };
-const paletteFor = (channel: JourneyChannel): PaletteItem[] => [START_ITEM, ...(channel === 'whatsapp' ? WHATSAPP_PALETTE : metaPalette(channel))];
+const paletteFor = (channel: JourneyChannel, hasStart: boolean): PaletteItem[] => [
+  ...(hasStart ? [] : [START_ITEM]),
+  ...(channel === 'whatsapp' ? WHATSAPP_PALETTE : metaPalette(channel)),
+];
 
 interface FlowCanvasProps {
   nodes: Node<WaData>[];
@@ -658,7 +678,8 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
   const rf = useReactFlow();
   const channel = useContext(ChannelCtx);
   const stroke = EDGE_COLOR[channel];
-  const palette = paletteFor(channel);
+  const hasStart = nodes.some((n) => n.data?.kind === 'start');
+  const palette = paletteFor(channel, hasStart);
 
   const onConnect = useCallback(
     (c: Connection) =>
@@ -691,7 +712,6 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
     },
     [rf, setNodes],
   );
-  const hasStart = nodes.some((n) => n.data?.kind === 'start');
 
   function onPaletteDragStart(e: React.DragEvent, p: PaletteItem) {
     e.dataTransfer.setData('application/reactflow', JSON.stringify({ kind: p.kind, count: p.count, header: p.header }));
@@ -705,16 +725,19 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         <p className="fp-hint">Drag a block onto the canvas, then connect the ports.</p>
         {palette.map((p) => {
           const k = KINDS[p.kind];
-          // Start: only when the canvas has none (delete the old one to move it).
-          const off = p.kind === 'start' && hasStart;
           return (
             <div
               key={p.label}
-              className={`pal-item${off ? ' off' : ''}`}
-              draggable={!off}
-              aria-disabled={off || undefined}
-              title={off ? 'This journey already has a Start block. Delete it (✕) to place a new one.' : p.kind === 'start' ? 'Where the journey begins: connect it to the first message' : undefined}
-              onDragStart={(e) => (off ? e.preventDefault() : onPaletteDragStart(e, p))}
+              className="pal-item"
+              draggable
+              title={
+                p.kind === 'start'
+                  ? 'This journey has no Start: drop one and connect it to your first message'
+                  : p.kind === 'restart'
+                    ? 'Goes back to Start and runs the journey again, like the customer typing "hi"'
+                    : undefined
+              }
+              onDragStart={(e) => onPaletteDragStart(e, p)}
               data-testid={`pal-${p.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
             >
               <span className="material-icons" style={{ color: k.color }}>
@@ -1044,7 +1067,7 @@ function JourneyEditor({
             <span>
               {start
                 ? <>Connect the <b>Start</b> block to your first message: until then this journey doesn’t reply.</>
-                : <>This journey has no <b>Start</b> block, so it doesn’t reply. Drag <b>Start</b> from the blocks list and connect it to your first message.</>}
+                : <>This journey has no <b>Start</b> block, so it doesn’t reply. Drag <b>Start</b> from the top of the blocks list and connect it to your first message.</>}
             </span>
           </p>
         );
