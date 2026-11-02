@@ -3259,8 +3259,9 @@ a.msg-btn {
   width: 100%;
   max-width: 330px;
   height: 480px;
-  border-radius: 32px;
-  border-width: 7px;
+  border-radius: 28px;
+  border-width: 5px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
 }
 .drawer-head-preview-title {
   flex: 1;
@@ -3566,20 +3567,24 @@ a.msg-btn {
   letter-spacing: -0.01em;
 }
 
-/* The phone: same frame as the business profile preview (PhoneFrame.css). */
+/* Modern white mobile device frame */
 .tc-phone {
   width: 320px;
   max-width: 100%;
-  height: 610px;
+  height: 560px;
   max-height: calc(100vh - 140px);
   margin: 0 auto;
   background: #ffffff;
+  border: 7px solid #ffffff;
+  border-radius: 38px;
+  outline: 1px solid #e2e8f0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
 }
 
-/* Old status bar (replaced by PhoneStatusBar's .pf-status). */
+/* Status Bar */
 .tc-phone-bar {
   display: flex;
   align-items: center;
@@ -7855,10 +7860,13 @@ a.msg-btn {
   margin: 0 auto;
   background: #ffffff;
   color: #111b21;
-  /* Frame: PhoneFrame.css (same as the business profile preview). */
+  border: 7px solid #ffffff;
+  border-radius: 38px;
+  outline: 1px solid #e2e8f0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
   /* Details page: tall, but never taller than the viewport allows. */
   height: min(720px, calc(100vh - 170px));
   min-height: 520px;
@@ -10740,14 +10748,19 @@ button.pd-phone-chip:hover {
   width: 100%;
 }
 
-/* The phone: same frame and status bar as the business profile preview
-   (PhoneFrame.css, PhoneStatusBar). */
+/* The phone: same frame and status bar as the template preview (.tc-phone,
+   PhoneStatusBar). */
 .flow-device {
   position: relative;
   width: 100%;
   max-width: 320px;
   aspect-ratio: 320 / 640;
   background: #ffffff;
+  border: 7px solid #ffffff;
+  border-radius: 38px;
+  outline: 1px solid #e2e8f0;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
+  box-sizing: border-box;
   overflow: hidden;
   display: flex;
   flex-direction: column;

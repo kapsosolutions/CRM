@@ -18,13 +18,16 @@
   letter-spacing: 0.05em;
 }
 
+/* Same phone as the template preview (.tc-phone): white frame, thin outline,
+   the template's status bar (PhoneStatusBar). */
 .bpp-phone-frame {
   width: 320px;
   height: 610px;
   background: #f8fafc;
   border-radius: 38px;
-  border: 8px solid #1e293b;
-  box-shadow: 0 20px 48px -12px rgba(15, 23, 42, 0.22), 0 2px 8px rgba(0, 0, 0, 0.08);
+  border: 7px solid #ffffff;
+  outline: 1px solid #e2e8f0;
+  box-shadow: 0 20px 40px -15px rgba(0, 0, 0, 0.12), 0 0 0 1px rgba(0, 0, 0, 0.04);
   display: flex;
   flex-direction: column;
   overflow: hidden;

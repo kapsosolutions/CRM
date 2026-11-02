@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { PhoneStatusBar } from './PhoneStatusBar';
+import { PhoneStatusBar } from './TemplatePhonePreview';
 import './BusinessProfilePhonePreview.css';
 
 export interface BusinessProfilePhonePreviewProps {

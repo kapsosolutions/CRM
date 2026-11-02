@@ -48,7 +48,7 @@ import { verticalConfig, type ConfirmWording, type VerticalConfig } from '../ver
 import { useConfirm, useFlash, useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { BladeSpinner } from './BladeSpinner';
-import { PhoneStatusBar } from './PhoneStatusBar';
+import { PhoneStatusBar } from './TemplatePhonePreview';
 
 // Sample categories shown in the preview for a dynamic "Category list" block.
 // At runtime the backend endpoint serves the business's real categories (1:1).
