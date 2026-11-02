@@ -169,6 +169,9 @@ export const MessageItem = memo(function MessageItem({
   // The reactions panel ("2 reactions"), anchored to the chip that opened it.
   const [whoAnchor, setWhoAnchor] = useState<HTMLElement | null>(null);
   const [mediaFailed, setMediaFailed] = useState(false);
+  // A video shows its first frame with a play button until it's started.
+  const [videoOn, setVideoOn] = useState(false);
+  const [videoSecs, setVideoSecs] = useState(0);
   const [retrying, setRetrying] = useState(false);
   const md = mediaOf(m);
   const d = outboundOf(m);
@@ -224,6 +227,10 @@ export const MessageItem = memo(function MessageItem({
   // Only emoji (1–3) and nothing else: shown large without a bubble, like WhatsApp.
   const plainText = d && d.body ? d.body : m.body;
   const jumbo = !md && !quote && !isRich ? jumboEmojiCount(plainText) : 0;
+  // A photo or video without a caption: it fills the bubble and the time and
+  // ticks sit on it, bottom-right (WhatsApp style). With a caption, the
+  // caption and time go under it as before.
+  const mediaOnly = !!md && !mediaFailed && !quote && !caption && (md.type === 'image' || md.type === 'video');
 
   const metaRow = (
     <span className="meta">
@@ -499,7 +506,8 @@ export const MessageItem = memo(function MessageItem({
           </div>
         ) : (
           <div
-            className={`bubble${jumbo ? ` jumbo n${jumbo}` : md && !mediaFailed ? '' : ' inline-meta'}${reactions.length ? ' has-reaction' : ''}`}
+            className={`bubble${jumbo ? ` jumbo n${jumbo}` : md && !mediaFailed ? (mediaOnly ? ` media-only${videoOn ? ' media-playing' : ''}` : '') : ' inline-meta'}${reactions.length ? ' has-reaction' : ''}`}
+            data-testid={mediaOnly ? 'media-only-bubble' : undefined}
           >
             {quoteBlock}
             {jumbo ? (
@@ -659,7 +667,30 @@ export const MessageItem = memo(function MessageItem({
       case 'video':
         return (
           <div className="media-wrap">
-            <video className="bubble-media" src={md.url} controls onError={() => setMediaFailed(true)} />
+            <video
+              className="bubble-media"
+              // #t=0.1: the first frame as the preview, before it's played.
+              src={videoOn ? md.url : `${md.url}#t=0.1`}
+              preload="metadata"
+              playsInline
+              controls={videoOn}
+              autoPlay={videoOn}
+              onLoadedMetadata={(e) => setVideoSecs(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
+              onError={() => setMediaFailed(true)}
+            />
+            {!videoOn && (
+              <>
+                <button type="button" className="vid-play" onClick={() => setVideoOn(true)} aria-label="Play video" data-testid="video-play">
+                  <span className="material-icons">play_arrow</span>
+                </button>
+                {videoSecs > 0 && (
+                  <span className="vid-dur">
+                    <span className="material-icons">videocam</span>
+                    {`${Math.floor(videoSecs / 60)}:${String(Math.floor(videoSecs % 60)).padStart(2, '0')}`}
+                  </span>
+                )}
+              </>
+            )}
             <button
               className="dl-btn"
               onClick={() => downloadFile(dl, md.filename)}

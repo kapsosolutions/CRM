@@ -202,6 +202,35 @@ export function CrmApp({
     }, 60);
   }, []);
 
+  // Photos and videos get their height only once they load, after the chat
+  // has scrolled to the newest message. If the reader was at the bottom, keep
+  // them there as the media grows the list.
+  useEffect(() => {
+    const box = msgBoxRef.current;
+    if (!box) return undefined;
+    let atBottom = true;
+    const onScroll = () => {
+      atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 120;
+    };
+    let lastHeight = box.scrollHeight;
+    const grew = new ResizeObserver(() => {
+      const h = box.scrollHeight;
+      if (h > lastHeight && atBottom) box.scrollTop = h;
+      lastHeight = h;
+    });
+    // The list's content box: observe every bubble row as it's added.
+    const watchAll = () => box.querySelectorAll(':scope > *').forEach((el) => grew.observe(el));
+    const added = new MutationObserver(watchAll);
+    watchAll();
+    added.observe(box, { childList: true });
+    box.addEventListener('scroll', onScroll, { passive: true });
+    return () => {
+      grew.disconnect();
+      added.disconnect();
+      box.removeEventListener('scroll', onScroll);
+    };
+  }, [activePhone]);
+
   // Debounced chat-list refresh: several messages land together (customer +
   // bot replies), and one reload after they settle reads the final state.
   const refreshTimer = useRef<ReturnType<typeof setTimeout> | null>(null);

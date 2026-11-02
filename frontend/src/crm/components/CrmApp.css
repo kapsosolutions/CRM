@@ -940,8 +940,8 @@
 .bubble {
   border-radius: 14px;
   padding: 5px 9px;
-  font-size: 13px;
-  line-height: 1.35;
+  font-size: 14.5px;
+  line-height: 1.4;
   position: relative;
   background: #ffffff;
   color: #111b21;
@@ -990,11 +990,108 @@
   display: block;
 }
 .bubble-media {
-  width: 100%;
-  max-width: 210px;
+  width: 300px;
+  max-width: 100%;
+  /* Very tall photos are cropped to this height, like WhatsApp. */
+  max-height: 360px;
+  object-fit: cover;
   border-radius: 10px;
   margin-bottom: 4px;
   display: block;
+  background: rgba(0, 0, 0, 0.06);
+}
+video.bubble-media {
+  object-fit: contain;
+  background: #000000;
+}
+
+/* A photo or video without a caption fills the bubble; the time and ticks
+   sit on it, bottom-right, over a soft shadow (WhatsApp style). */
+.bubble.media-only {
+  padding: 3px;
+}
+.bubble.media-only .bubble-media {
+  margin-bottom: 0;
+}
+.bubble.media-only .media-wrap::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  border-radius: 0 0 10px 10px;
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0));
+  pointer-events: none;
+}
+.bubble.media-only > .meta,
+.msg.out .bubble.media-only > .meta {
+  position: absolute;
+  right: 11px;
+  bottom: 9px;
+  margin: 0;
+  padding: 0;
+  color: #ffffff;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  z-index: 1;
+  pointer-events: none;
+}
+.bubble.media-only > .meta .tick-svg.tick-delivered path,
+.bubble.media-only > .meta .tick-svg.tick-sent path {
+  stroke: #ffffff;
+}
+/* Playing: the video's own controls take the bottom edge. */
+.bubble.media-only.media-playing > .meta,
+.bubble.media-only.media-playing .media-wrap::after {
+  display: none;
+}
+/* Video before it's played: its first frame, a play button and its length. */
+.vid-play {
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  width: 56px;
+  height: 56px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.5);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.vid-play:hover {
+  background: rgba(0, 0, 0, 0.65);
+  transform: scale(1.06);
+}
+.vid-play .material-icons {
+  font-size: 36px;
+}
+.vid-dur {
+  position: absolute;
+  left: 10px;
+  bottom: 9px;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: #ffffff;
+  font-size: 11.5px;
+  line-height: 1;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+  z-index: 1;
+  pointer-events: none;
+}
+.vid-dur .material-icons {
+  font-size: 15px;
+}
+/* A video with a caption: the length sits bottom-left without the shadow. */
+.bubble:not(.media-only) .media-wrap .vid-dur {
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 8px;
+  padding: 1px 6px;
 }
 .bubble-audio {
   width: 260px;
@@ -1094,7 +1191,7 @@
   align-items: center;
   gap: 4px;
   justify-content: flex-end;
-  font-size: 10px;
+  font-size: 11px;
   color: #667781;
   margin-top: 2px;
   padding: 0 4px;
@@ -1114,8 +1211,8 @@
 .tick-svg {
   display: inline-block;
   vertical-align: middle;
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
 }
 .tick-svg.tick-read path {
@@ -1601,7 +1698,8 @@ button.rx-row:hover {
 /* Media download button overlay */
 .media-wrap {
   position: relative;
-  display: inline-block;
+  display: block;
+  line-height: 0;
 }
 .dl-btn {
   position: absolute;
@@ -12863,11 +12961,11 @@ button.pd-phone-chip:hover {
 /* Reserves the width of the time (+ ticks on our side) at the end of the text. */
 .meta-spacer {
   display: inline-block;
-  width: 38px;
+  width: 42px;
   height: 1px;
 }
 .msg.out .meta-spacer {
-  width: 54px;
+  width: 62px;
 }
 
 /* =============================================================================
