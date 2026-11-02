@@ -23,6 +23,7 @@ import { useBackHandler } from '../useBackHandler';
 import { usePlan } from '../PlanContext';
 import { MessageItem } from './MessageItem';
 import { Composer } from './Composer';
+import { SessionTimer, useWindowOpen } from './SessionTimer';
 import { TemplateDrawer, fillVars, templateBodyText } from './TemplateDrawer';
 import { QuickMessagePicker } from './QuickMessagePicker';
 import { FlowDrawer } from './FlowDrawer';
@@ -165,27 +166,9 @@ export function CrmApp({
 
   // 24h window state.
   const [windowExpiresAt, setWindowExpiresAt] = useState(0);
-  const [now, setNow] = useState(Date.now());
-  const windowOpen = windowExpiresAt > now;
-  const msLeft = windowExpiresAt - now;
-
-  const remainingSec = Math.max(0, Math.ceil(msLeft / 1000));
-  const timerHours = Math.floor(remainingSec / 3600);
-  const timerMinutes = Math.floor((remainingSec % 3600) / 60);
-  const timerSeconds = remainingSec % 60;
-  const timerDisplay =
-    windowOpen
-      ? timerHours > 0
-        ? `${String(timerHours).padStart(2, '0')}:${String(timerMinutes).padStart(2, '0')}:${String(timerSeconds).padStart(2, '0')}`
-        : `${String(timerMinutes).padStart(2, '0')}:${String(timerSeconds).padStart(2, '0')}`
-      : '00:00:00';
-
-  let timerColor = '#22ce6d';
-  if (!windowOpen || remainingSec <= 0 || remainingSec <= 3600) {
-    timerColor = '#ff4545';
-  } else if (remainingSec <= 14400) {
-    timerColor = '#ffd43b';
-  }
+  // The countdown text ticks inside <SessionTimer>; this only flips when the
+  // window closes, so the chat doesn't re-render every second.
+  const windowOpen = useWindowOpen(windowExpiresAt);
 
   // Refs so socket handlers see the latest values without re-subscribing.
   const activePhoneRef = useRef<string | null>(null);
@@ -270,7 +253,6 @@ export function CrmApp({
       setChats((list) => list.map((c) => (c.phone === phone ? { ...c, unread: 0 } : c)));
       const lastInbound = chat?.lastInboundAt && chat.windowOpen ? new Date(chat.lastInboundAt).getTime() : 0;
       setWindowExpiresAt(lastInbound > 0 ? lastInbound + WINDOW_MS : 0);
-      setNow(Date.now());
       // Clear the previous thread so its messages don't flash under the new
       // header, and show placeholders until this one arrives.
       setMessages([]);
@@ -423,7 +405,6 @@ export function CrmApp({
         if (m.phone === activePhoneRef.current) {
           const at = new Date(m.createdAt || Date.now()).getTime();
           setWindowExpiresAt((cur) => Math.max(cur, at + WINDOW_MS));
-          setNow(Date.now());
         }
       }
 
@@ -497,14 +478,11 @@ export function CrmApp({
       if (u.typing && u.phone === activePhoneRef.current) scrollToBottom();
     });
 
-    const ticker = setInterval(() => setNow(Date.now()), 1000);
-
     return () => {
       offMsg();
       offStatus();
       offReaction();
       offTyping();
-      clearInterval(ticker);
       socket.disconnect();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -907,6 +885,18 @@ export function CrmApp({
 
   const activeChat = activePhone ? chats.find((c) => c.phone === activePhone) || null : null;
 
+  // The message bubbles are memoised (MessageItem): they get callbacks that
+  // never change identity and call the latest handlers, so typing in the
+  // composer, the typing indicator or a new chat-list row don't redraw them.
+  const handlers = useRef({ toggleReact, react, retrySend, jumpToMessage });
+  handlers.current = { toggleReact, react, retrySend, jumpToMessage };
+  const onToggleReactStable = useCallback((m: ChatMessage) => handlers.current.toggleReact(m), []);
+  const onReactStable = useCallback((m: ChatMessage, emoji: string) => handlers.current.react(m, emoji), []);
+  const onRetryStable = useCallback((m: ChatMessage) => handlers.current.retrySend(m), []);
+  const onJumpToStable = useCallback((id?: string) => handlers.current.jumpToMessage(id), []);
+  const onCloseReactStable = useCallback(() => setReactingId(null), []);
+  const onReplyStable = useCallback((msg: ChatMessage) => setReplyingTo(msg), []);
+
   // The reactions panel's people: the customer (number, then their WhatsApp
   // name, as WhatsApp lists them) and the business as "You".
   const activeChatName = activeChat?.name || activeName;
@@ -992,22 +982,7 @@ export function CrmApp({
                 </div>
               </div>
 
-              <div
-                className="timer-box"
-                id="timerBox"
-                style={{ '--timer-color': timerColor } as React.CSSProperties}
-                title={
-                  windowOpen
-                    ? `Session window open: ${timerDisplay} remaining`
-                    : metaChat
-                    ? '24-hour reply window closed — wait for the customer to write again'
-                    : '24-hour session window closed — use a template'
-                }
-              >
-                <div className="timer" id="timer">
-                  {timerDisplay}
-                </div>
-              </div>
+              <SessionTimer expiresAt={windowExpiresAt} metaChat={metaChat} />
 
               {/* Bot / Manual for this chat: on Messenger / Instagram it switches that
                   channel's journey (Automation) on or off for this customer. */}
@@ -1120,13 +1095,13 @@ export function CrmApp({
                       message={m}
                       api={api}
                       reacting={reactingId === m._id}
-                      onToggleReact={toggleReact}
-                      onReact={react}
-                      onCloseReact={() => setReactingId(null)}
-                      onReply={(msg) => setReplyingTo(msg)}
-                      onJumpTo={jumpToMessage}
+                      onToggleReact={onToggleReactStable}
+                      onReact={onReactStable}
+                      onCloseReact={onCloseReactStable}
+                      onReply={onReplyStable}
+                      onJumpTo={onJumpToStable}
                       onViewMedia={setViewMedia}
-                      onRetry={m.type === 'text' ? retrySend : undefined}
+                      onRetry={m.type === 'text' ? onRetryStable : undefined}
                       people={people}
                     />
                   </Fragment>

@@ -1,12 +1,14 @@
 // The chat composer's emoji picker. Replaces emoji-mart, whose web component
 // draws the grid row by row as you scroll (blank rows, then emoji) and
-// re-renders on every prop push. Here every emoji is a plain button in normal
-// page flow; categories off screen are skipped by the browser
-// (content-visibility), so building it is one quick pass and scrolling costs
-// no JavaScript beyond highlighting the current category.
+// re-renders on every prop push. Here every emoji is a plain button, laid out
+// once while the browser is idle (Composer builds the picker hidden), so
+// scrolling only moves pixels: no layout, and no JavaScript beyond
+// highlighting the current category. Tab clicks glide to the category.
 // Data: src/crm/emojiData.ts (build/make-emoji-data.mjs).
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { EMOJI_BY_ID, EMOJI_CATEGORIES } from '../emojiData';
+import { onSprites, requestSprites, sheetReady, spriteFor } from '../emojiSprites';
+import { uiScale } from '../uiScale';
 import './FastEmojiPicker.css';
 
 interface Emoji {
@@ -144,15 +146,39 @@ function loadSkin(): number {
 
 const show = (e: Emoji, skin: number) => (skin > 0 && e.k ? e.k[skin - 1] || e.n : e.n);
 
-/** One category's grid. Memoised: re-renders only when the skin tone changes. */
-const Grid = memo(function Grid({ emojis, skin }: { emojis: Emoji[]; skin: number }) {
+interface LenisLike {
+  scrollTo: (to: number, o?: object) => void;
+  resize: () => void;
+}
+/** The Lenis instance on this box, if the CRM's smooth scrolling attached one (useAppSmoothScroll). */
+const lenisOf = (el: HTMLElement): LenisLike | undefined =>
+  (window as unknown as { __crmLenis?: Map<HTMLElement, LenisLike> }).__crmLenis?.get(el);
+
+/** An emoji as an image tile from its sheet (emojiSprites.ts), or as text until the sheet is ready. */
+function EmojiFace({ ch }: { ch: string }) {
+  const s = spriteFor(ch);
+  if (!s) return <>{ch}</>;
+  return (
+    <span
+      className="fep-img"
+      style={{
+        backgroundImage: `url(${s.url})`,
+        backgroundSize: `${s.w / s.scale}px ${s.h / s.scale}px`,
+        backgroundPosition: `-${s.x / s.scale}px -${s.y / s.scale}px`,
+      }}
+    />
+  );
+}
+
+/** One category's grid. Memoised: re-renders when the skin tone or its sheet changes. */
+const Grid = memo(function Grid({ emojis, skin }: { emojis: Emoji[]; skin: number; ver: number }) {
   return (
     <div className="fep-grid">
       {emojis.map((e) => {
         const ch = show(e, skin);
         return (
-          <button key={e.n} type="button" className="fep-e" data-e={ch} data-base={e.n}>
-            {ch}
+          <button key={e.n} type="button" className="fep-e" data-e={ch} data-base={e.n} aria-label={ch}>
+            <EmojiFace ch={ch} />
           </button>
         );
       })}
@@ -169,6 +195,23 @@ function Picker({ pick }: { pick: { current: (e: string) => void } }) {
   const [active, setActive] = useState('recent');
   const scrollRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
+
+  // Image sheets: one per category, plus the chosen skin tone's variants.
+  // Each sheet that arrives redraws only its own category.
+  const [sheetVer, setSheetVer] = useState(0);
+  useEffect(() => onSprites(() => setSheetVer((v) => v + 1)), []);
+  useEffect(() => {
+    const sheets = categories.map((c) => ({ key: c.id, list: c.emojis.map((e) => e.n) }));
+    if (skin > 0) {
+      const list = categories.flatMap((c) => c.emojis.filter((e) => e.k).map((e) => e.k![skin - 1])).filter(Boolean);
+      sheets.unshift({ key: `skin-${skin}`, list });
+    }
+    requestSprites(sheets, uiScale());
+  }, [categories, skin]);
+  // A category redraws only when its own sheet (or, for emoji with skin
+  // tones, the skin sheet) arrives, not on every sheet.
+  const gridVer = (c: Category) =>
+    (sheetReady(c.id) ? 1 : 0) + (skin > 0 && c.emojis.some((e) => e.k) && sheetReady(`skin-${skin}`) ? 2 : 0);
 
   // "Recently used" keeps the order it had when the picker was built; a pick
   // goes to the front the next time (so the grid doesn't jump under the cursor).
@@ -223,8 +266,23 @@ function Picker({ pick }: { pick: { current: (e: string) => void } }) {
     return () => obs.disconnect();
   }, [recent]);
 
-  // The tab last clicked: the last categories can't scroll up to the top, so
-  // at the bottom of the list that tab stays highlighted.
+  // Category tops, read once per layout (not on every scroll frame).
+  const tops = useRef<{ id: string; top: number }[]>([]);
+  const readTops = useCallback(() => {
+    const s = scrollRef.current;
+    tops.current = s ? [...s.querySelectorAll<HTMLElement>('section[data-cat]')].map((sec) => ({ id: sec.dataset.cat || '', top: sec.offsetTop })) : [];
+    // Lenis (the CRM's smooth wheel scrolling) measures the scroll height only
+    // when the box resizes; this box keeps its size while its list changes.
+    if (s) lenisOf(s)?.resize();
+  }, []);
+  useEffect(() => {
+    readTops();
+  }, [all, results, readTops]);
+
+  // A tab click scrolls there smoothly; until it arrives, that tab stays lit
+  // (instead of flicking through every category on the way).
+  const jumping = useRef<{ id: string; until: number } | null>(null);
+  const glide = useRef(0);
   const jumped = useRef('');
   // Highlight the category in view (one read per frame while scrolling).
   const onScroll = useCallback(() => {
@@ -233,17 +291,20 @@ function Picker({ pick }: { pick: { current: (e: string) => void } }) {
     s.dataset.ticking = '1';
     requestAnimationFrame(() => {
       delete s.dataset.ticking;
-      const secs = [...s.querySelectorAll<HTMLElement>('section[data-cat]')];
+      if (jumping.current && performance.now() < jumping.current.until) return;
+      jumping.current = null;
+      const list = tops.current;
       const atBottom = s.scrollTop + s.clientHeight >= s.scrollHeight - 2;
       let cur = '';
-      if (atBottom && secs.length) {
-        const j = secs.find((sec) => sec.dataset.cat === jumped.current && sec.offsetTop >= s.scrollTop - 8);
-        cur = (j || secs[secs.length - 1]).dataset.cat || '';
+      if (atBottom && list.length) {
+        // The last categories can't reach the top: keep the clicked one lit.
+        const j = list.find((t) => t.id === jumped.current && t.top >= s.scrollTop - 8);
+        cur = (j || list[list.length - 1]).id;
       } else {
         jumped.current = '';
         const top = s.scrollTop + 8;
-        for (const sec of secs) {
-          if (sec.offsetTop <= top) cur = sec.dataset.cat || '';
+        for (const t of list) {
+          if (t.top <= top) cur = t.id;
           else break;
         }
       }
@@ -252,15 +313,49 @@ function Picker({ pick }: { pick: { current: (e: string) => void } }) {
   }, []);
 
   const jump = (id: string) => {
-    if (query) setQuery('');
-    requestAnimationFrame(() => {
+    const go = () => {
       const s = scrollRef.current;
-      const sec = s?.querySelector<HTMLElement>(`section[data-cat="${id}"]`);
+      if (!s) return;
+      readTops();
+      const t = tops.current.find((x) => x.id === id);
+      if (!t) return;
+      const target = Math.min(t.top, s.scrollHeight - s.clientHeight);
+      const dist = Math.abs(target - s.scrollTop);
+      // 0.25 s for a short hop, up to 0.55 s across the whole list.
+      const duration = Math.min(0.55, 0.25 + dist / 12000);
       jumped.current = id;
-      if (s && sec) s.scrollTop = Math.min(sec.offsetTop, s.scrollHeight - s.clientHeight);
+      jumping.current = { id, until: performance.now() + duration * 1000 + 120 };
       setActive(id);
-    });
+      // The CRM's smooth wheel scrolling (Lenis) drives this box once it has
+      // been hovered; go through it so the two don't fight.
+      const ease = (x: number) => 1 - Math.pow(1 - x, 3);
+      const lenis = lenisOf(s);
+      if (lenis) {
+        lenis.scrollTo(target, { duration, easing: ease });
+        return;
+      }
+      // Same glide without Lenis (touch screens, reduced motion is handled below).
+      if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+        s.scrollTop = target;
+        return;
+      }
+      const from = s.scrollTop;
+      const t0 = performance.now();
+      const run = ++glide.current;
+      const frame = (now: number) => {
+        if (run !== glide.current) return; // another tab click, or the wheel
+        const p = Math.min(1, (now - t0) / (duration * 1000));
+        s.scrollTop = from + (target - from) * ease(p);
+        if (p < 1) requestAnimationFrame(frame);
+      };
+      requestAnimationFrame(frame);
+    };
+    if (query) {
+      setQuery('');
+      requestAnimationFrame(() => requestAnimationFrame(go));
+    } else go();
   };
+  const activeIndex = results ? -1 : all.findIndex((c) => c.id === active);
 
   const pickSkin = (i: number) => {
     setSkin(i);
@@ -285,6 +380,15 @@ function Picker({ pick }: { pick: { current: (e: string) => void } }) {
             </span>
           </button>
         ))}
+        <span
+          className="fep-ink"
+          aria-hidden="true"
+          style={{
+            width: `calc((100% - 20px) / ${all.length})`,
+            transform: `translateX(${Math.max(0, activeIndex) * 100}%)`,
+            opacity: activeIndex < 0 ? 0 : 1,
+          }}
+        />
       </nav>
       <div className="fep-search-row">
         <label className="fep-search">
@@ -328,27 +432,32 @@ function Picker({ pick }: { pick: { current: (e: string) => void } }) {
           )}
         </div>
       </div>
-      <div className="fep-scroll" ref={scrollRef} onScroll={onScroll} onClick={onPick} data-testid="fep-scroll">
+      <div
+        className="fep-scroll"
+        ref={scrollRef}
+        onScroll={onScroll}
+        onClick={onPick}
+        // The user scrolls during a tab glide: theirs wins.
+        onWheel={() => {
+          glide.current += 1;
+          jumping.current = null;
+        }}
+        data-testid="fep-scroll"
+      >
         {results ? (
           results.length ? (
             <section className="fep-sec fep-results">
               <div className="fep-title">Search results</div>
-              <Grid emojis={results} skin={skin} />
+              <Grid emojis={results} skin={skin} ver={sheetVer} />
             </section>
           ) : (
             <div className="fep-empty">No emoji found</div>
           )
         ) : (
           all.map((c) => (
-            <section
-              key={c.id}
-              className="fep-sec"
-              data-cat={c.id}
-              // Off-screen categories keep this height without being drawn.
-              style={{ containIntrinsicSize: `auto ${28 + Math.ceil(c.emojis.length / 9) * 36}px` }}
-            >
+            <section key={c.id} className="fep-sec" data-cat={c.id}>
               <div className="fep-title">{c.name}</div>
-              <Grid emojis={c.emojis} skin={skin} />
+              <Grid emojis={c.emojis} skin={skin} ver={c.id === 'recent' ? sheetVer : gridVer(c)} />
             </section>
           ))
         )}

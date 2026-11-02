@@ -142,6 +142,7 @@ function TopBarMarquee({
       role={needsConnect ? 'button' : undefined}
       tabIndex={needsConnect ? 0 : undefined}
     >
+      <div className="crm-top-bar-track-lane">
       <div className="crm-top-bar-track-single">
         <div className="crm-top-marquee-item">
           <span className="crm-top-marquee-text">{renderMarqueeWithWhatsApp(message)}</span>
@@ -157,6 +158,7 @@ function TopBarMarquee({
             </span>
           )}
         </div>
+      </div>
       </div>
     </div>
   );

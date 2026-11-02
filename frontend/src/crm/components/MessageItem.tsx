@@ -4,7 +4,7 @@
 //    rendered as ONE unified card (WhatsApp "rich message" style)
 //  - plain text
 //  - delivery/read ticks + emoji reaction chip + the reaction picker trigger
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { ChatMessage } from '../types';
 import {
@@ -151,7 +151,9 @@ interface Props {
   people?: { customer: ReactionPerson; you: ReactionPerson };
 }
 
-export function MessageItem({
+// Memoised: a bubble redraws only when its own message (or the reaction
+// picker on it) changes, not when the rest of the chat re-renders.
+export const MessageItem = memo(function MessageItem({
   message: m,
   api,
   reacting,
@@ -719,4 +721,4 @@ export function MessageItem({
       }
     }
   }
-}
+});

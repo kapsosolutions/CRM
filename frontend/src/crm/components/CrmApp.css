@@ -3927,6 +3927,17 @@ a.msg-btn {
   user-select: none;
 }
 
+/* The text glides from just left of the bar to just past its right edge.
+   Transform only (the lane moves by the bar's width, the text by its own
+   width, together): animating `left` re-laid-out the whole CRM every frame,
+   which made scrolling anywhere stutter. */
+.crm-top-bar-track-lane {
+  position: absolute;
+  inset: 0;
+  animation: crmMarqueeLane 14s linear infinite;
+  will-change: transform;
+  pointer-events: none;
+}
 .crm-top-bar-track-single {
   position: absolute;
   top: 50%;
@@ -3934,25 +3945,31 @@ a.msg-btn {
   display: inline-flex;
   align-items: center;
   white-space: nowrap;
-  animation: crmMarqueeSingleRight 14s linear infinite;
-  will-change: transform, left;
+  animation: crmMarqueeText 14s linear infinite;
+  will-change: transform;
+  pointer-events: auto;
 }
 
+.crm-top-bar-marquee:hover .crm-top-bar-track-lane,
 .crm-top-bar-marquee:hover .crm-top-bar-track-single {
   animation-play-state: paused;
 }
 
-@keyframes crmMarqueeSingleRight {
+@keyframes crmMarqueeLane {
   0% {
-    left: 0%;
+    transform: translateX(0);
+  }
+  96%,
+  100% {
+    transform: translateX(100%);
+  }
+}
+@keyframes crmMarqueeText {
+  0% {
     transform: translate(-100%, -50%);
   }
-  96% {
-    left: 100%;
-    transform: translate(0%, -50%);
-  }
+  96%,
   100% {
-    left: 100%;
     transform: translate(0%, -50%);
   }
 }
