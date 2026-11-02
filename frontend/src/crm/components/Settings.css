@@ -777,3 +777,16 @@ details[open] .st-summary-icon {
 .crm-shell.has-connect-bar .crm-plan-badge {
   top: 72px;
 }
+
+/* "This WhatsApp number is already used by another app" (OtherAppsDialog). */
+.disc-box.cw-other-box {
+  width: min(520px, calc(100vw - 32px));
+  max-width: 520px;
+}
+.cw-other-actions {
+  flex-wrap: wrap;
+}
+.cw-other-actions button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

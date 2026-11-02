@@ -90,3 +90,82 @@ export const THREAD_CONTROL_MESSAGE =
   'Another Meta app connected to this WhatsApp number (for example an old automation or a developer app) '
   + 'is controlling this chat, so WhatsApp refused the message. Remove that app from the WhatsApp account '
   + '(Channel Status shows which one), then send again.';
+
+// ---------------------------------------------------------------------------
+// "Another app holds this number's chats": remembered on the business
+// (meta.threadControl) so Channel Status can say so, with one notification
+// the first time. Cleared when our app answers a chat again, on a reconnect,
+// or when the business dismisses it.
+// ---------------------------------------------------------------------------
+const lastWrite = new Map(); // businessId -> ms, so a burst of refusals is one write
+const WRITE_EVERY_MS = 60 * 1000;
+
+/**
+ * Record that a chat on this business's number is held by another app.
+ * @param {string} businessId
+ * @param {{ phone?: string, via?: 'send'|'standby' }} info
+ */
+export async function recordThreadControl(businessId, { phone = '', via = 'send' } = {}) {
+  const id = String(businessId || '');
+  if (!id) return;
+  const now = Date.now();
+  if (now - (lastWrite.get(id) || 0) < WRITE_EVERY_MS) return;
+  lastWrite.set(id, now);
+  try {
+    // Imported here: models/Business.js → … → metaCloud.js imports this file.
+    const { default: Business } = await import('../models/Business.js');
+    const biz = await Business.findById(id).select('name meta').lean();
+    if (!biz) return;
+    const prev = biz.meta?.threadControl;
+    const next = {
+      at: prev?.at || new Date(),
+      lastAt: new Date(),
+      phone: String(phone || '').replace(/\D/g, '') || prev?.phone || '',
+      count: (Number(prev?.count) || 0) + 1,
+      via,
+    };
+    await Business.updateOne({ _id: id }, { $set: { 'meta.threadControl': next } });
+    if (prev?.at) return; // already told
+    logger.warn('WhatsApp chats held by another app on this number', { business: biz.name, via });
+    const { notify } = await import('./notifications.js');
+    notify(id, {
+      type: 'whatsapp_thread_control',
+      title: 'Another app is answering your WhatsApp chats',
+      body: 'A Meta app from an earlier setup still controls chats on your WhatsApp number, so its old replies go out and messages from the CRM are refused. Open Channel Status to see how to fix it.',
+      target: { view: 'channel-status' },
+      groupKey: 'whatsapp_thread_control',
+    }).catch(() => {});
+  } catch (err) {
+    logger.warn('could not record thread control', { error: err.message });
+  }
+}
+
+/** Our app is answering chats again (or the business dismissed the notice). */
+export async function clearThreadControl(businessId) {
+  const id = String(businessId || '');
+  if (!id) return;
+  lastWrite.delete(id);
+  try {
+    const { default: Business } = await import('../models/Business.js');
+    await Business.updateOne({ _id: id }, { $set: { 'meta.threadControl': null } });
+  } catch (err) {
+    logger.warn('could not clear thread control', { error: err.message });
+  }
+}
+
+/** Remove OUR app from a WhatsApp account (on disconnect), so Meta stops delivering to us. */
+export async function unsubscribeOurApp(biz) {
+  if (!biz?.wabaId || !biz?.accessToken) return { ok: false };
+  try {
+    await axios.delete(`${graph(biz)}/${encodeURIComponent(biz.wabaId)}/subscribed_apps`, {
+      headers: { Authorization: `Bearer ${biz.accessToken}` },
+      timeout: 10000,
+    });
+    cache.delete(String(biz.wabaId));
+    return { ok: true };
+  } catch (err) {
+    const reason = err.response?.data?.error?.message || err.message;
+    logger.warn('could not unsubscribe our app from the WhatsApp account', { business: biz.name, error: reason });
+    return { ok: false, reason };
+  }
+}

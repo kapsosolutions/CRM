@@ -1409,11 +1409,22 @@ export interface MessagingLimit {
  * Live state of the business's own WhatsApp number (GET /api/channel/status).
  * `connected:false` for a business without its own number (Meta not asked).
  */
+/** Another Meta app holds chats on the business's number (backend services/otherApps.js). */
+export interface ThreadControlNotice {
+  at: string;
+  lastAt?: string;
+  phone?: string;
+  count?: number;
+  via?: 'send' | 'standby';
+}
+
 export interface ChannelStatus {
   success: boolean;
   connected: boolean;
   /** Other Meta apps still attached to the WhatsApp account (they can hold chats). */
   otherApps?: { id: string; name: string }[];
+  /** Another app was seen holding chats on this number (refused sends, standby messages). */
+  threadControl?: ThreadControlNotice | null;
   /** When Meta was last read (ISO); null if it never answered. */
   fetchedAt?: string | null;
   cached?: boolean;

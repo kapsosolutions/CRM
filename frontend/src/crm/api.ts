@@ -274,6 +274,16 @@ export class CrmApi {
   }
 
   /** Live messaging limit, quality and status of the business's own number. */
+  /** Disconnect the business's WhatsApp number (chats and contacts stay). */
+  disconnectWhatsApp(): Promise<{ success: boolean; business: BusinessProfile }> {
+    return this.request('/api/onboarding/disconnect', { method: 'POST', headers: this.authHeaders() });
+  }
+
+  /** Hide the "another app is answering your chats" notice on Channel Status. */
+  dismissThreadControl(): Promise<{ success: boolean }> {
+    return this.request('/api/channel/thread-control/dismiss', { method: 'POST', headers: this.authHeaders() });
+  }
+
   getChannelStatus(refresh = false): Promise<ChannelStatus> {
     return this.request(`/api/channel/status${refresh ? '?refresh=1' : ''}`, { headers: this.authHeaders() });
   }
@@ -333,7 +343,14 @@ export class CrmApi {
     wabaId?: string;
     phoneNumberId?: string;
     metaBusinessId?: string;
-  }): Promise<{ success: boolean; business: BusinessProfile; warnings: string[]; activation?: SignupActivation }> {
+  }): Promise<{
+    success: boolean;
+    business: BusinessProfile;
+    warnings: string[];
+    activation?: SignupActivation;
+    /** Other Meta apps still attached to the WhatsApp account that was just connected. */
+    otherApps?: { id: string; name: string }[];
+  }> {
     return this.request('/api/onboarding/embedded-signup', {
       method: 'POST',
       headers: this.authHeaders({ 'Content-Type': 'application/json' }),

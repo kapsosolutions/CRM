@@ -254,6 +254,13 @@ export function createMetaClient(creds = {}) {
       res = await api.post(`${base()}/messages`, payload, { headers: authHeaders() });
     } catch (err) {
       if (credit.spent) await refundCredit(C.businessId);
+      // 131070: another Meta app on this number holds the chat. Remembered on
+      // the business (Channel Status explains it; one notification).
+      if (err.response?.data?.error?.code === 131070 && C.businessId && !C.sandbox) {
+        import('./otherApps.js')
+          .then((m) => m.recordThreadControl(C.businessId, { phone: payload?.to, via: 'send' }))
+          .catch(() => {});
+      }
       throw err;
     }
     if (credit.spent && credit.remaining <= 2) {

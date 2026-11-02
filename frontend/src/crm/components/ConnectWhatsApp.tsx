@@ -11,6 +11,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { BusinessProfile } from '../types';
 import { useConfirm, useNotify } from './Dialogs';
+import { useBackHandler } from '../useBackHandler';
+
+/** Fired after a signup whose WhatsApp account still has another Meta app attached. */
+export const OTHER_APPS_EVENT = 'crm:whatsapp-other-apps';
+export interface OtherAppsDetail {
+  apps: { id: string; name: string }[];
+  number: string;
+}
 import { NUMBER_ACTIVATION_EVENT, SIGNUP_ACTIVATION_KEY } from '../numberStatus';
 import { useMetaSdk } from '../metaSdk';
 import './Settings.css';
@@ -172,7 +180,7 @@ export function useEmbeddedSignup(
             'One more step: activate your number',
             `${num || 'Your number'} is linked but still Pending at Meta. Press Activate on Channel Status to start messaging.`,
           );
-        } else {
+        } else if (!r.otherApps?.length) {
           notify(
             'success',
             'WhatsApp connected',
@@ -181,6 +189,13 @@ export function useEmbeddedSignup(
         }
         for (const w of r.warnings || []) notify('error', 'Heads up', w);
         onConnected(r.business);
+        // The number is still used by another Meta app: the dialog (mounted
+        // once in CrmShell, so it survives this button unmounting) explains it.
+        if (r.otherApps?.length) {
+          window.dispatchEvent(
+            new CustomEvent<OtherAppsDetail>(OTHER_APPS_EVENT, { detail: { apps: r.otherApps, number: num || '' } }),
+          );
+        }
         if (r.activation?.needed) {
           window.dispatchEvent(new CustomEvent(NUMBER_ACTIVATION_EVENT, { detail: r.activation }));
         }
@@ -311,6 +326,117 @@ export function ConnectWhatsAppBar({
         <small>Connect your WhatsApp Business Account to start receiving and sending messages.</small>
       </div>
       <ConnectWhatsAppButton api={api} onConnected={onConnected} business={business} />
+    </div>
+  );
+}
+
+/**
+ * "This WhatsApp number is already used by another app": shown right after a
+ * signup when the WhatsApp account still has another Meta app attached (an
+ * earlier project or tool). WhatsApp lets only one app answer each chat, so
+ * that app's old automation keeps replying and the CRM's sends are refused.
+ * Mounted once in CrmShell; opened by OTHER_APPS_EVENT.
+ */
+export function OtherAppsDialog({
+  api,
+  business,
+  onConnected,
+}: {
+  api: CrmApi;
+  business?: BusinessProfile;
+  onConnected: (b: BusinessProfile) => void;
+}) {
+  const notify = useNotify();
+  const confirm = useConfirm();
+  const [detail, setDetail] = useState<OtherAppsDetail | null>(null);
+  const [disconnecting, setDisconnecting] = useState(false);
+  const signup = useEmbeddedSignup(api, onConnected, business);
+
+  useEffect(() => {
+    const onEvent = (e: Event) => setDetail((e as CustomEvent<OtherAppsDetail>).detail || null);
+    window.addEventListener(OTHER_APPS_EVENT, onEvent);
+    return () => window.removeEventListener(OTHER_APPS_EVENT, onEvent);
+  }, []);
+  const close = useCallback(() => setDetail(null), []);
+  useBackHandler(!!detail, close);
+  useEffect(() => {
+    if (!detail) return undefined;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') close();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [detail, close]);
+
+  if (!detail) return null;
+  const names = detail.apps.map((a) => `${a.name || 'App'} (ID ${a.id})`).join(', ');
+
+  // Meta's popup must open from the click itself, so this calls connect()
+  // directly; picking another number replaces this one.
+  const pickDifferent = () => {
+    close();
+    signup.connect();
+  };
+  const disconnect = async () => {
+    const ok = await confirm({
+      title: 'Disconnect this WhatsApp number?',
+      message: 'The CRM stops using this number. Your chats, contacts and templates stay, and you can connect a number again at any time.',
+      confirmLabel: 'Disconnect',
+    });
+    if (!ok) return;
+    setDisconnecting(true);
+    try {
+      const r = await api.disconnectWhatsApp();
+      close();
+      onConnected(r.business);
+      notify('success', 'WhatsApp disconnected', 'Connect a number that no other app uses.');
+    } catch (e) {
+      notify('error', 'Could not disconnect', e instanceof Error ? e.message : undefined);
+    } finally {
+      setDisconnecting(false);
+    }
+  };
+
+  return (
+    <div className="disc-backdrop app-dialog" onClick={close}>
+      <div
+        className="disc-box cw-other-box"
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby="cw-other-title"
+        onClick={(e) => e.stopPropagation()}
+        data-testid="cw-other-apps"
+      >
+        <div className="disc-title" id="cw-other-title">
+          This WhatsApp number is already used by another app
+        </div>
+        <p className="disc-text">
+          {detail.number || 'The number you connected'} is still attached to {names}. WhatsApp lets only one app
+          answer each chat, so that app&apos;s old automation can keep replying to your customers and messages from the
+          CRM may be refused.
+        </p>
+        <ul className="disc-points">
+          <li>Remove that app from the WhatsApp account (Meta Business Suite → Settings → WhatsApp accounts → Partners), or delete it in developers.facebook.com.</li>
+          <li>Or connect a different number that no other app uses.</li>
+        </ul>
+        <div className="disc-actions cw-other-actions">
+          <button type="button" className="disc-cancel" onClick={close} data-testid="cw-other-keep">
+            Keep it for now
+          </button>
+          <button type="button" className="disc-cancel" onClick={disconnect} disabled={disconnecting} data-testid="cw-other-disconnect">
+            {disconnecting ? 'Disconnecting…' : 'Disconnect'}
+          </button>
+          <button
+            type="button"
+            className="disc-discard"
+            onClick={pickDifferent}
+            disabled={signup.busy || signup.preparing || disconnecting}
+            data-testid="cw-other-different"
+          >
+            Use a different number
+          </button>
+        </div>
+      </div>
     </div>
   );
 }

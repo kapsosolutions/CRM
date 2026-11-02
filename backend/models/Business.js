@@ -118,6 +118,10 @@ const BusinessSchema = new Schema(
       // and kept in step by services/metaAccount.js. '' = never stored.
       numberStatus: { type: String, default: '' },
       numberStatusAt: { type: Date },
+      // Another Meta app on this number holds chats (WhatsApp error 131070, or
+      // messages arriving on `standby`): { at, lastAt, phone, count, via }.
+      // null once our app answers chats again (services/otherApps.js).
+      threadControl: { type: Schema.Types.Mixed, default: null },
     },
 
     // ----- WhatsApp Business Profile details -----

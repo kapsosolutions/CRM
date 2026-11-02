@@ -36,6 +36,7 @@ const LOOK: Record<string, { icon: string; tone: string; label: string }> = {
   booking_rescheduled: { icon: 'update', tone: 'amber', label: 'Rescheduled' },
   payment_received: { icon: 'payments', tone: 'green', label: 'Payment received' },
   payment_failed: { icon: 'error', tone: 'red', label: 'Payment failed' },
+  whatsapp_thread_control: { icon: 'block', tone: 'red', label: 'Chats held by another app' },
   whatsapp_connected: { icon: 'link', tone: 'green', label: 'WhatsApp connected' },
   sandbox_linked: { icon: 'person_add', tone: 'blue', label: 'Test customer linked' },
   sandbox_full: { icon: 'person_add_disabled', tone: 'amber', label: 'Test inbox is full' },

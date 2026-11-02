@@ -1859,3 +1859,29 @@
   color: #92400e;
   font-size: 13px;
 }
+.cs-other-apps.cs-thread-control {
+  border-color: #fecaca;
+  border-left-color: #ef4444;
+  background: #fef2f2;
+  color: #7f1d1d;
+}
+.cs-other-apps.cs-thread-control strong {
+  color: #991b1b;
+}
+.cs-thread-actions {
+  margin-top: 4px;
+}
+/* A banner under the heading: the text takes the room, the Help Guide /
+   Watch Tutorial links keep their width and stay level with the title. */
+.cs-top-bar:has(.cs-other-apps) {
+  align-items: flex-start;
+  gap: 20px;
+}
+.cs-top-bar:has(.cs-other-apps) .cs-top-left {
+  flex: 1;
+  min-width: 0;
+}
+.cs-top-bar:has(.cs-other-apps) .cs-top-right {
+  flex-shrink: 0;
+  white-space: nowrap;
+}

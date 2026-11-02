@@ -17,6 +17,7 @@ import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
 import { useCrmScale } from '../uiScale';
 import { ProfileSidebarDrawer } from './ProfileSidebarDrawer';
 import { NotificationDrawer } from './NotificationDrawer';
+import { OtherAppsDialog } from './ConnectWhatsApp';
 import { verticalConfig, type LabelOverrides } from '../verticals';
 import { CrmApp } from './CrmApp';
 import { TemplatesPage, type TemplatesTab } from './TemplatesPage';
@@ -1096,6 +1097,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         />
       )}
       {showDemoModal && <DemoModal onClose={() => setShowDemoModal(false)} />}
+      {!demo && <OtherAppsDialog api={api} business={business} onConnected={onConnected} />}
       <NotificationDrawer
         isOpen={notificationsOpen}
         onClose={closeNotifications}

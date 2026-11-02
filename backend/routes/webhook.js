@@ -8,7 +8,7 @@ import { processInboundMessage, contactNames, parseIncoming } from '../services/
 import { getClientForBusiness } from '../services/metaCloud.js';
 import { handleSandboxValue, isSandboxNumber } from '../services/sandbox.js';
 import { notifyTemplateStatus } from '../services/notifications.js';
-import { logEcho } from '../services/otherApps.js';
+import { logEcho, recordThreadControl, clearThreadControl } from '../services/otherApps.js';
 
 // mergeParams so the :tenantId from the mount path is available here.
 const router = express.Router({ mergeParams: true });
@@ -273,9 +273,12 @@ router.post('/', async (req, res) => {
         }
         if (standby) {
           if (value.messages?.length) {
-            logger.warn('WhatsApp chat held by another app on this number (standby)', { tenant: biz.username || tenantName });
+            recordThreadControl(tenantId, { phone: value.messages[0]?.from, via: 'standby' }).catch(() => {});
           }
           for (const echo of value.message_echoes || []) await logEcho(echo, { tenantId });
+        } else if (value.messages?.length && biz.meta?.threadControl?.at) {
+          // A customer message on `messages`: our app holds chats again.
+          clearThreadControl(tenantId).catch(() => {});
         }
       }
     }

@@ -1124,6 +1124,33 @@ export function ChannelStatusPage({
                 </span>
               </div>
             )}
+            {activeTab === 'whatsapp' && isConnected && !!status?.threadControl?.at && (
+              <div className="cs-other-apps cs-thread-control" role="alert" data-testid="cs-thread-control">
+                <strong>Another app is answering chats on this number</strong>
+                <span>
+                  WhatsApp refused a message from the CRM because a Meta app from an earlier setup (an old automation, a
+                  developer app or another tool) still controls chats on {displayPhone || 'this number'}
+                  {status.threadControl.phone ? <>, including the chat with +{status.threadControl.phone}</> : null}. Its
+                  old replies go out and your journeys can&apos;t answer there. Turning off its webhook isn&apos;t enough:
+                  remove this number from that app (its WhatsApp → API Setup), or delete the app, then send a message
+                  again. Or connect a different number.
+                </span>
+                <span className="cs-thread-actions">
+                  <button
+                    type="button"
+                    className="k-btn ghost sm"
+                    data-testid="cs-thread-dismiss"
+                    onClick={() => {
+                      void api.dismissThreadControl().then(() =>
+                        setStatus((s) => (s ? { ...s, threadControl: null } : s)),
+                      );
+                    }}
+                  >
+                    I&apos;ve fixed it
+                  </button>
+                </span>
+              </div>
+            )}
           </div>
 
           {!isCurrentChannelConnected ? (

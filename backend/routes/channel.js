@@ -5,7 +5,7 @@ import express from 'express';
 import { requireBusiness } from '../middleware/auth.js';
 import { getNumberStatus } from '../services/metaAccount.js';
 import { activateNumber, ActivationError } from '../services/numberActivation.js';
-import { otherSubscribedApps } from '../services/otherApps.js';
+import { otherSubscribedApps, clearThreadControl } from '../services/otherApps.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
@@ -19,7 +19,19 @@ router.get('/status', async (req, res) => {
   // Other Meta apps still attached to the WhatsApp account (an old automation):
   // they can hold chats away from the CRM, so the page names them.
   const other = data.connected ? await otherSubscribedApps(req.business, { refresh }).catch(() => null) : null;
-  res.json({ success: true, ...data, otherApps: other?.ok ? other.apps : [] });
+  res.json({
+    success: true,
+    ...data,
+    otherApps: other?.ok ? other.apps : [],
+    // Another app was seen holding chats on this number (refused sends / standby).
+    threadControl: data.connected ? req.business.meta?.threadControl || null : null,
+  });
+});
+
+// "I've fixed it": hide the thread-control notice (it comes back if it happens again).
+router.post('/thread-control/dismiss', async (req, res) => {
+  await clearThreadControl(req.business._id);
+  res.json({ success: true });
 });
 
 // Register the number with Cloud API: { pin: '123456' } or { useSavedPin: true }.
