@@ -10910,6 +10910,12 @@ button.pd-phone-chip:hover {
   gap: 12px;
   overflow-y: auto;
 }
+/* The body scrolls when a screen is long; its parts keep their own height
+   instead of being squeezed to fit. The banner (overflow: hidden, so no
+   minimum height) used to be squeezed to nothing. */
+.flow-phone-body > * {
+  flex-shrink: 0;
+}
 .fpp-banner {
   aspect-ratio: 8 / 1;
   width: 100%;
