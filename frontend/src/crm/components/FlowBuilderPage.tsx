@@ -3699,6 +3699,12 @@ function ComponentEditor({
             )}
           </div>
           <input ref={fileRef} type="file" accept="image/*" hidden onChange={onImage} />
+          {/* WhatsApp zooms the 8:1 banner to fill the phone's width at its
+              full height, so the left and right edges are cut off. */}
+          <small className="flow-img-note">
+            <span className="material-icons">crop</span>
+            WhatsApp zooms in on the middle of the banner and cuts off the sides, as in the preview. Keep the logo and text in the centre.
+          </small>
         </div>
       )}
 

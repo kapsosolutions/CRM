@@ -10916,8 +10916,12 @@ button.pd-phone-chip:hover {
 .flow-phone-body > * {
   flex-shrink: 0;
 }
+/* The banner as WhatsApp draws it. It's sent 1000 wide × 125 high, cover
+   (flowJson.ts); a phone can't fit 1000, so it keeps the 125 height across
+   the screen's width (about 328 on a 360-wide phone) and crops the sides,
+   zooming in on the middle of the 8:1 image. Same here: 328 : 125. */
 .fpp-banner {
-  aspect-ratio: 8 / 1;
+  aspect-ratio: 328 / 125;
   width: 100%;
   border-radius: 8px;
   overflow: hidden;
@@ -10931,6 +10935,7 @@ button.pd-phone-chip:hover {
   width: 100%;
   height: 100%;
   object-fit: cover;
+  object-position: center;
 }
 .fpp-heading {
   font-size: 20px;
@@ -20959,4 +20964,19 @@ label.k-label,
 .react-flow__controls-button.canvas-full-btn .material-icons {
   font-size: 15px;
   line-height: 1;
+}
+
+/* Under the flow banner upload: WhatsApp crops its sides (see .fpp-banner). */
+.flow-img-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin-top: 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--wa-ink-muted);
+}
+.flow-img-note .material-icons {
+  font-size: 15px;
+  margin-top: 1px;
 }
