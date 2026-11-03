@@ -289,3 +289,82 @@
     transform: none;
   }
 }
+
+/* Opened from the CRM in its dark theme ("Book a demo" in the top bar): the
+   whole popup goes dark, or its light text sits on the white card. Only the
+   CRM sets data-theme, so the landing page's popup stays light. */
+html[data-theme='dark'] .dm-box,
+html[data-theme='dark'] .dm-head {
+  background: var(--wa-surface);
+}
+html[data-theme='dark'] .dm-box {
+  border: 1px solid var(--wa-hairline-strong);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.6);
+  color: var(--wa-ink);
+}
+html[data-theme='dark'] .dm-head h2,
+html[data-theme='dark'] .dm-done h3,
+html[data-theme='dark'] .dm-box .au-field label,
+html[data-theme='dark'] .dm-box .au-label {
+  color: var(--wa-ink);
+}
+html[data-theme='dark'] .dm-box .au-field input,
+html[data-theme='dark'] .dm-box .au-phone {
+  background: var(--wa-surface-2);
+  color: var(--wa-ink);
+}
+html[data-theme='dark'] .dm-box .au-field .au-phone input {
+  background: transparent;
+}
+html[data-theme='dark'] .dm-box .au-field input::placeholder {
+  color: #6b737c;
+}
+html[data-theme='dark'] .dm-box .au-alert {
+  background: rgba(217, 48, 37, 0.15);
+  color: #fca5a5;
+}
+html[data-theme='dark'] .dm-box .au-err {
+  color: #f87171;
+}
+/* Country picker */
+html[data-theme='dark'] .dm-box .au-cc-dropdown {
+  background: var(--wa-surface-2);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.55);
+}
+html[data-theme='dark'] .dm-box .au-cc-search-wrap {
+  background: #14171b;
+  border-color: var(--wa-hairline-strong);
+}
+html[data-theme='dark'] .dm-box .au-cc-search-wrap svg,
+html[data-theme='dark'] .dm-box .au-cc-option-dial {
+  color: var(--wa-ink-muted);
+}
+html[data-theme='dark'] .dm-box .au-cc-search-input {
+  color: var(--wa-ink) !important;
+}
+html[data-theme='dark'] .dm-box .au-cc-option {
+  color: var(--wa-ink);
+}
+html[data-theme='dark'] .dm-box .au-cc-option:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+html[data-theme='dark'] .dm-box .au-cc-option.selected {
+  background: rgba(36, 208, 110, 0.14);
+  color: #4ade80;
+}
+/* Step 2: calendar and times */
+html[data-theme='dark'] .dm-day:disabled {
+  color: #4b525a;
+}
+html[data-theme='dark'] .dm-slot {
+  color: #c7f3d9;
+  background: color-mix(in srgb, #1dbf73 calc(10% + var(--i, 0) * 4%), var(--wa-surface));
+}
+html[data-theme='dark'] .dm-slot.on {
+  color: #fff;
+  background: var(--wa-primary-strong);
+}
+html[data-theme='dark'] .dm-slot:disabled {
+  background: var(--wa-surface-2);
+  color: #5f6770;
+}

@@ -2147,14 +2147,72 @@ button.rx-row:hover {
   max-width: 460px;
   text-align: left;
 }
+/* The template library: room for the names, descriptions and actions. */
 .tpl-box.lg {
-  max-width: 560px;
+  max-width: 760px;
+  padding: 26px 28px 28px;
+}
+.tpl-box.lg .disc-title {
+  font-size: 18px;
+  margin-bottom: 0;
+}
+.tpl-box.lg .tpl-sub {
+  font-size: 13.5px;
+  margin: 8px 0 18px;
+}
+.tpl-box.lg .tpl-list {
+  max-height: 62vh;
+  gap: 12px;
+}
+.tpl-box.lg .tpl-item {
+  align-items: center;
+  padding: 16px 18px;
+}
+.tpl-box.lg .tpl-item-name {
+  font-size: 15px;
+}
+.tpl-box.lg .tpl-item-meta {
+  font-size: 12.5px;
 }
 .tpl-head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+}
+/* Square icon buttons: the header's ✕ and an item's delete. */
+.tpl-x {
+  flex: 0 0 auto;
+  width: 34px;
+  height: 34px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--wa-ink-muted);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.tpl-x .material-icons {
+  font-size: 20px;
+}
+.tpl-x:hover:not(:disabled) {
+  background: var(--wa-surface-2);
+  color: var(--wa-ink);
+}
+.tpl-x.danger:hover:not(:disabled) {
+  background: rgba(217, 48, 37, 0.1);
+  color: #d93025;
+}
+.tpl-x:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+.tpl-x:focus-visible {
+  outline: none;
+  box-shadow: var(--wa-focus-ring);
 }
 .tpl-sub {
   font-size: 12.5px;

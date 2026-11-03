@@ -637,14 +637,16 @@ function TemplatesModal({
       <div className="disc-box tpl-box lg" onClick={(e) => e.stopPropagation()}>
         <div className="tpl-head">
           <div className="disc-title">Templates for {vertical.archetypeLabel.toLowerCase()}</div>
-          <button className="prod-act" onClick={onClose} title="Close"><span className="material-icons">close</span></button>
+          <button type="button" className="tpl-x" onClick={onClose} title="Close" aria-label="Close" data-testid="tpl-close">
+            <span className="material-icons">close</span>
+          </button>
         </div>
         <p className="tpl-sub">
           Blueprints shared by businesses like yours. “Use” creates a new draft flow you can edit and
           publish with your own WhatsApp account.
         </p>
         {error && <div className="pa-error">{error}</div>}
-        {!items && <BladeSpinner center={true} containerHeight={180} />}
+        {!items && !error && <BladeSpinner center={true} containerHeight={180} />}
         {items && items.length === 0 && (
           <div className="page-note">
             No templates for your business type yet. Build a flow and use “Save as template” to add one.
@@ -667,7 +669,7 @@ function TemplatesModal({
                   <button className="k-btn sm" onClick={() => use(t)} disabled={!!busyId}>
                     {busyId === t._id ? 'Working…' : 'Use'}
                   </button>
-                  <button className="prod-act danger" onClick={() => remove(t)} disabled={!!busyId} title="Delete (only ones you saved)">
+                  <button type="button" className="tpl-x danger" onClick={() => remove(t)} disabled={!!busyId} title="Delete (only ones you saved)" aria-label={`Delete ${t.name}`}>
                     <span className="material-icons">delete</span>
                   </button>
                 </div>
