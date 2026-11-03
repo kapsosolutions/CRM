@@ -1,0 +1,94 @@
+/* Pagination bar under a list (Pager.tsx). Dark theme copies are generated at
+   build time; the admin panel's colours are in admin.css (.pa-shell .k-pager). */
+.k-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 12px 0 4px;
+  padding: 2px 2px;
+  font-size: 13px;
+  color: #475569;
+}
+.k-pager-count b {
+  color: #0f172a;
+  font-weight: 600;
+}
+.k-pager-pages {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.k-pager-btn {
+  min-width: 32px;
+  height: 32px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #334155;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+}
+.k-pager-btn .material-icons {
+  font-size: 18px;
+}
+.k-pager-btn:hover:not(:disabled):not(.on) {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+.k-pager-btn.on {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: #ffffff;
+  cursor: default;
+}
+.k-pager-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.k-pager-btn:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 1px;
+}
+.k-pager-gap {
+  min-width: 20px;
+  text-align: center;
+  color: #94a3b8;
+}
+.k-pager-size {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.k-pager-size select {
+  height: 32px;
+  padding: 0 8px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  cursor: pointer;
+}
+/* A card grid's pager spans the whole row. */
+.k-pager.full {
+  grid-column: 1 / -1;
+}
+@media (max-width: 640px) {
+  .k-pager {
+    justify-content: center;
+  }
+  .k-pager-count,
+  .k-pager-size {
+    width: 100%;
+    justify-content: center;
+    text-align: center;
+  }
+}

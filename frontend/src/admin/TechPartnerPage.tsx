@@ -8,6 +8,9 @@ import { useCallback, useEffect, useState, type CSSProperties, type ReactNode } 
 import { platformApi, type QualityRating, type TechPartnerCheck, type TechPartnerStats } from './platformApi';
 import { BarChart, Skel, TipRow } from './charts';
 import { RefreshIcon } from './AdminIcons';
+import { Pager, usePaged } from '../crm/components/Pager';
+
+const NO_NUMBERS: TechPartnerStats['quality']['numbers'] = [];
 
 const TZ = 'Asia/Kolkata';
 const whole = new Intl.NumberFormat('en-IN');
@@ -101,6 +104,7 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
       .finally(() => setBusy(false));
   }, []);
   useEffect(() => load(false), [load]);
+  const numbersPaged = usePaged(data?.quality.numbers || NO_NUMBERS, '', { key: 'admin-tp-numbers', noun: ['number', 'numbers'] });
 
   const head = (
     <header className="pa-page-head">
@@ -190,19 +194,7 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
                 {activeCheck.met ? '.' : <> · {data.targets.activeClients - data.activeClients.count} more needed.</>}
               </>
             }
-          >
-            {data.activeClients.list.length > 0 && (
-              <ul className="tp-chips" aria-label="Active clients">
-                {data.activeClients.list.map((a) => (
-                  <li key={a.businessId}>
-                    <button type="button" className="tp-chip" onClick={() => onOpenBusiness(a.businessId)} title={`${whole.format(a.sent30)} sent in 30 days · last ${when(a.lastSentAt)}`}>
-                      {a.name || 'Business'}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </Requirement>
+          />
           <Requirement
             check={qualityCheck}
             title="Quality rating"
@@ -279,7 +271,7 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
                     </tr>
                   </thead>
                   <tbody>
-                    {q.numbers.map((n) => (
+                    {numbersPaged.items.map((n) => (
                       <tr key={n.businessId} className="link" onClick={() => onOpenBusiness(n.businessId)}>
                         <td>{n.name || 'Business'}</td>
                         <td>{n.displayPhoneNumber || '—'}</td>
@@ -315,6 +307,7 @@ export function TechPartnerPage({ onOpenBusiness }: { onOpenBusiness: (id: strin
                 </table>
               </div>
             )}
+            {q.numbers.length > 0 && <Pager {...numbersPaged.pager} />}
           </div>
         </section>
       </div>

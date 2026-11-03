@@ -8,6 +8,7 @@ import {
 } from './platformApi';
 import { verticalConfig } from '../crm/verticals';
 import { useConfirm, useNotify } from '../crm/components/Dialogs';
+import { Pager, usePaged } from '../crm/components/Pager';
 
 const TABS: { key: DemoView; label: string; icon: ReactNode; count?: keyof DemoCounts }[] = [
   { key: 'today', label: 'Today', icon: <CalendarIcon />, count: 'today' },
@@ -66,6 +67,7 @@ export function DemoRequestsPage() {
     const t = setTimeout(load, q ? 250 : 0);
     return () => clearTimeout(t);
   }, [load, q]);
+  const paged = usePaged(rows, `${view}|${q.trim()}`, { key: 'admin-demos', noun: ['demo request', 'demo requests'] });
 
   async function setStatus(r: DemoRequest, status: DemoStatus) {
     try {
@@ -160,7 +162,7 @@ export function DemoRequestsPage() {
               </tr>
             </thead>
             <tbody>
-              {rows.map((r) => (
+              {paged.items.map((r) => (
                 <tr key={r._id} className={r.status === 'cancelled' ? 'off' : ''} onClick={() => setEditing(r)}>
                   <td>
                     <div className="dr-when">
@@ -213,6 +215,7 @@ export function DemoRequestsPage() {
           </table>
         </div>
       )}
+      {rows.length > 0 && <Pager {...paged.pager} />}
 
       {editing && (
         <DemoEditor

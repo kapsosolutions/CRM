@@ -14,6 +14,7 @@ import { useConfirm, useFlash } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { CrmEmptyState } from './CrmEmptyState';
 import { BladeSpinner } from './BladeSpinner';
+import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
 import type { BusinessProfile } from '../types';
 
@@ -208,6 +209,17 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
     }
   }
 
+  // Paged in group order, then each page is grouped (a group can continue on the next page).
+  const groupOf = (m: Member) => m.category || 'Uncategorised';
+  const shown = useMemo(
+    () => (filter ? members.filter((m) => (m.category || '') === filter) : members)
+      .map((m, i) => ({ m, i }))
+      .sort((a, b) => groupOf(a.m).localeCompare(groupOf(b.m)) || a.i - b.i)
+      .map((x) => x.m),
+    [members, filter],
+  );
+  const paged = usePaged(shown, filter, { key: 'members', size: 24, sizes: CARD_PAGE_SIZES, noun: [v.memberSingular.toLowerCase(), v.memberLabel.toLowerCase()] });
+
   if (editing) {
     return (
       <MemberEditor
@@ -225,8 +237,7 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
     );
   }
 
-  const shown = filter ? members.filter((m) => (m.category || '') === filter) : members;
-  const groups = [...new Set(shown.map((m) => m.category || 'Uncategorised'))].sort();
+  const groups = [...new Set(paged.items.map(groupOf))];
 
   return (
     <div className="page">
@@ -274,14 +285,16 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
           />
         )}
 
+        {shown.length > 0 && (
+        <div className="mem-groups">
         {groups.map((g) => (
           <section key={g} className="mem-group">
             <div className="mem-group-title">
               <span className="material-icons">category</span> {g}
             </div>
             <div className="cat-grid">
-              {shown
-                .filter((m) => (m.category || 'Uncategorised') === g)
+              {paged.items
+                .filter((m) => groupOf(m) === g)
                 .map((m) => (
                   <div className={`cat-card${m.active === false ? ' dimmed' : ''}`} key={m._id}>
                     <div className="cat-card-actions">
@@ -308,6 +321,9 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
             </div>
           </section>
         ))}
+        </div>
+        )}
+        {shown.length > 0 && <Pager {...paged.pager} />}
       </div>
     </div>
   );

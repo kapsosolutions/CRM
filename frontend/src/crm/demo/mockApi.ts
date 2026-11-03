@@ -89,6 +89,25 @@ const products: Product[] = demoProducts.map((p) => ({ ...p }));
 const offers: Offer[] = demoOffers.map((o) => ({ ...o, items: o.items.map((v) => ({ ...v })) }));
 const flows: WaFlowDef[] = demoFlows.map((f) => JSON.parse(JSON.stringify(f)) as WaFlowDef);
 const orders: Order[] = demoOrders.map((o) => ({ ...o, items: o.items?.map((i) => ({ ...i })) }));
+
+// Development only (stripped from production builds): fill the demo with many
+// rows to try pagination. In the browser console: __demoBulk(60), then reopen the page.
+let bulkCampaigns = 0;
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  (window as unknown as { __demoBulk: (n: number) => void }).__demoBulk = (n = 60) => {
+    const many = <T extends { _id: string }>(list: T[], make: (base: T, i: number) => T) => {
+      const seed = list.slice();
+      if (!seed.length) return;
+      for (let i = 0; i < n; i += 1) list.push(make(seed[i % seed.length], i));
+    };
+    many(templates as (TemplateItem & { _id: string })[], (t, i) => ({ ...t, _id: `bulk-t${i}`, name: `${t.name}_${i + 1}` }));
+    many(products, (p, i) => ({ ...p, _id: `bulk-p${i}`, name: `${p.name} ${i + 1}` }));
+    many(orders, (o, i) => ({ ...o, _id: `bulk-o${i}`, reference: `${o.reference || 'ORD'}-${i + 1}` }));
+    many(members, (m, i) => ({ ...m, _id: `bulk-m${i}`, name: `${m.name} ${i + 1}` }));
+    many(categories, (c, i) => ({ ...c, _id: `bulk-c${i}`, name: `${c.name} ${i + 1}` }));
+    bulkCampaigns = n;
+  };
+}
 const journeys: Journey[] = demoJourneys.map((j) => JSON.parse(JSON.stringify(j)) as Journey);
 
 // Build a Product from the editor's FormData (image file → object URL).
@@ -254,6 +273,10 @@ export class MockCrmApi extends CrmApi {
   };
 
   override getSettings(): Promise<{ success: boolean; data: BusinessSettings }> {
+    // Development: __demoBulk() also connects the demo catalog, so its products show.
+    if (import.meta.env.DEV && bulkCampaigns && !this.demoSettings.catalogId) {
+      this.demoSettings = { ...this.demoSettings, catalogId: 'demo_catalog', catalogName: 'Meta Product Catalog' };
+    }
     return delay({ success: true, data: { ...this.demoSettings } });
   }
 
@@ -497,11 +520,29 @@ export class MockCrmApi extends CrmApi {
 
   // ---------- Campaigns (in memory for the demo) ----------
   private demoCampaigns: CampaignDetail[] = seedDemoCampaigns();
+  private bulked = 0;
+  /** Development: __demoBulk(n) adds n campaigns too (copies of the seeds). */
+  private campaignsNow(): CampaignDetail[] {
+    if (import.meta.env.DEV && bulkCampaigns > this.bulked) {
+      const seed = seedDemoCampaigns();
+      for (let i = this.bulked; i < bulkCampaigns; i += 1) {
+        const c = seed[i % seed.length];
+        // The first copy gets a long recipient list (its results table pages).
+        const rs = c.recipients || [];
+        const recipients = i === 0 && rs.length
+          ? Array.from({ length: Math.max(60, rs.length) }, (_, k) => ({ ...rs[k % rs.length], phone: `9198${String(10000000 + k)}` }))
+          : rs;
+        this.demoCampaigns.push({ ...c, _id: `bulk-c${i}`, name: `${c.name} ${i + 1}`, recipients });
+      }
+      this.bulked = bulkCampaigns;
+    }
+    return this.demoCampaigns;
+  }
 
   override getCampaigns(): Promise<ApiList<Campaign>> {
     return delay({
       success: true,
-      data: this.demoCampaigns.map(({ recipients: _r, audience: _a, ...c }) => ({ ...c })),
+      data: this.campaignsNow().map(({ recipients: _r, audience: _a, ...c }) => ({ ...c })),
     });
   }
 

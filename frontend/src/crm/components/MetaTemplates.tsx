@@ -23,6 +23,7 @@ import {
 import { useConfirm, useNotify } from './Dialogs';
 import { Dropdown } from './Dropdown';
 import { BladeSpinner } from './BladeSpinner';
+import { Pager, usePaged } from './Pager';
 import './MetaMessaging.css';
 
 const CHANNEL_ICON: Record<MetaChannel, string> = { messenger: '/channel-messenger.svg', instagram: '/channel-instagram.svg' };
@@ -456,6 +457,7 @@ export function QuickMessagesSection({ api, channel }: { api: CrmApi; channel: M
       notify('error', 'Could not copy', errorText(e));
     }
   }
+  const paged = usePaged(rows, channel, { key: 'quick-messages', noun: ['quick message', 'quick messages'] });
   async function remove(q: QuickMessage) {
     const ok = await confirm({ title: 'Delete quick message?', message: `“${q.name}” will be deleted. Campaigns that use it will stop sending it.`, confirmLabel: 'Delete' });
     if (!ok) return;
@@ -500,7 +502,7 @@ export function QuickMessagesSection({ api, channel }: { api: CrmApi; channel: M
             {!loading && rows.length === 0 && (
               <tr><td colSpan={5} className="tl-empty">No quick messages for {CHANNEL_LABEL[channel]} yet. Create your first one.</td></tr>
             )}
-            {rows.map((q) => (
+            {paged.items.map((q) => (
               <tr key={q._id} data-qm-id={q._id}>
                 <td>
                   <button type="button" className="tl-name" onClick={() => setPreview(q)}>{q.name}</button>
@@ -525,6 +527,7 @@ export function QuickMessagesSection({ api, channel }: { api: CrmApi; channel: M
           </tbody>
         </table>
       </div>
+      <Pager {...paged.pager} />
       {editing && (
         <QuickMessageEditor
           api={api}
@@ -879,6 +882,7 @@ function UtilityTemplatesSection({ api, connection, onNavigate }: {
       setRefreshing(false);
     }
   }
+  const paged = usePaged(rows, '', { key: 'utility-templates', noun: ['template', 'templates'] });
   async function remove(t: UtilityTemplate) {
     const ok = await confirm({ title: 'Delete template?', message: `“${t.name}” will be deleted from your Facebook Page too (every language of it). Campaigns using it will stop sending it.`, confirmLabel: 'Delete template' });
     if (!ok) return;
@@ -946,7 +950,7 @@ function UtilityTemplatesSection({ api, connection, onNavigate }: {
             <tbody>
               {loading && rows.length === 0 && <tr><td colSpan={5} className="tl-empty"><BladeSpinner center={true} containerHeight={80} /></td></tr>}
               {!loading && rows.length === 0 && <tr><td colSpan={5} className="tl-empty">No utility templates yet. Create one or copy one of Meta’s.</td></tr>}
-              {rows.map((t) => (
+              {paged.items.map((t) => (
                 <tr key={t._id} data-ut-name={t.name}>
                   <td>
                     <button type="button" className="tl-name" onClick={() => setPreview(t)}>{t.name}</button>
@@ -971,6 +975,7 @@ function UtilityTemplatesSection({ api, connection, onNavigate }: {
           </table>
         </div>
       )}
+      {connected && <Pager {...paged.pager} />}
       {modal === 'create' && <UtilityCreateModal api={api} onClose={() => setModal(null)} onCreated={() => { setModal(null); load(); }} />}
       {modal === 'library' && <LibraryModal api={api} onClose={() => setModal(null)} onCloned={() => { setModal(null); load(); }} />}
       {preview && (

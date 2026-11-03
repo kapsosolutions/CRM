@@ -48,6 +48,7 @@ import { verticalConfig, type ConfirmWording, type VerticalConfig } from '../ver
 import { useConfirm, useFlash, useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { BladeSpinner } from './BladeSpinner';
+import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { PhoneStatusBar } from './TemplatePhonePreview';
 
 // Sample categories shown in the preview for a dynamic "Category list" block.
@@ -370,6 +371,8 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
       .finally(() => setTogglingFlows(false));
   }
 
+  const flowsPaged = usePaged(flows, '', { key: 'flows', size: 24, sizes: CARD_PAGE_SIZES, noun: ['flow', 'flows'] });
+
   if (editing) {
     return (
       <FlowEditor
@@ -426,7 +429,7 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
         </div>
       )}
       <div className="flow-cards">
-        {flows.map((f) => (
+        {flowsPaged.items.map((f) => (
           <div className="flow-card" key={f._id}>
             <div className="flow-card-top">
               <span className="material-icons flow-card-ic">account_tree</span>
@@ -466,6 +469,7 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
           </div>
         ))}
       </div>
+      {!loading && flows.length > 0 && <Pager {...flowsPaged.pager} />}
       {messaging && (
         <FlowMessageModal
           api={api}

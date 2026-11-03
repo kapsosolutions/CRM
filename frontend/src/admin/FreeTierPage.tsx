@@ -16,6 +16,7 @@ import { Copyable } from './Copyable';
 import { useConfirm } from '../crm/components/Dialogs';
 import { BLANK_CREDS, MetaCredentialFields, VerifyPanel, canCheckCreds } from './MetaCredentialsForm';
 import { PlanCell } from './BusinessesPage';
+import { Pager, usePaged } from '../crm/components/Pager';
 
 const DEFAULT_TRIAL_DAYS = 7;
 
@@ -51,6 +52,8 @@ export function FreeTierPage({ onOpen }: { onOpen: (id: string) => void }) {
   useEffect(() => {
     load();
   }, []);
+
+  const paged = usePaged(list, '', { key: 'admin-free-tier', noun: ['business', 'businesses'] });
 
   const set = (patch: Partial<typeof form>) => setForm((f) => ({ ...f, ...patch }));
 
@@ -228,7 +231,7 @@ export function FreeTierPage({ onOpen }: { onOpen: (id: string) => void }) {
               </tr>
             </thead>
             <tbody>
-              {list.map((b) => (
+              {paged.items.map((b) => (
                 <tr key={b._id} className={b.active ? '' : 'off'} onClick={() => onOpen(b._id)}>
                   <td>
                     <div className="pa-cell-main">
@@ -261,6 +264,7 @@ export function FreeTierPage({ onOpen }: { onOpen: (id: string) => void }) {
           </table>
         </div>
       )}
+      {list.length > 0 && <Pager {...paged.pager} />}
     </div>
   );
 }

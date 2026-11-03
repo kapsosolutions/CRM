@@ -10,6 +10,7 @@ import { useConfirm, useFlash } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { CrmEmptyState } from './CrmEmptyState';
 import { BladeSpinner } from './BladeSpinner';
+import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
 import type { BusinessProfile } from '../types';
 
@@ -174,6 +175,8 @@ export function OffersPage({ api, business, demo, onConnected }: Props) {
     }
   }
 
+  const paged = usePaged(offers, '', { key: 'offers', size: 24, sizes: CARD_PAGE_SIZES, noun: ['offer', 'offers'] });
+
   if (editing) {
     return (
       <OfferEditor
@@ -214,7 +217,7 @@ export function OffersPage({ api, business, demo, onConnected }: Props) {
         )}
         {!loading && offers.length > 0 && (
           <div className="offer-grid">
-            {offers.map((o) => (
+            {paged.items.map((o) => (
               <div className={`offer-card${o.active ? '' : ' off'}`} key={o._id}>
                 <div className="offer-card-head">
                   <div className="offer-card-ttl">
@@ -275,6 +278,7 @@ export function OffersPage({ api, business, demo, onConnected }: Props) {
             ))}
           </div>
         )}
+        {!loading && offers.length > 0 && <Pager {...paged.pager} />}
       </div>
 
     </div>

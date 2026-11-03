@@ -2340,3 +2340,34 @@ body.pa-dark .toast-close {
   color: var(--muted);
   font-size: 11px;
 }
+
+/* ---------------------------------------------------- pagination (Pager) -- */
+.pa-shell .k-pager {
+  color: var(--muted);
+  margin: 14px 2px 4px;
+}
+.pa-shell .k-pager-count b {
+  color: var(--ink);
+}
+.pa-shell .k-pager-btn,
+.pa-shell .k-pager-size select {
+  background: var(--panel);
+  border-color: var(--line-strong);
+  color: var(--ink-2);
+}
+.pa-shell .k-pager-btn:hover:not(:disabled):not(.on) {
+  background: var(--panel-2);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: var(--ink);
+}
+.pa-shell .k-pager-btn.on {
+  background: var(--g);
+  border-color: var(--g);
+  color: var(--g-ink);
+}
+.pa-shell .k-pager-gap {
+  color: var(--muted);
+}
+.pa-shell .pd-box-body .k-pager {
+  margin-bottom: 0;
+}

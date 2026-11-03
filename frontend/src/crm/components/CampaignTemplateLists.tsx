@@ -11,6 +11,7 @@ import { CHANNEL_LABEL, KIND_LABEL, languageLabel, utilityReason } from '../meta
 import { Modal, QuickMessagePreview, UtilityPreview } from './MetaTemplates';
 import { Dropdown, type KOption } from './Dropdown';
 import { BladeSpinner } from './BladeSpinner';
+import { Pager, usePaged } from './Pager';
 import { TemplateSearchSvg, TemplateViewSvg } from './TemplateIcons';
 import './MetaMessaging.css';
 import './TemplateLibrary.css';
@@ -76,6 +77,9 @@ export function MetaChannelTemplateList({ api, channel, onUse, onNavigate }: Pro
   const quickRows = useMemo(() => (quick || [])
     .filter((m) => !q || m.name.toLowerCase().includes(q) || m.text.toLowerCase().includes(q) || KIND_LABEL[m.kind].toLowerCase().includes(q))
     .sort(sorter), [quick, q, sort]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const utilityPaged = usePaged(utilityRows, `${channel}|${q}|${status}|${sort}`, { key: 'campaign-utility', noun: ['template', 'templates'] });
+  const quickPaged = usePaged(quickRows, `${channel}|${q}|${sort}`, { key: 'campaign-quick', noun: ['quick message', 'quick messages'] });
 
   const showUtility = channel === 'messenger' && (type === 'ALL' || type === 'UTILITY');
   const showQuick = type === 'ALL' || type === 'QUICK';
@@ -157,7 +161,7 @@ export function MetaChannelTemplateList({ api, channel, onUse, onNavigate }: Pro
                     <tr><td colSpan={6} className="tl-empty"><BladeSpinner center={true} containerHeight={80} /></td></tr>
                   ) : utilityRows.length === 0 ? (
                     <tr><td colSpan={6} className="tl-empty">{utility.length ? 'No templates match your search.' : 'No utility templates yet. Create one on the Templates page.'}</td></tr>
-                  ) : utilityRows.map((t) => {
+                  ) : utilityPaged.items.map((t) => {
                     const st = String(t.status || 'PENDING').toUpperCase();
                     return (
                       <tr key={t._id} data-ut-name={t.name}>
@@ -198,6 +202,7 @@ export function MetaChannelTemplateList({ api, channel, onUse, onNavigate }: Pro
               </table>
             </div>
           )}
+          {connected && <Pager {...utilityPaged.pager} />}
         </section>
       )}
 
@@ -219,7 +224,7 @@ export function MetaChannelTemplateList({ api, channel, onUse, onNavigate }: Pro
                   <tr><td colSpan={4} className="tl-empty"><BladeSpinner center={true} containerHeight={80} /></td></tr>
                 ) : quickRows.length === 0 ? (
                   <tr><td colSpan={4} className="tl-empty">{quick.length ? 'No quick messages match your search.' : `No ${label} quick messages yet. Create one on the Templates page.`}</td></tr>
-                ) : quickRows.map((m) => (
+                ) : quickPaged.items.map((m) => (
                   <tr key={m._id} data-qm-id={m._id}>
                     <td><button type="button" className="tl-name" onClick={() => setPreview({ kind: 'quick', q: m })}>{m.name}</button></td>
                     <td>{KIND_LABEL[m.kind]}{m.kind === 'cards' && m.cards.length > 1 ? ` · carousel of ${m.cards.length}` : ''}</td>
@@ -240,6 +245,7 @@ export function MetaChannelTemplateList({ api, channel, onUse, onNavigate }: Pro
               </tbody>
             </table>
           </div>
+          <Pager {...quickPaged.pager} />
         </section>
       )}
 

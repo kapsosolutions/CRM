@@ -13,6 +13,7 @@ import { PhotoCarousel } from './PhotoCarousel';
 import { verticalConfig, type VerticalConfig } from '../verticals';
 import { useConfirm, useFlash, useNotify } from './Dialogs';
 import { BladeSpinner } from './BladeSpinner';
+import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
 import './CatalogPage.css';
 
@@ -425,6 +426,8 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
       notify('error', 'Could not disconnect', err instanceof Error ? err.message : 'Unknown error');
     }
   }
+
+  const productsPaged = usePaged(products, '', { key: 'catalog-products', size: 24, sizes: CARD_PAGE_SIZES, noun: ['product', 'products'] });
 
   // Copy Catalog ID
   function handleCopyId() {
@@ -873,7 +876,7 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
           <div className="page-note">No products yet. Tap + to add one.</div>
         )}
         <div className="prod-grid">
-          {products.map((p) => {
+          {productsPaged.items.map((p) => {
             const sched = scheduleLabel(p);
             const svs = selectables(p);
             const sel = svs[picked[p._id] ?? 0] || svs[0];
@@ -970,6 +973,7 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
             );
           })}
         </div>
+        <Pager {...productsPaged.pager} />
       </div>
 
       {/* Edit/Change Catalog Modal in Connected State */}

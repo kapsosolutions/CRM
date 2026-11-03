@@ -8,6 +8,7 @@ import { verticalConfig, type VerticalConfig } from '../verticals';
 import { useConfirm, useNotify } from './Dialogs';
 
 import { CrmEmptyState } from './CrmEmptyState';
+import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { BladeSpinner } from './BladeSpinner';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
 import type { BusinessProfile } from '../types';
@@ -49,6 +50,8 @@ export function CategoriesPage({ api, vertical, business, demo, onConnected }: P
 
   const lowerSingular = v.categoryLabel.toLowerCase();
 
+  const paged = usePaged(categories, '', { key: 'categories', size: 24, sizes: CARD_PAGE_SIZES, noun: [v.categoryLabel.toLowerCase(), v.categoryPlural.toLowerCase()] });
+
   async function remove(c: Category) {
     const ok = await confirm({
       title: `Delete ${lowerSingular}?`,
@@ -89,7 +92,7 @@ export function CategoriesPage({ api, vertical, business, demo, onConnected }: P
         )}
         {!loading && categories.length > 0 && (
           <div className="cat-grid">
-            {categories.map((c) => (
+            {paged.items.map((c) => (
               <div className="cat-card" key={c._id}>
                 <div className="cat-card-actions">
                   <button className="cat-card-btn" onClick={() => setModal(c)} title="Edit">
@@ -111,6 +114,7 @@ export function CategoriesPage({ api, vertical, business, demo, onConnected }: P
             ))}
           </div>
         )}
+        {!loading && categories.length > 0 && <Pager {...paged.pager} />}
       </div>
 
       {modal && (

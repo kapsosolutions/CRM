@@ -11,6 +11,7 @@ import { OrderDetailsPage } from './OrderDetailsPage';
 import { useConfirm, useNotify } from './Dialogs';
 import { CrmEmptyState } from './CrmEmptyState';
 import { BladeSpinner } from './BladeSpinner';
+import { Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
 import type { BusinessProfile } from '../types';
 
@@ -228,6 +229,8 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
     return list;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [byKind, life, apptDate, searching, q, todayISO]);
+  const plural = v.ordersLabel.toLowerCase();
+  const ordersPaged = usePaged(shown, `${filter}|${life}|${q}|${apptDate}`, { key: 'orders', noun: [plural.replace(/ies$/, 'y').replace(/s$/, ''), plural] });
   // Does this tenant actually have both? Catalog businesses only ever have
   // orders, so the kind filter would offer an empty tab.
   const mixedKinds = useMemo(
@@ -414,7 +417,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
               <span />
             </div>
 
-            {shown.map((o) => {
+            {ordersPaged.items.map((o) => {
               const lines = o.items || [];
               const units = lines.reduce((n, it) => n + (Number(it.qty) || 1), 0);
               const pm = payMethodOf(o, isCatalog);
@@ -507,6 +510,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
             })}
           </div>
         )}
+        {!loading && shown.length > 0 && <Pager {...ordersPaged.pager} />}
       </div>
       )}
     </div>
@@ -575,6 +579,7 @@ function RegistrationsList({
 }) {
   const confirm = useConfirm();
   const notify = useNotify();
+  const paged = usePaged(items, '', { key: 'form-submissions', noun: ['submission', 'submissions'] });
   function changeStatus(r: Registration, status: RegistrationStatus) {
     setItems((list) => list.map((x) => (x._id === r._id ? { ...x, status } : x)));
     api.setRegistrationStatus(r._id, status).catch(onChanged);
@@ -619,7 +624,7 @@ function RegistrationsList({
             <span />
           </div>
 
-          {items.map((r) => (
+          {paged.items.map((r) => (
             <div className={`ord-row reg-row-grid reg-${r.status}`} key={r._id}>
               <span className="ord-cell cust">
                 <span className="ord-cust-name">{r.name || `+${r.phone}` || 'Unknown'}</span>
@@ -680,6 +685,7 @@ function RegistrationsList({
           ))}
         </div>
       )}
+      {items.length > 0 && <Pager {...paged.pager} />}
     </div>
   );
 }

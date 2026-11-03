@@ -7,6 +7,7 @@ import { verticalConfig } from '../crm/verticals';
 import { numberStatusLabel, numberStatusTone } from '../crm/numberStatus';
 import type { PlanState } from '../crm/types';
 import { SearchIcon } from './AdminIcons';
+import { Pager, usePaged } from '../crm/components/Pager';
 
 const shortDate = (s?: string | null) =>
   s ? new Date(s).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : '';
@@ -97,6 +98,7 @@ export function BusinessesPage({
         .some((v) => String(v).toLowerCase().includes(needle));
     });
   }, [list, q, status]);
+  const paged = usePaged(shown, `${q}|${status}`, { key: 'admin-businesses', noun: ['business', 'businesses'] });
 
   // Connected = Meta says CONNECTED, not just "a token is stored".
   const connected = list.filter((b) => b.whatsappConnected && b.numberStatus === 'CONNECTED').length;
@@ -157,7 +159,7 @@ export function BusinessesPage({
               </tr>
             </thead>
             <tbody>
-              {shown.map((b) => (
+              {paged.items.map((b) => (
                 <tr key={b._id} className={b.active ? '' : 'off'} onClick={() => onOpen(b._id)}>
                   <td>
                     <div className="pa-cell-main">
@@ -203,6 +205,7 @@ export function BusinessesPage({
           </table>
         </div>
       )}
+      {shown.length > 0 && <Pager {...paged.pager} />}
     </div>
   );
 }

@@ -17,6 +17,9 @@ import { Dropdown, type KOption } from './Dropdown';
 import { TemplateViewSvg, TemplateSearchSvg } from './TemplateIcons';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { isAuthTemplate } from '../authTemplate';
+import { Pager, usePaged } from './Pager';
+
+const NO_RECIPIENTS: CampaignDetail['recipients'] = [];
 
 const SORT_OPTIONS: KOption[] = [
   { value: 'latest', label: 'Latest' },
@@ -457,6 +460,7 @@ export function CampaignOverview({
 
   // The "Scheduled Campaigns" page lists everything, including future sends.
   const listCampaigns = activeNav === 'scheduled' ? plannerCampaigns : filteredCampaigns;
+  const campaignsPaged = usePaged(listCampaigns, `${activeNav}|${timeRange}|${startDate}|${endDate}`, { key: 'campaigns', noun: ['campaign', 'campaigns'] });
 
   // Funnel cards: the real counts of the campaigns in range, summed. Delivered
   // and read only count what Meta reported.
@@ -564,6 +568,8 @@ export function CampaignOverview({
       return librarySort === 'oldest' ? tA - tB : tB - tA;
     });
   }, [filteredTemplates, librarySort]);
+  const libraryPaged = usePaged(libraryRows, `${librarySearch}|${libraryCategory}|${libraryStatusFilter}|${librarySort}`, { key: 'campaign-templates', noun: ['template', 'templates'] });
+  const recipientsPaged = usePaged(detail?.recipients || NO_RECIPIENTS, detail?._id || '', { key: 'campaign-recipients', noun: ['recipient', 'recipients'] });
 
   // Calendar events: the planner's campaigns, by local day.
   type CalEvent = { id: string; title: string; time: string; type: 'sent' | 'scheduled' | 'draft' | 'failed'; status: CampaignStatus };
@@ -1390,7 +1396,7 @@ export function CampaignOverview({
                       </td>
                     </tr>
                   ) : (
-                    libraryRows.map((t) => {
+                    libraryPaged.items.map((t) => {
                       const status = String(t.status || 'PENDING').toUpperCase();
                       const isApproved = status === 'APPROVED';
                       const trig = t.trigger;
@@ -1465,6 +1471,7 @@ export function CampaignOverview({
                 </tbody>
               </table>
             </div>
+            <Pager {...libraryPaged.pager} />
 
             {/* Phone Preview Modal */}
             {previewTemplate && (
@@ -1697,7 +1704,7 @@ export function CampaignOverview({
                     </tr>
                   </thead>
                   <tbody>
-                    {listCampaigns.map((c) => (
+                    {campaignsPaged.items.map((c) => (
                       <tr key={c.id} data-campaign-id={c.id}>
                         <td className="co-table-title">{c.name}</td>
                         <td>
@@ -1754,6 +1761,7 @@ export function CampaignOverview({
                   </tbody>
                 </table>
               )}
+              {listCampaigns.length > 0 && <Pager {...campaignsPaged.pager} />}
             </div>
           )}
         </section>
@@ -1906,7 +1914,7 @@ export function CampaignOverview({
                           <td colSpan={4} className="tl-empty">No recipients.</td>
                         </tr>
                       ) : (
-                        detail.recipients.map((r) => {
+                        recipientsPaged.items.map((r) => {
                           const why = reasonText(r.error);
                           return (
                             <tr key={r.phone} data-phone={r.phone}>
@@ -1931,6 +1939,7 @@ export function CampaignOverview({
                     </tbody>
                   </table>
                 </div>
+                <Pager {...recipientsPaged.pager} />
                 <div className="co-results-actions">
                   {(detail.status === 'scheduled' || detail.status === 'sending') && (
                     <button className="co-btn-outline danger" onClick={() => cancelCampaign(detail)}>

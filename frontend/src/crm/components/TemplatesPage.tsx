@@ -12,6 +12,7 @@ import { useConfirm, useNotify } from './Dialogs';
 import { Dropdown, type KOption } from './Dropdown';
 import { TemplateDuplicateSvg, TemplateDeleteSvg, TemplateViewSvg, TemplateSearchSvg, TemplateCreateSvg } from './TemplateIcons';
 import { BladeSpinner } from './BladeSpinner';
+import { Pager, usePaged } from './Pager';
 import { MetaTemplatesPanel } from './MetaTemplates';
 import { TemplatePhonePreview, previewPropsFromTemplate } from './TemplatePhonePreview';
 import { TemplateLibrary } from './TemplateLibrary';
@@ -213,6 +214,7 @@ export function TemplatesPage({
       sort === 'name' ? a.name.localeCompare(b.name) : sort === 'oldest' ? timeOf(a) - timeOf(b) : timeOf(b) - timeOf(a),
     );
   }, [templates, query, statusFilter, sort]);
+  const paged = usePaged(rows, `${query}|${statusFilter}|${sort}`, { key: 'templates', noun: ['template', 'templates'] });
 
   async function remove(t: TemplateItem) {
     const ok = await confirm({
@@ -423,7 +425,7 @@ export function TemplatesPage({
                   </td>
                 </tr>
               )}
-              {rows.map((t) => {
+              {paged.items.map((t) => {
                 const status = String(t.status || 'PENDING').toUpperCase();
                 const trig = t.trigger;
                 const autoOn = !!trig?.enabled;
@@ -520,6 +522,7 @@ export function TemplatesPage({
             </tbody>
           </table>
         </div>
+        <Pager {...paged.pager} />
       </div>
       {samplePreview && (
         <div className="demo-backdrop" onClick={() => setSamplePreview(null)}>
