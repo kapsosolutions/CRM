@@ -44,7 +44,8 @@ import type {
 import { buildFlowJson, incomingDataKeys, isEndpointMode } from '../flowJson';
 import { Dropdown, type KOption } from './Dropdown';
 import { MediaCtx, useLeaveCleanup, useMedia, useMediaApi, usePendingUploads } from './uploadCtx';
-import { PdfDesigner, confirmPdfTemplate, PDF_A4 } from './PdfDesigner';
+import { PdfDesigner, confirmPdfTemplate, PDF_A4, type ConfirmPdfOpts } from './PdfDesigner';
+import { pdfDesignName } from './pdfDesigns';
 import { FlowMessageFields, FlowMessageModal, flowMessageOf, type FlowMessage } from './FlowMessageEditor';
 import { verticalConfig, type ConfirmWording, type VerticalConfig } from '../verticals';
 import { useConfirm, useFlash, useNotify } from './Dialogs';
@@ -771,8 +772,14 @@ function FlowEditor({
   );
   const [otherFlows, setOtherFlows] = useState<{ _id: string; name: string }[]>([]);
   const [showDiscard, setShowDiscard] = useState(false);
-  // Id of the pdfdoc block whose A4 designer is open, if any.
+  // Id of the pdfdoc block whose A4 designer is open, if any, and whether it
+  // opens on the design gallery ("Choose design" on the block).
   const [designingId, setDesigningId] = useState('');
+  const [designGallery, setDesignGallery] = useState(false);
+  const openDesigner = (id: string, gallery = false) => {
+    setDesignGallery(gallery);
+    setDesigningId(id);
+  };
   // Media uploaded in this editing session, so replaced files are reclaimed
   // right away; already-saved media is cleaned up server-side on save.
   const media = useMediaApi(
@@ -1794,7 +1801,7 @@ function FlowEditor({
           onSelect={selectScreenById}
           onBlockChange={patchBlock}
           onBlockRemove={removeBlock}
-          onDesignPdf={setDesigningId}
+          onDesignPdf={openDesigner}
           onScreenChange={patchScreenById}
           onPickFlow={setFlowLinkFlow}
           onCreateFlow={createNewFlowForLink}
@@ -1955,9 +1962,11 @@ function FlowEditor({
           <PdfDesigner
             template={blk.pdfTemplate}
             fileName={blk.pdfFileName}
+            designOpts={slipOpts(slipOf(blk, vertical), vertical)}
+            startWithDesigns={designGallery}
             onClose={() => setDesigningId('')}
             onSave={(tpl, fname) => {
-              patchBlock(designingId, { pdfTemplate: tpl, pdfFileName: fname });
+              patchBlock(designingId, { pdfTemplate: { ...tpl, slip: tpl.slip || slipOf(blk, vertical) }, pdfFileName: fname });
               setDesigningId('');
             }}
           />
@@ -2065,6 +2074,23 @@ function FlowRefFields({ data }: { data: FlowRefData }) {
   );
 }
 
+/**
+ * Which slip a PDF block holds, so a ready-made design rebuilds the same one.
+ * Stored on templates made since designs exist; older ones are recognised by
+ * their cancellation wording (or file name).
+ */
+function slipOf(b: FlowBlock, v: VerticalConfig): 'confirm' | 'cancel' {
+  if (b.pdfTemplate?.slip) return b.pdfTemplate.slip;
+  const c = v.confirm.cancel;
+  const text = JSON.stringify(b.pdfTemplate?.elements || []);
+  if (text.includes(c.pdfTitle) || text.includes('{{cancelled_date}}') || /^cancel/i.test(b.pdfFileName || '')) return 'cancel';
+  return 'confirm';
+}
+/** The slip's sections and wording for this business type. */
+function slipOpts(slip: 'confirm' | 'cancel', v: VerticalConfig): ConfirmPdfOpts {
+  return slip === 'cancel' ? { ...v.confirm.pdf, title: v.confirm.cancel.pdfTitle, note: v.confirm.cancel.pdfNote } : v.confirm.pdf;
+}
+
 // A tiny scaled render of the A4 design, so the map shows what will be sent
 // without opening the designer.
 function PdfThumb({ template }: { template?: PdfTemplate | null }) {
@@ -2166,7 +2192,7 @@ function BlockFields({
   data: {
     block: FlowBlock;
     onChange: (id: string, patch: Partial<FlowBlock>) => void;
-    onDesignPdf?: (id: string) => void;
+    onDesignPdf?: (id: string, gallery?: boolean) => void;
   };
 }) {
   const b = data.block;
@@ -2315,6 +2341,16 @@ function BlockFields({
             <span className="fl-pdf-edit">
               <span className="material-icons">design_services</span> Design PDF
             </span>
+          </button>
+          {/* Ten ready-made looks for the same slip. */}
+          <button
+            type="button"
+            className="k-btn ghost sm fl-pdf-designs nodrag"
+            onClick={() => data.onDesignPdf?.(b.id, true)}
+            data-testid="fl-pdf-designs"
+          >
+            <span className="material-icons">palette</span>
+            Choose design{pdfDesignName(b.pdfTemplate?.design) ? ` · ${pdfDesignName(b.pdfTemplate?.design)}` : ''}
           </button>
           <input
             className="fl-list-title nodrag"
@@ -2957,7 +2993,7 @@ function makeBlock(spec: BlockSpec, wording: ConfirmWording = DEFAULT_CONFIRM): 
         b.pdfFileName = wording.pdfFileName;
         // The slip layout follows the business type too — a clinic's has no
         // cart, no delivery address and no totals.
-        b.pdfTemplate = confirmPdfTemplate(wording.pdf);
+        b.pdfTemplate = { ...confirmPdfTemplate(wording.pdf), design: 'classic', slip: 'confirm' };
       } else {
         // The cancellation slip. Wording follows the business type too — a
         // clinic cancels an appointment, not an order — and it reuses the
@@ -2966,7 +3002,7 @@ function makeBlock(spec: BlockSpec, wording: ConfirmWording = DEFAULT_CONFIRM): 
         b.text = c.docText;
         b.buttons = ['Start'];
         b.pdfFileName = c.pdfFileName;
-        b.pdfTemplate = confirmPdfTemplate({ ...wording.pdf, title: c.pdfTitle, note: c.pdfNote });
+        b.pdfTemplate = { ...confirmPdfTemplate({ ...wording.pdf, title: c.pdfTitle, note: c.pdfNote }), design: 'classic', slip: 'cancel' };
       }
       break;
   }
@@ -3185,7 +3221,7 @@ interface ScreenMapProps {
   onSelect: (id: string) => void;
   onBlockChange: (id: string, patch: Partial<FlowBlock>) => void;
   onBlockRemove: (id: string) => void;
-  onDesignPdf: (id: string) => void;
+  onDesignPdf: (id: string, gallery?: boolean) => void;
   onScreenChange: (id: string, patch: Partial<FlowScreen>) => void;
   onPickFlow: (linkId: string, flowId: string) => void;
   onCreateFlow: (linkId: string) => void;
@@ -3257,7 +3293,7 @@ function ScreenMapInner({
       onScreenChange: (id: string, p: Partial<FlowScreen>) => cbs.current.onScreenChange(id, p),
       onBlockChange: (id: string, p: Partial<FlowBlock>) => cbs.current.onBlockChange(id, p),
       onBlockRemove: (id: string) => cbs.current.onBlockRemove(id),
-      onDesignPdf: (id: string) => cbs.current.onDesignPdf(id),
+      onDesignPdf: (id: string, gallery?: boolean) => cbs.current.onDesignPdf(id, gallery),
       onPickFlow: (linkId: string, flowId: string) => cbs.current.onPickFlow(linkId, flowId),
       onCreateFlow: (linkId: string) => cbs.current.onCreateFlow(linkId),
       onRemoveFlowLink: (linkId: string) => cbs.current.onRemoveFlowLink(linkId),
@@ -3645,9 +3681,9 @@ function ScreenMapInner({
               block: editingBlock,
               onChange: stable.onBlockChange,
               // The PDF designer opens full screen, so the pop-up makes way.
-              onDesignPdf: (id) => {
+              onDesignPdf: (id, gallery) => {
                 setEditing(null);
-                stable.onDesignPdf(id);
+                stable.onDesignPdf(id, gallery);
               },
             }}
           />

@@ -9,11 +9,13 @@
 // Coordinates are CSS pixels on an A4 page at 96dpi (794 × 1123). The canvas is
 // shown scaled down; the backend converts to PDF points, so what's arranged
 // here is what comes out.
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBackHandler } from '../useBackHandler';
 import type { PdfElement, PdfElementType, PdfTemplate } from '../types';
 import { useMedia } from './uploadCtx';
+import { useConfirm } from './Dialogs';
 import { uiScale } from '../uiScale';
+import { PDF_DESIGNS, buildPdfDesign, type PdfDesignId } from './pdfDesigns';
 
 export const PDF_A4 = { width: 794, height: 1123 };
 
@@ -312,22 +314,87 @@ function TokenText({ text, preview }: { text: string; preview: boolean }) {
   );
 }
 
+/** A whole A4 page drawn small, with sample values: the design gallery's cards. */
+export function PdfPageThumb({ template, width = 150 }: { template: PdfTemplate; width?: number }) {
+  const k = width / PDF_A4.width;
+  return (
+    <div className="pdfd-thumb" style={{ width, height: Math.round(PDF_A4.height * k), background: template.background || '#fff' }}>
+      <div style={{ width: PDF_A4.width, height: PDF_A4.height, transform: `scale(${k})`, transformOrigin: 'top left', position: 'relative' }}>
+        {template.elements.map((el) => {
+          const st: React.CSSProperties = { position: 'absolute', left: el.x, top: el.y, width: el.w, ...(el.h ? { height: el.h } : {}) };
+          if (el.type === 'text') {
+            return (
+              <div key={el.id} style={{ ...st, fontSize: el.fontSize, fontWeight: el.bold ? 700 : 400, fontStyle: el.italic ? 'italic' : 'normal', color: el.color, textAlign: el.align, lineHeight: 1.25, whiteSpace: 'pre-wrap' }}>
+                <TokenText text={el.text || ''} preview />
+              </div>
+            );
+          }
+          if (el.type === 'box') {
+            return (
+              <div key={el.id} style={{ ...st, background: el.fill === 'none' ? 'transparent' : el.fill, border: el.stroke ? `${el.thickness || 1}px solid ${el.stroke}` : undefined, borderRadius: el.radius, boxSizing: 'border-box' }} />
+            );
+          }
+          if (el.type === 'line') return <div key={el.id} style={{ ...st, height: el.thickness || 1, background: el.color || '#d9dee3' }} />;
+          return el.src ? <img key={el.id} src={el.src} alt="" style={{ ...st, objectFit: 'contain' }} /> : null;
+        })}
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   template: PdfTemplate | null | undefined;
   fileName?: string;
+  /**
+   * What the slip says for this business type (its sections and wording), so
+   * a ready-made design can rebuild the same slip in another look.
+   */
+  designOpts?: ConfirmPdfOpts;
+  /** Open on the design gallery. */
+  startWithDesigns?: boolean;
   onClose: () => void;
   onSave: (template: PdfTemplate, fileName: string) => void;
 }
 
-export function PdfDesigner({ template, fileName = '', onClose, onSave }: Props) {
+export function PdfDesigner({ template, fileName = '', designOpts, startWithDesigns = false, onClose, onSave }: Props) {
   const { upload } = useMedia();
-  useBackHandler(true, onClose);
+  const confirm = useConfirm();
+  const [showDesigns, setShowDesigns] = useState(startWithDesigns);
+  // Back closes the gallery first, then the designer.
+  useBackHandler(true, () => (showDesigns ? setShowDesigns(false) : onClose()));
   const [els, setEls] = useState<PdfElement[]>(() =>
     template?.elements?.length ? JSON.parse(JSON.stringify(template.elements)) : starterTemplate().elements,
   );
   const [background, setBackground] = useState(template?.background || '#ffffff');
+  const [design, setDesign] = useState<string>(template?.design || '');
+  // Changed since the design was applied (or opened): picking another then asks first.
+  const [edited, setEdited] = useState(false);
   const [name, setName] = useState(fileName || 'document-{{order_id}}');
   const [selId, setSelId] = useState<string>('');
+  const opts = designOpts || ORDER_PDF_OPTS;
+  const gallery = useMemo(() => PDF_DESIGNS.map((d) => ({ ...d, tpl: buildPdfDesign(d.id, opts) })), [opts]);
+
+  async function applyDesign(id: PdfDesignId) {
+    const d = gallery.find((g) => g.id === id);
+    if (!d) return;
+    if (edited) {
+      const ok = await confirm({
+        title: `Use the ${d.name} design?`,
+        message: 'Its layout and colours replace this page, and text you changed goes back to the standard wording. Images you added (a logo, a stamp) are kept.',
+        confirmLabel: `Use ${d.name}`,
+        tone: 'primary',
+      });
+      if (!ok) return;
+    }
+    // A logo or signature the business added stays: designs have no images.
+    const images = els.filter((e) => e.type === 'image');
+    setEls([...JSON.parse(JSON.stringify(buildPdfDesign(id, opts).elements)), ...images]);
+    setBackground(d.tpl.background || '#ffffff');
+    setDesign(id);
+    setEdited(false);
+    setSelId('');
+    setShowDesigns(false);
+  }
   const [preview, setPreview] = useState(false);
   const [zoom, setZoom] = useState(0.62);
   const [uploading, setUploading] = useState(false);
@@ -337,16 +404,20 @@ export function PdfDesigner({ template, fileName = '', onClose, onSave }: Props)
   const drag = useRef<{ id: string; mode: 'move' | 'resize'; sx: number; sy: number; ox: number; oy: number; ow: number; oh: number } | null>(null);
 
   const sel = els.find((e) => e.id === selId) || null;
-  const patch = (id: string, p: Partial<PdfElement>) =>
+  const patch = (id: string, p: Partial<PdfElement>) => {
+    setEdited(true);
     setEls((list) => list.map((e) => (e.id === id ? { ...e, ...p } : e)));
+  };
 
   function add(type: PdfElementType) {
     const el = defaultElement(type);
+    setEdited(true);
     setEls((l) => [...l, el]);
     setSelId(el.id);
     if (type === 'image') setTimeout(() => fileRef.current?.click(), 0);
   }
   function remove(id: string) {
+    setEdited(true);
     setEls((l) => l.filter((e) => e.id !== id));
     if (selId === id) setSelId('');
   }
@@ -354,11 +425,13 @@ export function PdfDesigner({ template, fileName = '', onClose, onSave }: Props)
     const src = els.find((e) => e.id === id);
     if (!src) return;
     const copy = { ...JSON.parse(JSON.stringify(src)), id: newEid(), x: src.x + 16, y: src.y + 16 };
+    setEdited(true);
     setEls((l) => [...l, copy]);
     setSelId(copy.id);
   }
   // Stacking order matters: a background box must sit behind its text.
   function reorder(id: string, dir: -1 | 1) {
+    setEdited(true);
     setEls((l) => {
       const i = l.findIndex((e) => e.id === id);
       const j = i + dir;
@@ -455,7 +528,17 @@ export function PdfDesigner({ template, fileName = '', onClose, onSave }: Props)
   }
 
   function save() {
-    onSave({ width: PDF_A4.width, height: PDF_A4.height, background, elements: els }, name.trim());
+    onSave(
+      {
+        width: PDF_A4.width,
+        height: PDF_A4.height,
+        background,
+        elements: els,
+        ...(design ? { design } : {}),
+        ...(template?.slip ? { slip: template.slip } : {}),
+      },
+      name.trim(),
+    );
   }
 
   return (
@@ -484,6 +567,10 @@ export function PdfDesigner({ template, fileName = '', onClose, onSave }: Props)
           </button>
         </div>
 
+        <button className="k-btn ghost sm" onClick={() => setShowDesigns(true)} data-testid="pdfd-designs-btn" title="Choose a ready-made design">
+          <span className="material-icons">palette</span>
+          {design ? `Design: ${gallery.find((g) => g.id === design)?.name || 'Custom'}` : 'Designs'}
+        </button>
         <button className={`k-btn ghost sm${preview ? ' on' : ''}`} onClick={() => setPreview((v) => !v)}>
           <span className="material-icons">{preview ? 'visibility_off' : 'visibility'}</span>
           {preview ? 'Show tokens' : 'Preview values'}
@@ -527,7 +614,7 @@ export function PdfDesigner({ template, fileName = '', onClose, onSave }: Props)
           <div className="pdfd-side-title">Page</div>
           <label className="pdfd-row">
             <span>Background</span>
-            <input type="color" value={background} onChange={(e) => setBackground(e.target.value)} />
+            <input type="color" value={background} onChange={(e) => { setEdited(true); setBackground(e.target.value); }} />
           </label>
         </aside>
 
@@ -606,6 +693,42 @@ export function PdfDesigner({ template, fileName = '', onClose, onSave }: Props)
             })}
           </div>
         </div>
+
+        {/* ---------------- Ready-made designs ---------------- */}
+        {showDesigns && (
+          <div className="pdfd-gallery-backdrop" onPointerDown={(e) => e.target === e.currentTarget && setShowDesigns(false)}>
+            <div className="pdfd-gallery" role="dialog" aria-modal="true" aria-label="Choose a design" data-testid="pdfd-gallery">
+              <header className="pdfd-gallery-head">
+                <div>
+                  <h3>Choose a design</h3>
+                  <p>Same details in every design: only the layout and colours change. You can still edit anything after.</p>
+                </div>
+                <button type="button" className="tpl-x" onClick={() => setShowDesigns(false)} aria-label="Close">
+                  <span className="material-icons">close</span>
+                </button>
+              </header>
+              <div className="pdfd-gallery-grid">
+                {gallery.map((d) => (
+                  <button
+                    type="button"
+                    key={d.id}
+                    className={`pdfd-design${design === d.id ? ' on' : ''}`}
+                    onClick={() => applyDesign(d.id)}
+                    data-testid={`pdfd-design-${d.id}`}
+                    title={`Use ${d.name}`}
+                  >
+                    <PdfPageThumb template={d.tpl} width={150} />
+                    <span className="pdfd-design-name">
+                      {d.name}
+                      {design === d.id && <span className="material-icons" aria-label="In use">check_circle</span>}
+                    </span>
+                    <span className="pdfd-design-desc">{d.description}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ---------------- Right: selected element ---------------- */}
         <aside className="pdfd-props">

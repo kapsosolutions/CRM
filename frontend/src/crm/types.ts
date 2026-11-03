@@ -2670,6 +2670,10 @@ export interface PdfTemplate {
   height: number;
   background?: string;
   elements: PdfElement[];
+  /** The ready-made design it was built from (pdfDesigns.ts), if any. */
+  design?: string;
+  /** Which slip it is, so another design can rebuild the same one. */
+  slip?: 'confirm' | 'cancel';
 }
 
 

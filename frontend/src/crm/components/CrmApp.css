@@ -12327,6 +12327,7 @@ button.pd-phone-chip:hover {
 }
 
 .pdfd-body {
+  position: relative; /* holds the design gallery */
   flex: 1;
   display: grid;
   grid-template-columns: 210px minmax(0, 1fr) 250px;
@@ -20979,4 +20980,109 @@ label.k-label,
 .flow-img-note .material-icons {
   font-size: 15px;
   margin-top: 1px;
+}
+
+/* PDF designer: the ready-made design gallery (pdfDesigns.ts). */
+.pdfd-gallery-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(15, 23, 42, 0.45);
+}
+.pdfd-gallery {
+  width: min(1010px, 100%);
+  max-height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--wa-surface);
+  border-radius: 14px;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+  overflow: hidden;
+}
+.pdfd-gallery-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--wa-hairline);
+}
+.pdfd-gallery-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--wa-ink);
+}
+.pdfd-gallery-head p {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--wa-ink-muted);
+}
+.pdfd-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(172px, 1fr));
+  gap: 16px;
+  padding: 18px 22px 22px;
+  overflow-y: auto;
+}
+.pdfd-design {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 10px 12px;
+  border: 1.5px solid var(--wa-hairline-strong);
+  border-radius: 12px;
+  background: var(--wa-surface);
+  color: var(--wa-ink);
+  font: inherit;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+.pdfd-design:hover {
+  border-color: #22c55e;
+  transform: translateY(-1px);
+}
+.pdfd-design.on {
+  border-color: #16a34a;
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.22);
+}
+.pdfd-design:focus-visible {
+  outline: none;
+  box-shadow: var(--wa-focus-ring);
+}
+.pdfd-thumb {
+  position: relative;
+  overflow: hidden;
+  border-radius: 4px;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+  pointer-events: none;
+}
+.pdfd-design-name {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.pdfd-design-name .material-icons {
+  font-size: 16px;
+  color: #16a34a;
+}
+.pdfd-design-desc {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--wa-ink-muted);
+  text-align: center;
+}
+/* "Choose design" under the PDF block's preview. */
+.fl-pdf-designs {
+  width: 100%;
+  justify-content: center;
+  margin-top: 8px;
 }
