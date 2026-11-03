@@ -1897,7 +1897,7 @@ function FlowEditor({
               <button className="disc-cancel" onClick={() => setShowDiscard(false)}>
                 Cancel
               </button>
-              <button className="disc-discard" onClick={onBack}>
+              <button className="disc-discard danger" onClick={onBack}>
                 Discard
               </button>
             </div>

@@ -1834,7 +1834,7 @@ function JourneyManager({
             <div className="disc-actions">
               <button className="disc-cancel" onClick={() => setPending(null)}>Keep editing</button>
               <button
-                className="disc-discard"
+                className="disc-discard danger"
                 onClick={() => {
                   childDirty.current = () => false;
                   registerDirty?.(null);
@@ -1946,7 +1946,7 @@ export function FlowsPage({
                 Keep editing
               </button>
               <button
-                className="disc-discard"
+                className="disc-discard danger"
                 onClick={() => {
                   // The outgoing builder unmounts, so its probe must go with it
                   // or the shell would keep asking about work that's gone.

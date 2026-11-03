@@ -905,7 +905,7 @@ function MemberEditor({
             <div className="disc-title">Discard changes?</div>
             <div className="disc-actions">
               <button className="disc-cancel" onClick={() => setShowDiscard(false)}>Cancel</button>
-              <button className="disc-discard" onClick={onBack}>Discard</button>
+              <button className="disc-discard danger" onClick={onBack}>Discard</button>
             </div>
           </div>
         </div>
