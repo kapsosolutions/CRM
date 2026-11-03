@@ -30,7 +30,7 @@ import type { CrmApi } from '../api';
 import type { BusinessProfile, TemplateItem, Journey } from '../types';
 import type { VerticalConfig } from '../verticals';
 import { FlowBuilderPage } from './FlowBuilderPage';
-import { MediaCtx, useMedia, useMediaApi } from './uploadCtx';
+import { MediaCtx, useLeaveCleanup, useMedia, useMediaApi } from './uploadCtx';
 import { useConfirm, useFlash } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { BladeSpinner } from './BladeSpinner';
@@ -1266,9 +1266,13 @@ function JourneyEditor({
       replaced.current.add(url);
     },
   );
+  // In use: the saved version AND the published one. While a draft is being
+  // edited, a photo the draft dropped can still be what customers get.
+  const inUse = (saved: string) => `${saved}\n${JSON.stringify(published.current)}`;
   const reclaim = (stillUsed: string) => {
+    const used = inUse(stillUsed);
     for (const url of [...replaced.current]) {
-      if (stillUsed.includes(url)) continue;
+      if (used.includes(url)) continue;
       replaced.current.delete(url);
       api.deleteMedia(url).catch(() => {});
     }
@@ -1339,8 +1343,10 @@ function JourneyEditor({
     window.addEventListener('beforeunload', onBeforeUnload);
     return () => window.removeEventListener('beforeunload', onBeforeUnload);
   }, []);
-  // Leaving the editor: replaced uploads the saved journey doesn't use go.
+  // Leaving the editor: replaced uploads the saved journey doesn't use go,
+  // and so do files uploaded here that were never saved (Discard, Back).
   useEffect(() => () => reclaim(baseline.current), []); // eslint-disable-line react-hooks/exhaustive-deps
+  useLeaveCleanup(media, () => inUse(baseline.current), (url) => { api.deleteMedia(url).catch(() => {}); });
 
   // ---- Undo / redo (like the Flows builder) ----
   // Each change is a step: typing is grouped until a short pause, and a drag

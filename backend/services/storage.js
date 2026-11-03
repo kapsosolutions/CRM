@@ -175,6 +175,39 @@ const storage = {
     }
   },
 
+  /**
+   * The files directly inside `folder` (no sub-folders): { key, size, createdAt }.
+   * An unknown folder is an empty list.
+   */
+  async listFolder(folder) {
+    const { zone, host, password } = cfg();
+    if (!zone || !password) return [];
+    const dir = `${String(folder).replace(/^\/+|\/+$/g, '')}/`;
+    try {
+      const r = await axios.get(`https://${host}/${zone}/${dir}`, {
+        headers: { AccessKey: password, Accept: 'application/json' },
+        timeout: 30000,
+      });
+      return (Array.isArray(r.data) ? r.data : [])
+        .filter((f) => !f.IsDirectory && f.ObjectName)
+        .map((f) => ({
+          key: `${dir}${f.ObjectName}`,
+          size: f.Length || 0,
+          // Bunny gives UTC without a zone mark.
+          createdAt: new Date(/[zZ]|[+-]\d\d:\d\d$/.test(String(f.DateCreated)) ? f.DateCreated : `${f.DateCreated}Z`),
+        }));
+    } catch (err) {
+      if (err.response?.status === 404) return [];
+      throw err;
+    }
+  },
+
+  /** The public URL of a storage key. */
+  urlOf(key) {
+    const { zone, host, cdn } = cfg();
+    return cdn ? `${cdn}/${key}` : `https://${host}/${zone}/${key}`;
+  },
+
   /** Best-effort delete of many URLs. Returns how many were removed. */
   async deleteMany(urls = []) {
     let n = 0;

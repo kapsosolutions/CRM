@@ -46,6 +46,7 @@ import adsRouter from './routes/ads.js';
 import billingRouter, { razorpayWebhookRouter } from './routes/billing.js';
 import { requireFeature } from './services/planGate.js';
 import { startPlanReminders } from './services/planReminders.js';
+import { startBuilderMediaSweep } from './services/builderMediaSweep.js';
 import metaChannelsRouter, { metaSubscriptionsAdminRouter } from './routes/metaChannels.js';
 import metaWebhookRouter from './routes/metaWebhook.js';
 import instagramChannelRouter from './routes/instagramChannel.js';
@@ -179,6 +180,8 @@ if (!DATABASE_URL) {
       // Create: Facebook / Instagram posts scheduled for later (and ones Meta
       // is still processing) are published by this ticker.
       startPostScheduler();
+      // Daily: journey / flow uploads no definition uses (tab closed mid-edit…).
+      startBuilderMediaSweep();
     })
     .catch((err) => logger.error('Database connection error', { error: err.message }));
 }

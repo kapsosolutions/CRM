@@ -13,7 +13,7 @@
 // Uploads in flight are counted (`pending` / usePendingUploads), so an editor
 // can hold Save until every picked file has its hosted URL. Saving earlier
 // stores the instant-preview `blob:` address, which only exists in that tab.
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
 export type UploadFn = (file: File) => Promise<string>;
 export type DeleteFn = (url: string) => Promise<unknown>;
@@ -32,6 +32,20 @@ export interface MediaApi {
   saveable: (url: string) => boolean;
   /** Called whenever `pending` changes; returns the unsubscribe. */
   subscribe: (fn: () => void) => () => void;
+  /**
+   * After a save: this session's uploads that the saved definition uses are
+   * the server's now, so `discard` must leave them alone (the server deletes
+   * them when a later save stops using them). `saved` is the saved JSON.
+   */
+  markSaved: (saved: string) => void;
+  /**
+   * Leaving the editor: deletes (with `del`) this session's uploads that
+   * `stillUsed` (the saved JSON) doesn't contain, and any upload that only
+   * finishes after this, since nothing can save it any more.
+   */
+  leave: (stillUsed: string, del: (url: string) => void) => void;
+  /** The editor is (again) open: uploads are kept. Undoes `leave`, for React's dev double mount. */
+  open: () => void;
 }
 
 const noopMedia: MediaApi = {
@@ -39,6 +53,9 @@ const noopMedia: MediaApi = {
   discard: () => {},
   pending: () => 0,
   saveable: () => true,
+  markSaved: () => {},
+  leave: () => {},
+  open: () => {},
   subscribe: () => () => {},
 };
 
@@ -55,6 +72,8 @@ export function createMediaApi(upload: UploadFn, remove?: DeleteFn): MediaApi {
   const returned = new Set<string>();
   const listeners = new Set<() => void>();
   let inFlight = 0;
+  // Set once the editor is left: an upload finishing later is deleted with it.
+  let left: ((url: string) => void) | null = null;
   const changed = () => listeners.forEach((fn) => fn());
   return {
     upload: async (file) => {
@@ -62,6 +81,10 @@ export function createMediaApi(upload: UploadFn, remove?: DeleteFn): MediaApi {
       changed();
       try {
         const url = await upload(file);
+        if (url && left) {
+          left(url);
+          return url;
+        }
         if (url) {
           session.add(url);
           returned.add(url);
@@ -79,6 +102,20 @@ export function createMediaApi(upload: UploadFn, remove?: DeleteFn): MediaApi {
     },
     pending: () => inFlight,
     saveable: (url) => !url.startsWith('blob:') || returned.has(url),
+    markSaved: (saved) => {
+      for (const url of [...session]) if (saved.includes(url)) session.delete(url);
+    },
+    open: () => {
+      left = null;
+    },
+    leave: (stillUsed, del) => {
+      left = del;
+      for (const url of [...session]) {
+        if (stillUsed.includes(url)) continue;
+        session.delete(url);
+        del(url);
+      }
+    },
     subscribe: (fn) => {
       listeners.add(fn);
       return () => {
@@ -92,6 +129,19 @@ export function createMediaApi(upload: UploadFn, remove?: DeleteFn): MediaApi {
 export function useMediaApi(upload: UploadFn, remove?: DeleteFn): MediaApi {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   return useMemo(() => createMediaApi(upload, remove), []);
+}
+
+/**
+ * Deletes the editor's unsaved uploads when it closes: whatever `saved()` (the
+ * saved JSON, read at that moment) doesn't use.
+ */
+export function useLeaveCleanup(media: MediaApi, saved: () => string, del: (url: string) => void) {
+  const latest = useRef({ saved, del });
+  latest.current = { saved, del };
+  useEffect(() => {
+    media.open();
+    return () => media.leave(latest.current.saved(), latest.current.del);
+  }, [media]);
 }
 
 /** How many uploads `media` still has running (re-renders when it changes). */

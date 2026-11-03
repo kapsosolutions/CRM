@@ -135,11 +135,14 @@ router.delete('/chats/:phone', async (req, res) => {
 
     // Collect every stored asset this chat owns. A deep scan catches all media
     // shapes, but we keep only files from the chat buckets: a message can also
-    // reference a TEMPLATE's header image, which belongs to the template and
-    // must survive the chat being deleted.
+    // reference a TEMPLATE's header image, or a journey / flow block's picture,
+    // which belong to those and must survive the chat being deleted. The
+    // documents bucket is the PDFs generated for this customer (order
+    // confirmations, cancellation slips): made for one chat, used by nothing
+    // else (the Orders page renders its PDF afresh).
     const owned = (url) => {
       const key = storage.keyFromUrl(url);
-      return !!key && (key.includes('/inbound/') || key.includes('/outbound/'));
+      return !!key && (key.includes('/inbound/') || key.includes('/outbound/') || key.includes('/documents/'));
     };
     const urls = new Set();
     for (const m of messages) {

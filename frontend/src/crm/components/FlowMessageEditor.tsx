@@ -9,6 +9,8 @@
 // immediately without republishing.
 import { useRef, useState } from 'react';
 import { useBackHandler } from '../useBackHandler';
+import { useLeaveCleanup, useMediaApi, usePendingUploads } from './uploadCtx';
+import { useNotify } from './Dialogs';
 import type { CrmApi } from '../api';
 import type { FlowBlockHeader, WaFlowDef } from '../types';
 
@@ -54,17 +56,23 @@ export function FlowMessageFields({
   value,
   onChange,
   upload,
+  discard,
   compact = false,
 }: {
   value: FlowMessage;
   onChange: (patch: Partial<FlowMessage>) => void;
   upload: (file: File) => Promise<string>;
+  /** Reclaims a file uploaded in this session once nothing uses it (uploadCtx). */
+  discard?: (url?: string) => void;
   compact?: boolean;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
+  const notify = useNotify();
 
   const pickHeader = (h: FlowBlockHeader) => {
+    // No attachment: the file just uploaded goes (a saved one is deleted by the server on save).
+    if (h === 'none') discard?.(value.msgHeaderMediaUrl);
     onChange({ msgHeader: h, ...(h === 'none' ? { msgHeaderMediaUrl: '', msgHeaderFileName: '' } : {}) });
     if (h !== 'none') setTimeout(() => fileRef.current?.click(), 0);
   };
@@ -72,11 +80,19 @@ export function FlowMessageFields({
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f) return;
+    const previous = value.msgHeaderMediaUrl;
+    const previousName = value.msgHeaderFileName;
     onChange({ msgHeaderMediaUrl: URL.createObjectURL(f), msgHeaderFileName: f.name });
     setBusy(true);
     upload(f)
-      .then((url) => onChange({ msgHeaderMediaUrl: url }))
-      .catch(() => {})
+      .then((url) => {
+        onChange({ msgHeaderMediaUrl: url });
+        discard?.(previous); // replaced → reclaim the earlier upload
+      })
+      .catch((err) => {
+        onChange({ msgHeaderMediaUrl: previous || '', msgHeaderFileName: previousName || '' });
+        notify('error', 'Attachment not uploaded', err instanceof Error ? err.message : 'Please try again.');
+      })
       .finally(() => setBusy(false));
   };
 
@@ -192,13 +208,26 @@ export function FlowMessageModal({
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   useBackHandler(true, onClose);
+  // Files uploaded while this is open: a replaced one goes straight away, and
+  // on closing, any the saved message doesn't use (Cancel, or replaced).
+  const media = useMediaApi(
+    (f) => api.uploadMedia(f, 'flows'),
+    (url) => api.deleteMedia(url),
+  );
+  const uploading = usePendingUploads(media);
+  const savedRef = useRef(JSON.stringify(flowMessageOf(flow)));
+  useLeaveCleanup(media, () => savedRef.current, (url) => { api.deleteMedia(url).catch(() => {}); });
 
   function save() {
     setSaving(true);
     setError('');
     api
       .updateFlowMessage(flow._id, msg)
-      .then((r) => onSaved(r.data))
+      .then((r) => {
+        savedRef.current = JSON.stringify(msg);
+        media.markSaved(savedRef.current);
+        onSaved(r.data);
+      })
       .catch((e) => setError(e instanceof Error ? e.message : 'Save failed'))
       .finally(() => setSaving(false));
   }
@@ -221,14 +250,15 @@ export function FlowMessageModal({
           <FlowMessageFields
             value={msg}
             onChange={(p) => setMsg((m) => ({ ...m, ...p }))}
-            upload={(f) => api.uploadMedia(f, 'flows')}
+            upload={media.upload}
+            discard={media.discard}
             compact
           />
         </div>
         <div className="modal-foot">
           <button className="k-btn ghost sm" onClick={onClose}>Cancel</button>
-          <button className="k-btn" onClick={save} disabled={saving}>
-            <span className="material-icons">save</span> {saving ? 'Saving…' : 'Save message'}
+          <button className="k-btn" onClick={save} disabled={saving || uploading > 0} data-testid="fmsg-save">
+            <span className="material-icons">save</span> {saving ? 'Saving…' : uploading ? 'Uploading…' : 'Save message'}
           </button>
         </div>
       </div>

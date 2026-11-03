@@ -43,7 +43,7 @@ import type {
 } from '../types';
 import { buildFlowJson, incomingDataKeys, isEndpointMode } from '../flowJson';
 import { Dropdown, type KOption } from './Dropdown';
-import { MediaCtx, useMedia, useMediaApi, usePendingUploads } from './uploadCtx';
+import { MediaCtx, useLeaveCleanup, useMedia, useMediaApi, usePendingUploads } from './uploadCtx';
 import { PdfDesigner, confirmPdfTemplate, PDF_A4 } from './PdfDesigner';
 import { FlowMessageFields, FlowMessageModal, flowMessageOf, type FlowMessage } from './FlowMessageEditor';
 import { verticalConfig, type ConfirmWording, type VerticalConfig } from '../verticals';
@@ -780,6 +780,9 @@ function FlowEditor({
     (url) => api.deleteMedia(url),
   );
   const uploading = usePendingUploads(media);
+  // Leaving (Back, Discard, another tab): files uploaded here that the saved
+  // flow doesn't use are deleted, so nothing unsaved stays on the storage.
+  useLeaveCleanup(media, () => baseline.current, (url) => { api.deleteMedia(url).catch(() => {}); });
 
   useEffect(() => {
     api
@@ -1614,6 +1617,9 @@ function FlowEditor({
       setSavedId(res.data._id);
       setStatus(res.data.status || 'DRAFT');
       if (res.data.metaFlowId) setMetaFlowId(res.data.metaFlowId);
+      // Files the saved flow uses are the server's now: it deletes them when a
+      // later save stops using them, so the editor mustn't delete them first.
+      media.markSaved(JSON.stringify(body));
       baseline.current = snapshot(); // changes are now persisted
       setBusy('');
       return res.data._id;
@@ -1855,7 +1861,8 @@ function FlowEditor({
           <FlowMessageFields
             value={msg}
             onChange={(p) => setMsg((m) => ({ ...m, ...p }))}
-            upload={(f) => api.uploadMedia(f, 'flows')}
+            upload={media.upload}
+            discard={media.discard}
           />
         </aside>
 

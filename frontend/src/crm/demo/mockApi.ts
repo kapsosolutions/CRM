@@ -912,6 +912,11 @@ export class MockCrmApi extends CrmApi {
 
   // Demo media are object URLs — release them instead of calling the backend.
   override deleteMedia(url: string): Promise<{ success: boolean }> {
+    // Dev-only test hook: which files the editors delete.
+    if (import.meta.env.DEV) {
+      const w = window as unknown as { __demoDeleted?: string[] };
+      (w.__demoDeleted ||= []).push(url);
+    }
     if (url.startsWith('blob:')) URL.revokeObjectURL(url);
     return delay({ success: true });
   }
