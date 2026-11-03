@@ -2805,6 +2805,10 @@ export interface FlowTemplate {
   screens: FlowScreen[];
   updatedAt?: string;
   createdAt?: string;
+  /** Saved by the signed-in business. */
+  own?: boolean;
+  /** This session may delete it: its author, or a master-password session. */
+  canDelete?: boolean;
 }
 
 // ---------- Notifications (header bell + drawer) ----------

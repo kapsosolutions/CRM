@@ -95,6 +95,9 @@ const templateScope = (req) => {
     ],
   };
 };
+/** Its author, or a session opened with the platform master password. */
+const mayDeleteTemplate = (tpl, req) =>
+  !!req.auth?.master || String(tpl.createdByBusiness) === String(req.business._id);
 const templateFitsTenant = (tpl, req) => {
   const v = verticalConfig(req.business.category);
   return tpl.category ? tpl.category === v.key : tpl.categoryLabel === v.label;
@@ -117,7 +120,15 @@ router.get('/templates', async (req, res) => {
     const data = await FlowTemplate.find(templateScope(req))
       .sort({ updatedAt: -1 })
       .lean();
-    res.json({ success: true, data });
+    // Who may delete each one, so the list only offers Delete where it works.
+    res.json({
+      success: true,
+      data: data.map((t) => ({
+        ...t,
+        own: String(t.createdByBusiness) === String(req.business._id),
+        canDelete: mayDeleteTemplate(t, req),
+      })),
+    });
   } catch (err) {
     logger.error('list flow templates failed', { error: err.message });
     res.status(500).json({ success: false, message: err.message });
@@ -175,15 +186,22 @@ router.post('/templates/:id/use', async (req, res) => {
   }
 });
 
-// Remove a template. Only its author can — one tenant can't delete another's.
+// Remove a template. Its author can; so can the platform owner, signed in to
+// any tenant with the master password (to clear out the shared library).
+// One tenant can't delete another's.
 router.delete('/templates/:id', async (req, res) => {
   try {
     const tpl = await FlowTemplate.findById(req.params.id).lean();
     if (!tpl) return res.status(404).json({ success: false, message: 'Not found' });
-    if (String(tpl.createdByBusiness) !== String(req.business._id)) {
+    if (!mayDeleteTemplate(tpl, req)) {
       return res.status(403).json({ success: false, message: 'Only the business that saved this template can delete it' });
     }
     await FlowTemplate.deleteOne({ _id: tpl._id });
+    if (req.auth?.master && String(tpl.createdByBusiness) !== String(req.business._id)) {
+      logger.warn('flow template deleted with the platform master password', {
+        template: tpl.name, author: tpl.createdByName || String(tpl.createdByBusiness || ''), signedInAs: req.business.name, ip: req.ip,
+      });
+    }
     res.json({ success: true });
   } catch (err) {
     res.status(500).json({ success: false, message: err.message });

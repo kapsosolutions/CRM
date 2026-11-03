@@ -640,9 +640,13 @@ function TemplatesModal({
     }
   }
   async function remove(t: FlowTemplate) {
+    // Signed in with the master password, a template can be another business's.
+    const theirs = t.own === false;
     const ok = await confirm({
       title: 'Delete flow template?',
-      message: `“${t.name}” will be removed from the library. Other businesses will no longer see it. Flows already made from it are not affected.`,
+      message: theirs
+        ? `“${t.name}” was saved by ${t.createdByName || 'another business'}. It will be removed from the library for every business, including them. Flows already made from it are not affected.`
+        : `“${t.name}” will be removed from the library. Other businesses will no longer see it. Flows already made from it are not affected.`,
       confirmLabel: 'Delete template',
     });
     if (!ok) return;
@@ -695,9 +699,21 @@ function TemplatesModal({
                   <button className="k-btn sm" onClick={() => use(t)} disabled={!!busyId}>
                     {busyId === t._id ? 'Working…' : 'Use'}
                   </button>
-                  <button type="button" className="tpl-x danger" onClick={() => remove(t)} disabled={!!busyId} title="Delete (only ones you saved)" aria-label={`Delete ${t.name}`}>
-                    <span className="material-icons">delete</span>
-                  </button>
+                  {/* Only where it works: templates you saved, or any of them
+                      when signed in with the platform master password. */}
+                  {t.canDelete !== false && (
+                    <button
+                      type="button"
+                      className="tpl-x danger"
+                      onClick={() => remove(t)}
+                      disabled={!!busyId}
+                      title={t.own === false ? `Delete (saved by ${t.createdByName || 'another business'})` : 'Delete'}
+                      aria-label={`Delete ${t.name}`}
+                      data-testid="tpl-delete"
+                    >
+                      <span className="material-icons">delete</span>
+                    </button>
+                  )}
                 </div>
               </div>
             ))}
