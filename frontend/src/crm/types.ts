@@ -1418,6 +1418,28 @@ export interface ThreadControlNotice {
   via?: 'send' | 'standby';
 }
 
+/**
+ * Meta's free tier of service messages (GET /api/channel/service-quota):
+ * 1,000 delivered per business phone number each month; after that Meta
+ * charges for them. `connected: false` = no number of its own.
+ */
+export interface ServiceQuota {
+  success?: boolean;
+  connected: boolean;
+  limit: number;
+  /** Service messages delivered this month (free + charged). */
+  used?: number;
+  free?: number;
+  charged?: number;
+  remaining?: number;
+  monthStart?: string;
+  resetsAt?: string;
+  updatedAt?: string;
+  /** The last good answer, Meta didn't respond just now. */
+  stale?: boolean;
+  error?: string;
+}
+
 export interface ChannelStatus {
   success: boolean;
   connected: boolean;

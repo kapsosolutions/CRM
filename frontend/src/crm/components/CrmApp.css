@@ -21086,3 +21086,117 @@ label.k-label,
   justify-content: center;
   margin-top: 8px;
 }
+
+/* Profile sidebar: Meta's free service messages this month (ServiceQuotaCard). */
+.crm-ps-quota {
+  margin: 0 0 16px; /* the Channel Status button above has its own gap */
+  padding: 12px 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+}
+.crm-ps-quota.full {
+  border-color: #fca5a5;
+  background: #fffafa;
+}
+.crm-ps-quota-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+.crm-ps-quota-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #111827;
+}
+.crm-ps-quota-info {
+  display: inline-flex;
+  color: #9ca3af;
+  cursor: help;
+}
+.crm-ps-quota-refresh {
+  margin-left: auto;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: #6b7280;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.crm-ps-quota-refresh:hover:not(:disabled) {
+  background: #f3f4f6;
+  color: #111827;
+}
+.crm-ps-quota-refresh .material-icons {
+  font-size: 17px;
+}
+.crm-ps-quota-refresh .spin {
+  animation: crm-ps-quota-spin 0.9s linear infinite;
+}
+@keyframes crm-ps-quota-spin {
+  to { transform: rotate(360deg); }
+}
+.crm-ps-quota-bar {
+  width: 100%;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+.crm-ps-quota-fill {
+  height: 100%;
+  border-radius: 999px;
+  background: #24d06e;
+  transition: width 0.3s ease;
+}
+.crm-ps-quota.warn .crm-ps-quota-fill {
+  background: #f59e0b;
+}
+.crm-ps-quota.full .crm-ps-quota-fill {
+  background: #ef4444;
+}
+.crm-ps-quota-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 8px;
+}
+.crm-ps-quota-stat {
+  font-size: 13px;
+  font-weight: 600;
+  color: #111827;
+}
+.crm-ps-quota-reset,
+.crm-ps-quota-sub {
+  font-size: 12px;
+  color: #6b7280;
+}
+.crm-ps-quota-sub {
+  margin-top: 2px;
+}
+.crm-ps-quota.full .crm-ps-quota-sub {
+  color: #dc2626;
+}
+.crm-ps-quota-note {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #6b7280;
+}
+.crm-ps-quota-link {
+  display: block;
+  margin-top: 6px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: #16a34a;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}

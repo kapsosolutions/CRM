@@ -5,7 +5,7 @@
 // written to) localStorage under config.tokenKey.
 // -----------------------------------------------------------------------------
 import type { CrmConfig } from './config';
-import type { MetaChannel, MetaChannelsInfo, MetaPageOption } from './types';
+import type { MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
 import type {
   CommentActivity, CommentRule, CommentRuleInput, CommentRuleWrite, SocialMedia, SocialOverview, SocialPost, SocialPostInput, SocialRecentPost, SocialTarget,
 } from './types';
@@ -286,6 +286,11 @@ export class CrmApi {
 
   getChannelStatus(refresh = false): Promise<ChannelStatus> {
     return this.request(`/api/channel/status${refresh ? '?refresh=1' : ''}`, { headers: this.authHeaders() });
+  }
+
+  /** Meta's free service messages this month (1,000 per number), from Meta's pricing analytics. */
+  getServiceQuota(refresh = false): Promise<ServiceQuota> {
+    return this.request(`/api/channel/service-quota${refresh ? '?refresh=1' : ''}`, { headers: this.authHeaders() });
   }
 
   /**

@@ -7,7 +7,7 @@ import { resetBackHandler } from '../useBackHandler';
 import { platformApi } from '../../admin/platformApi';
 import { useConfirm } from './Dialogs';
 import type { CrmApi } from '../api';
-import type { WhatsAppProfile } from '../types';
+import type { ServiceQuota, WhatsAppProfile } from '../types';
 import { PROFILE_UPDATED_EVENT } from './WhatsAppProfileEditor';
 import { pushSignOut } from '../push';
 import { COMING_SOON } from '../features';
@@ -153,6 +153,85 @@ function NotificationIconSvg() {
   );
 }
 
+const fmt = (n: number) => n.toLocaleString('en-IN');
+const dayMonth = (iso?: string) =>
+  iso ? new Date(iso).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', timeZone: 'Asia/Kolkata' }) : '';
+
+/**
+ * Meta's free tier of service messages: 1,000 delivered replies per number
+ * each month (since 1 October 2026; after that Meta charges for them).
+ */
+function ServiceQuotaCard({
+  connected, quota, loading, onRefresh, onConnect,
+}: {
+  connected: boolean;
+  quota: ServiceQuota | null;
+  loading: boolean;
+  onRefresh: () => void;
+  onConnect: () => void;
+}) {
+  const limit = quota?.limit || 1000;
+  const used = quota?.used ?? 0;
+  const charged = quota?.charged ?? Math.max(0, used - limit);
+  const known = connected && !!quota && quota.used !== undefined && !quota.error;
+  const pct = known ? Math.min(100, Math.round((used / limit) * 100)) : 0;
+  const full = known && used >= limit;
+  const tone = full ? 'full' : pct >= 80 ? 'warn' : 'ok';
+  const resets = dayMonth(quota?.resetsAt);
+  const tip =
+    `Meta gives every WhatsApp number ${fmt(limit)} free service messages a month: your replies to customers inside the 24-hour window. ` +
+    'After that Meta charges for each one. Template messages (campaigns) are charged separately and not counted here. ' +
+    'The count is Meta’s and can lag by a few hours.';
+  return (
+    <div className={`crm-ps-quota ${tone}`} data-testid="service-quota">
+      <div className="crm-ps-quota-head">
+        <span className="crm-ps-quota-title">Free service messages</span>
+        <span className="crm-ps-quota-info" title={tip} aria-label={tip}>
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <circle cx="8" cy="8" r="6.25" stroke="currentColor" strokeWidth="1.25" />
+            <path d="M6.5 6.25C6.5 5.42157 7.17157 4.75 8 4.75C8.82843 4.75 9.5 5.42157 9.5 6.25C9.5 6.84587 9.15175 7.36014 8.64731 7.59918C8.2435 7.79054 8 8.1969 8 8.64453V9" stroke="currentColor" strokeWidth="1.25" strokeLinecap="round" />
+            <circle cx="8" cy="11.25" r="0.75" fill="currentColor" />
+          </svg>
+        </span>
+        {connected && (
+          <button type="button" className="crm-ps-quota-refresh" onClick={onRefresh} disabled={loading} title="Ask Meta again" aria-label="Refresh">
+            <span className={`material-icons${loading ? ' spin' : ''}`}>refresh</span>
+          </button>
+        )}
+      </div>
+      {!connected ? (
+        <div className="crm-ps-quota-note">
+          Connect your own WhatsApp number to see your {fmt(limit)} free service messages.
+          <button type="button" className="crm-ps-quota-link" onClick={onConnect}>Connect WhatsApp</button>
+        </div>
+      ) : (
+        <>
+          <div className="crm-ps-quota-bar" role="progressbar" aria-valuemin={0} aria-valuemax={limit} aria-valuenow={known ? Math.min(used, limit) : undefined}>
+            <div className="crm-ps-quota-fill" style={{ width: `${pct}%` }} />
+          </div>
+          <div className="crm-ps-quota-row">
+            <span className="crm-ps-quota-stat" data-testid="service-quota-stat">
+              {known
+                ? `${fmt(Math.min(used, limit))} / ${fmt(limit)} used this month`
+                : quota?.error
+                  ? quota.error
+                  : 'Loading…'}
+            </span>
+            {known && resets && <span className="crm-ps-quota-reset">Resets {resets}</span>}
+          </div>
+          {known && (
+            <div className="crm-ps-quota-sub" data-testid="service-quota-sub">
+              {full
+                ? `Free messages used up. ${charged ? `${fmt(charged)} more ${charged === 1 ? 'was' : 'were'} charged by Meta. ` : ''}Replies are charged until ${resets || 'the 1st'}.`
+                : `${fmt(limit - used)} free left${quota?.stale ? ' · last known count' : ''}`}
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 export function ProfileSidebarDrawer({
   isOpen,
   onClose,
@@ -270,6 +349,25 @@ export function ProfileSidebarDrawer({
       window.removeEventListener(PROFILE_UPDATED_EVENT, fetchProfile);
     };
   }, [isOpen, api, canReadWaProfile, business?._id]);
+
+  // Meta's free service messages this month (1,000 per number): read each
+  // time the drawer opens; Meta's count, cached a few minutes on the server.
+  const [quota, setQuota] = useState<ServiceQuota | null>(null);
+  const [quotaLoading, setQuotaLoading] = useState(false);
+  const loadQuota = (refresh = false) => {
+    if (!api) return;
+    setQuotaLoading(true);
+    api
+      .getServiceQuota(refresh)
+      .then((r) => setQuota(r))
+      .catch(() => setQuota((q) => q || { connected: true, limit: 1000, error: 'Couldn’t load the count right now.' }))
+      .finally(() => setQuotaLoading(false));
+  };
+  useEffect(() => {
+    if (!isOpen || !api || !isWhatsAppConnected) return;
+    loadQuota();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, api, isWhatsAppConnected, business?._id]);
 
   // Once Meta has answered, its photo (or none) wins over anything stored.
   const avatarUrl = avatarFailed ? '' : waProfile ? waProfile.profilePictureUrl : (
@@ -587,6 +685,20 @@ export function ProfileSidebarDrawer({
           <ChannelStatusIconSvg />
           <span>Channel Status</span>
         </button>
+
+        {/* Meta's free service messages this month, like the Campaigns
+            page's daily messaging limit card. */}
+        <ServiceQuotaCard
+          connected={isWhatsAppConnected}
+          quota={quota}
+          loading={quotaLoading}
+          onRefresh={() => loadQuota(true)}
+          onConnect={() => {
+            onClose();
+            if (onOpenChannelStatus) onOpenChannelStatus('whatsapp');
+            else onNavigate('channel-status');
+          }}
+        />
 
         {/* Channels Section */}
         <div className="crm-ps-channels-section">

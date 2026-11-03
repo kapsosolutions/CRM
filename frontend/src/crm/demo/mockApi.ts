@@ -8,7 +8,7 @@ import { CrmApi } from '../api';
 import { CrmSocket, type StatusUpdate, type ReactionUpdate, type TypingUpdate } from '../socket';
 import type { CrmConfig } from '../config';
 import type { AppNotification, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, Order, OrderStatus, Journey, Registration, RegistrationStatus, BusinessSettings, PaymentSettings, SandboxInfo, ChannelStatus, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, WhatsAppVertical, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, CampaignStats, CampaignRecipientResult, BillingSummary } from '../types';
-import type { MetaChannelsInfo, QuickMessage, UtilityTemplate } from '../types';
+import type { MetaChannelsInfo, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
 import { demoChats, demoMessages, demoTemplates } from './mockData';
@@ -421,6 +421,20 @@ export class MockCrmApi extends CrmApi {
     { value: 'RESTAURANT', label: 'Restaurant' },
     { value: 'RETAIL', label: 'Shopping and Retail' },
   ];
+
+  // Demo: a business part-way through this month's 1,000 free service messages.
+  override getServiceQuota(): Promise<ServiceQuota> {
+    const ist = new Date(Date.now() + 5.5 * 3600e3);
+    const next = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth() + 1, 1) - 5.5 * 3600e3);
+    const start = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - 5.5 * 3600e3);
+    // Dev-only test hook: try other counts (e.g. __demoServiceUsed = 1040).
+    const used = import.meta.env.DEV ? (window as unknown as { __demoServiceUsed?: number }).__demoServiceUsed ?? 412 : 412;
+    return delay({
+      success: true, connected: true, limit: 1000, used,
+      free: Math.min(used, 1000), charged: Math.max(0, used - 1000), remaining: Math.max(0, 1000 - used),
+      monthStart: start.toISOString(), resetsAt: next.toISOString(), updatedAt: new Date().toISOString(),
+    });
+  }
 
   override getWhatsAppProfile(): Promise<WhatsAppProfileResponse> {
     return delay({ success: true, connected: true, data: { ...this.demoProfile }, verticals: MockCrmApi.DEMO_VERTICALS });

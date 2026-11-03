@@ -4,6 +4,7 @@
 import express from 'express';
 import { requireBusiness } from '../middleware/auth.js';
 import { getNumberStatus } from '../services/metaAccount.js';
+import { getServiceQuota } from '../services/serviceQuota.js';
 import { activateNumber, ActivationError } from '../services/numberActivation.js';
 import { otherSubscribedApps, clearThreadControl } from '../services/otherApps.js';
 import logger from '../services/logger.js';
@@ -26,6 +27,14 @@ router.get('/status', async (req, res) => {
     // Another app was seen holding chats on this number (refused sends / standby).
     threadControl: data.connected ? req.business.meta?.threadControl || null : null,
   });
+});
+
+// Meta's free tier of service messages this month (1,000 per number), for
+// the profile sidebar. ?refresh=1 asks Meta again (throttled).
+router.get('/service-quota', async (req, res) => {
+  const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
+  const data = await getServiceQuota(req.business, { refresh });
+  res.json({ success: true, ...data });
 });
 
 // "I've fixed it": hide the thread-control notice (it comes back if it happens again).
