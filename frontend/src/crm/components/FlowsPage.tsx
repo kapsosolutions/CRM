@@ -743,8 +743,12 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
   const outputs = outputsOf(data, templates);
   // Branches (buttons, options, Valid / Not valid) come out of the bottom edge,
   // labelled, like n8n's sub-connections; the plain "next" stays on the right.
-  const branches = outputs.filter((o) => o.label && o.id);
+  const allBranches = outputs.filter((o) => o.label && o.id);
   const next = outputs.find((o) => !o.id);
+  // A single answer (one reply button…) and nothing else: it comes out of the
+  // right side, labelled there, like a plain "next". Several go along the bottom.
+  const side = !next && allBranches.length === 1 ? allBranches[0] : null;
+  const branches = side ? [] : allBranches;
   const problem = problemOf(data, outputs);
   const isStart = data.kind === 'start';
   // A port turns from "+" into a dot when connected (and back): React Flow
@@ -776,6 +780,12 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
         )}
       </div>
       {next && <OutPort nodeId={id} handle="" side="right" />}
+      {side && (
+        <span className={`jn-side${side.bad ? ' bad' : ''}`} data-testid="jn-out" data-handle={side.id}>
+          <OutPort nodeId={id} handle={side.id} side="right" />
+          <span className="jn-out-label">{side.label}</span>
+        </span>
+      )}
       {branches.length > 0 && (
         <div className="jn-ports">
           {branches.map((o) => (
@@ -925,8 +935,9 @@ function tidyLayout(nodes: Node<WaData>[], edges: Edge[], templates: TemplateIte
   }
   // The block plus the room its bottom ports take (labels and "+" under it).
   const height = (n: Node<WaData>) => {
-    const branches = outputsOf(n.data, templates).some((o) => o.id && o.label);
-    return (n.height || 60) + (branches ? 64 : 0);
+    const outs = outputsOf(n.data, templates);
+    const bottom = outs.filter((o) => o.id && o.label).length > (outs.length === 1 ? 1 : 0);
+    return (n.height || 60) + (bottom ? 64 : 0);
   };
   const cols = new Map<number, string[]>();
   for (const id of order) cols.set(depth.get(id)!, [...(cols.get(depth.get(id)!) || []), id]);
@@ -1059,10 +1070,13 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
     if (!src) return;
     // The plain "next": to the right. A branch (a bottom port): below and to
     // the right, one row per branch, so the branches fan out.
-    const outs = outputsOf(src.data as WaData, templates).filter((o) => o.id);
+    const all = outputsOf(src.data as WaData, templates);
+    const outs = all.filter((o) => o.id);
     const idx = outs.findIndex((o) => o.id === from.handle);
     const width = src.width || 240;
-    const position = from.handle && idx >= 0
+    // A lone answer comes out of the side, like a plain "next".
+    const onSide = outs.length === 1 && all.length === 1;
+    const position = from.handle && idx >= 0 && !onSide
       ? { x: src.position.x + width + 90, y: src.position.y + (src.height || 60) + 70 + idx * 110 }
       : { x: src.position.x + width + 110, y: src.position.y };
     let newId = '';

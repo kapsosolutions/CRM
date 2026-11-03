@@ -20817,3 +20817,40 @@ label.k-label,
   border-color: #9aa3ad;
   color: #0f172a;
 }
+
+/* One answer only (a single reply button): out of the right side, its label
+   just above the line, like n8n's "true" / "false". */
+.jn-side .jn-out-label {
+  position: absolute;
+  left: 100%;
+  top: 29px;
+  transform: translateY(-100%);
+  /* Clear of the "+" box, which sits 10px above the line. */
+  margin: -12px 0 0 10px;
+  max-width: 110px;
+  text-align: left;
+}
+.jn-side.bad .jn-out-label {
+  color: #dc2626;
+}
+
+/* The Flows map (FlowBuilderPage.tsx ScreenMap) in the same style: its node
+   types render their own card, so React Flow's wrapper stays bare. */
+.jn-canvas .react-flow__node-start,
+.jn-canvas .react-flow__node-screen,
+.jn-canvas .react-flow__node-flow,
+.jn-canvas .react-flow__node-block {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+.jn-field-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+}
+.jn-modal .flowref-select {
+  font-size: 13.5px;
+  padding: 8px 10px;
+}

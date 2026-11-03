@@ -8,6 +8,7 @@ import ReactFlow, {
   BackgroundVariant,
   Controls,
   Handle,
+  MarkerType,
   Position,
   ReactFlowProvider,
   BaseEdge,
@@ -15,6 +16,7 @@ import ReactFlow, {
   getBezierPath,
   useNodesState,
   useReactFlow,
+  useUpdateNodeInternals,
   type Edge,
   type EdgeProps,
   type Node,
@@ -1286,6 +1288,7 @@ function FlowEditor({
     ]);
     if (pos) setPositions((p) => ({ ...p, [`screen_${id}`]: pos }));
     else setActiveScreen(screens.length);
+    return `screen_${id}`;
   }
   /**
    * The screen shown when a dynamic list has nothing in it.
@@ -1405,6 +1408,7 @@ function FlowEditor({
     const id = `fl_${Date.now().toString(36)}`;
     setFlowLinks((ls) => [...ls, { id, flowId: '' }]);
     if (pos) setPositions((p) => ({ ...p, [`flink_${id}`]: pos }));
+    return `flink_${id}`;
   }
   function setFlowLinkFlow(id: string, flowId: string) {
     setFlowLinks((ls) => ls.map((l) => (l.id === id ? { ...l, flowId } : l)));
@@ -1491,6 +1495,7 @@ function FlowEditor({
     const b = makeBlock(spec, vertical.confirm);
     setBlocks((bs) => [...bs, b]);
     if (pos) setPositions((p) => ({ ...p, [`block_${b.id}`]: pos }));
+    return `block_${b.id}`;
   }
   function patchBlock(id: string, patch: Partial<FlowBlock>) {
     setBlocks((bs) => bs.map((b) => (b.id === id ? { ...b, ...patch } : b)));
@@ -1919,34 +1924,20 @@ interface ScreenNodeData {
   onChange: (id: string, patch: Partial<FlowScreen>) => void;
 }
 
-function ScreenMapNode({ data }: NodeProps<ScreenNodeData>) {
-  // Screens are form pages — the media header / body / footer belong to the one
-  // chat message that opens the flow, which is edited at flow level.
+// A screen (a form page of the WhatsApp Flow). Clicking it opens the screen
+// in the Build view, where its fields are edited on the phone preview.
+function ScreenMapNode({ id, data, selected }: NodeProps<ScreenNodeData>) {
   return (
-    <div className="map-node screen" onDoubleClick={() => data.onSelect(data.screenId)}>
-      <Handle type="target" position={Position.Left} className="fl-handle" />
-      <div className="map-node-title">{data.title}</div>
-      <div className="map-node-sub">{data.subtitle}</div>
-
-      <div className="map-node-handles">
-        {data.handles.map((h) => (
-          <div className={`map-node-port${h.connected ? '' : ' open'}`} key={h.id}>
-            <span className="map-port-label">{h.label}</span>
-            <Handle
-              type="source"
-              id={h.id}
-              position={Position.Right}
-              className={`fl-handle row${h.connected ? '' : ' open'}`}
-              title={h.connected ? 'Connected — drag to re-route' : 'Not connected yet — drag to a screen or block'}
-              style={{ top: 'auto', transform: 'none', position: 'relative' }}
-            />
-          </div>
-        ))}
-      </div>
-      <button className="map-node-edit" onClick={() => data.onSelect(data.screenId)} title="Edit screen">
-        <span className="material-icons">tune</span>
-      </button>
-    </div>
+    <MapCard
+      nodeId={id}
+      kind="screen"
+      color="#25d366"
+      icon="smartphone"
+      title={data.title}
+      sub={data.subtitle}
+      outputs={data.handles.map((h) => ({ id: h.id, label: h.label }))}
+      selected={selected}
+    />
   );
 }
 
@@ -1957,21 +1948,30 @@ interface FlowRefData {
   onCreateFlow: (linkId: string) => void;
   onRemove: (linkId: string) => void;
 }
-function FlowRefNode({ data }: NodeProps<FlowRefData>) {
+function FlowRefNode({ id, data, selected }: NodeProps<FlowRefData>) {
+  const name = data.flows.find((f) => f._id === data.link.flowId)?.name || '';
+  return (
+    <MapCard
+      nodeId={id}
+      kind="flow"
+      color="#6366f1"
+      icon="account_tree"
+      title="Flow hand-off"
+      sub={name || 'Choose a flow'}
+      warn={data.link.flowId ? '' : 'Choose the flow to hand off to'}
+      selected={selected}
+    />
+  );
+}
+
+/** The flow hand-off's settings (its pop-up): which flow, or a new one. */
+function FlowRefFields({ data }: { data: FlowRefData }) {
   const { link, flows } = data;
   return (
-    <div className="map-node flowref">
-      <Handle type="target" position={Position.Left} className="fl-handle" />
-      <button className="fl-del" onClick={() => data.onRemove(link.id)} title="Remove">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-          <line x1="5" y1="5" x2="19" y2="19" />
-          <line x1="19" y1="5" x2="5" y2="19" />
-        </svg>
-      </button>
-      <div className="flowref-head">
-        <span className="material-icons">account_tree</span> Flow hand-off
-      </div>
+    <div className="fl-node jn-fields">
+      <label className="jn-field-label" htmlFor={`flowref-${link.id}`}>Hand the customer over to</label>
       <select
+        id={`flowref-${link.id}`}
         className="flowref-select nodrag"
         value={link.flowId}
         onChange={(e) => {
@@ -2073,10 +2073,6 @@ const MEDIA_BLOCKS = new Set<FlowBlockKind>([
 const BLOCK_SINGLE_OUT = new Set<FlowBlockKind>([
   'message', 'cta', 'call', 'template', 'catalog', 'orderconfirm', 'orderdetails',
 ]);
-// Blocks that branch on an outcome rather than simply continuing. Payment has
-// two: the customer paid, or they didn't — and the second is not the same as
-// "nothing happened", so it needs its own wire.
-const BLOCK_OUTCOME_OUT = new Set<FlowBlockKind>(['payment']);
 const BLK_HEADER_ICON: Record<FlowBlockHeader, string> = {
   none: 'block',
   image: 'image',
@@ -2085,16 +2081,18 @@ const BLK_HEADER_ICON: Record<FlowBlockHeader, string> = {
 };
 const BLK_ACCEPT: Record<FlowBlockHeader, string> = { none: '', image: 'image/*', video: 'video/*', pdf: 'application/pdf' };
 
-// Rich, inline-editable block node — mirrors the Journeys "Send message" node
-// (media header tabs + upload tile + text + styled buttons / fields).
-function BlockNode({
+// A block's settings (media header tabs + upload tile + text + buttons /
+// fields), shown in its pop-up when the block is clicked on the map. Its ports
+// are on the map card (MapCard), not here.
+function BlockFields({
   data,
-}: NodeProps<{
-  block: FlowBlock;
-  onChange: (id: string, patch: Partial<FlowBlock>) => void;
-  onRemove: (id: string) => void;
-  onDesignPdf?: (id: string) => void;
-}>) {
+}: {
+  data: {
+    block: FlowBlock;
+    onChange: (id: string, patch: Partial<FlowBlock>) => void;
+    onDesignPdf?: (id: string) => void;
+  };
+}) {
   const b = data.block;
   const vertical = useVertical();
   // The confirmation blocks are named for the business type, so a clinic's
@@ -2126,20 +2124,7 @@ function BlockNode({
   const setOption = (i: number, v: string) => patch({ options: (b.options || []).map((x, idx) => (idx === i ? v : x)) });
 
   return (
-    <div className="fl-node block-node">
-      <Handle type="target" position={Position.Left} className="fl-handle" />
-      <button className="fl-del" onClick={() => data.onRemove(b.id)} title="Delete block">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-          <line x1="5" y1="5" x2="19" y2="19" />
-          <line x1="19" y1="5" x2="5" y2="19" />
-        </svg>
-      </button>
-
-      <div className="fl-node-head" style={{ color: meta.color }}>
-        <span className="material-icons">{meta.icon}</span>
-        {meta.label}
-      </div>
-
+    <div className="fl-node block-node jn-fields" data-kind={b.kind} style={{ ['--k' as string]: meta.color }}>
       {MEDIA_BLOCKS.has(b.kind) && (
         <div className="fl-header">
           <div className="fl-header-tabs">
@@ -2403,7 +2388,6 @@ function BlockNode({
               <button className="fl-row-del nodrag" onClick={() => patch({ buttons: (b.buttons || []).filter((_, idx) => idx !== i) })} title="Remove">
                 <span className="material-icons">close</span>
               </button>
-              <Handle type="source" id={`rbtn-${i}`} position={Position.Right} className="fl-handle row" />
             </div>
           ))}
           {(b.buttons || []).length < 3 && (
@@ -2440,13 +2424,11 @@ function BlockNode({
           <div className="fl-rows">
             <div className="fl-row branch yes">
               <span className="material-icons fl-row-ic ok">check_circle</span>
-              <span className="fl-branch-label">Valid</span>
-              <Handle type="source" id="valid" position={Position.Right} className="fl-handle row" />
+              <span className="fl-branch-label">Valid: the customer shared a location</span>
             </div>
             <div className="fl-row branch no">
               <span className="material-icons fl-row-ic bad">cancel</span>
-              <span className="fl-branch-label">Not valid</span>
-              <Handle type="source" id="invalid" position={Position.Right} className="fl-handle row" />
+              <span className="fl-branch-label">Not valid: they typed something else</span>
             </div>
           </div>
         </>
@@ -2532,39 +2514,211 @@ function BlockNode({
         </div>
       )}
 
-      {BLOCK_SINGLE_OUT.has(b.kind) && (
-        <Handle type="source" id="next" position={Position.Right} className="fl-handle" />
+      {MAP_OUT_HINT[b.kind] && <p className="jn-out-hint">{MAP_OUT_HINT[b.kind]}</p>}
+    </div>
+  );
+}
+
+/** Where a block's connections come out, said in its pop-up. */
+const MAP_OUT_HINT: Partial<Record<FlowBlockKind, string>> = {
+  reply: 'Each button gets its own output on the block: connect it to what happens when the customer taps it.',
+  paymethod: 'Each button gets its own output on the block.',
+  pdfdoc: 'Each button gets its own output on the block.',
+  list: 'Each option gets its own output on the block.',
+  location: 'Two outputs: Valid (a location was shared) and Not valid (anything else).',
+  // Labelled outputs, because wiring a confirmation to the wrong one tells an
+  // unpaid customer their order is confirmed.
+  payment: 'Two outputs: Paid (only when the money actually arrives, so the confirmation goes here) and Not paid.',
+  catalog: 'The output fires when the customer sends their cart: connect it to a Payment type block.',
+};
+
+// ---------------------------------------------------------------------------
+// The map's blocks in the Journeys (n8n) style: a compact card with an icon,
+// a name and one line; outputs labelled, along the bottom when there are
+// several, on the right when there's one; a free output shows a "+" that is
+// the port itself (click: add the next step; drag: connect it).
+// ---------------------------------------------------------------------------
+const MAP_EDGE_GREY = '#9aa3ad';
+interface MapOut {
+  id: string;
+  label: string;
+}
+interface MapCanvasApi {
+  /** `${nodeId}|${handle}` of every connected output. */
+  connected: Set<string>;
+  addFrom: (nodeId: string, handle: string) => void;
+}
+const MapCtx = createContext<MapCanvasApi>({ connected: new Set(), addFrom: () => {} });
+
+function MapPort({ nodeId, handle, side }: { nodeId: string; handle: string; side: 'right' | 'bottom' }) {
+  const { connected, addFrom } = useContext(MapCtx);
+  const position = side === 'right' ? Position.Right : Position.Bottom;
+  if (connected.has(`${nodeId}|${handle}`)) {
+    return <Handle type="source" id={handle} position={position} className={`jn-handle out ${side}`} />;
+  }
+  return (
+    <>
+      <span className={`jn-dot ${side}`} aria-hidden="true" />
+      <span className={`jn-stub ${side}`}>
+        <span className="jn-stub-line" />
+        <Handle
+          type="source"
+          id={handle}
+          position={position}
+          className="jn-plus"
+          title="Click to add the next step, or drag onto a block to connect it"
+          onClick={(e) => {
+            e.stopPropagation();
+            addFrom(nodeId, handle);
+          }}
+          data-testid="jn-plus"
+        >
+          <span className="material-icons" aria-hidden="true">add</span>
+        </Handle>
+      </span>
+    </>
+  );
+}
+
+function MapCard({
+  nodeId, kind, color, icon, title, sub, warn = '', target = true, next = '', outputs = [], selected = false,
+}: {
+  nodeId: string;
+  kind: string;
+  color: string;
+  icon: string;
+  title: string;
+  sub: string;
+  warn?: string;
+  target?: boolean;
+  /** The plain "next" output's id, on the right side, unlabelled. */
+  next?: string;
+  /** Labelled outputs. */
+  outputs?: MapOut[];
+  selected?: boolean;
+}) {
+  // One labelled output and no plain one: on the right, labelled there.
+  const side = !next && outputs.length === 1 ? outputs[0] : null;
+  const bottom = side ? [] : outputs;
+  const { connected } = useContext(MapCtx);
+  const portsKey = [next, ...outputs.map((o) => o.id)].map((h) => `${h}:${connected.has(`${nodeId}|${h}`) ? 1 : 0}`).join(',');
+  const updateInternals = useUpdateNodeInternals();
+  useEffect(() => {
+    updateInternals(nodeId);
+  }, [portsKey, nodeId, updateInternals]);
+  return (
+    <div
+      className={`jn-node kind-${kind}${selected ? ' selected' : ''}${warn ? ' warn' : ''}${bottom.length ? ' has-ports' : ''}`}
+      style={{ ['--k' as string]: color, ...(bottom.length ? { minWidth: Math.max(210, bottom.length * 92 + 24) } : {}) }}
+      data-testid="jn-node"
+      data-kind={kind}
+      title={kind === 'start' ? undefined : 'Click to edit'}
+    >
+      {target && <Handle type="target" position={Position.Left} className="jn-handle in" />}
+      {kind === 'start' && <span className="jn-bolt material-icons" aria-hidden="true">bolt</span>}
+      <div className="jn-main">
+        <span className="jn-ic"><span className="material-icons">{icon}</span></span>
+        <div className="jn-txt">
+          <div className="jn-title">{title}</div>
+          <div className="jn-sub" data-testid="jn-sub">{sub}</div>
+        </div>
+        {warn && <span className="jn-warn material-icons" title={warn} aria-label={warn} data-testid="jn-warn">error</span>}
+      </div>
+      {next && <MapPort nodeId={nodeId} handle={next} side="right" />}
+      {side && (
+        <span className="jn-side" data-testid="jn-out" data-handle={side.id}>
+          <MapPort nodeId={nodeId} handle={side.id} side="right" />
+          <span className="jn-out-label">{side.label}</span>
+        </span>
       )}
-      {/* Payment: one wire per outcome. Labelled, because an unlabelled pair
-          of dots gives no clue which is which — and wiring a confirmation to
-          the wrong one tells an unpaid customer their order is confirmed. */}
-      {BLOCK_OUTCOME_OUT.has(b.kind) && (
-        <div className="fl-outcomes">
-          <div className="fl-outcome">
-            <span className={`fl-outcome-lbl paid${b.nextTarget ? ' on' : ''}`}>Paid</span>
-            <Handle type="source" id="next" position={Position.Right} className="fl-handle paid" />
-          </div>
-          <div className="fl-outcome">
-            <span className={`fl-outcome-lbl failed${b.invalidTarget ? ' on' : ''}`}>Not paid</span>
-            <Handle type="source" id="invalid" position={Position.Right} className="fl-handle failed" />
-          </div>
+      {bottom.length > 0 && (
+        <div className="jn-ports">
+          {bottom.map((o) => (
+            <div className="jn-port" key={o.id} data-testid="jn-out" data-handle={o.id}>
+              <MapPort nodeId={nodeId} handle={o.id} side="bottom" />
+              <span className="jn-out-label">{o.label}</span>
+            </div>
+          ))}
         </div>
       )}
     </div>
   );
 }
 
+const BUTTON_KINDS = new Set<FlowBlockKind>(['reply', 'pdfdoc', 'paymethod', 'orderconfirm', 'orderdetails']);
+/**
+ * A block's outputs, with the handle ids the map's wiring uses (setBlockTarget):
+ * `next`, `rbtn-<i>` (buttons, and list options: the runtime routes both
+ * through buttonTargets[i]), `valid` / `invalid`.
+ */
+function blockOutputs(b: FlowBlock): { next: string; outputs: MapOut[] } {
+  if (b.kind === 'location') return { next: '', outputs: [{ id: 'valid', label: 'Valid' }, { id: 'invalid', label: 'Not valid' }] };
+  if (b.kind === 'payment') return { next: '', outputs: [{ id: 'next', label: 'Paid' }, { id: 'invalid', label: 'Not paid' }] };
+  if (b.kind === 'list') return { next: '', outputs: (b.options || []).map((o, i) => ({ id: `rbtn-${i}`, label: o || `Option ${i + 1}` })) };
+  const buttons = BUTTON_KINDS.has(b.kind) ? (b.buttons || []).map((t, i) => ({ id: `rbtn-${i}`, label: t || `Button ${i + 1}` })) : [];
+  return { next: BLOCK_SINGLE_OUT.has(b.kind) ? 'next' : '', outputs: buttons };
+}
+
+const plainLine = (s?: string) =>
+  String(s || '').replace(/<[^>]*>?/g, ' ').split('\n').map((x) => x.replace(/\s+/g, ' ').trim()).find(Boolean) || '';
+const nOf = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
+
+/** The block's one line under its name. Branching blocks say what they ask; the answers are the outputs. */
+function blockSummary(b: FlowBlock): string {
+  const media = b.header && b.header !== 'none' ? `${b.header === 'pdf' ? 'Document' : b.header === 'image' ? 'Image' : 'Video'}${b.headerMediaUrl ? '' : ' (not uploaded)'}` : '';
+  const text = plainLine(b.text);
+  switch (b.kind) {
+    case 'message': return [media, text].filter(Boolean).join(' · ') || 'Empty message';
+    case 'reply':
+    case 'paymethod': return `${media ? `${media} · ` : ''}${nOf((b.buttons || []).length, 'button', 'buttons')}`;
+    case 'cta': return [b.ctaLabel || 'Button', b.ctaUrl && b.ctaUrl !== 'https://' ? b.ctaUrl : 'link not set'].join(' → ');
+    case 'call': return [b.callLabel || 'Call', b.callPhone && b.callPhone !== '+91' ? b.callPhone : 'number not set'].join(' · ');
+    case 'location': return 'Asks for a location';
+    case 'list': return `${b.listTitle || 'Menu'} · ${nOf((b.options || []).length, 'option', 'options')}`;
+    case 'template': return b.templateName || 'Template not chosen';
+    case 'payment': return 'WhatsApp Pay (UPI)';
+    case 'catalog': return `${b.ctaLabel || 'View items'} · waits for the cart`;
+    case 'pdfdoc': return `${b.pdfFileName || 'PDF'}${(b.buttons || []).length ? ` · ${nOf((b.buttons || []).length, 'button', 'buttons')}` : ''}`;
+    case 'restart': return 'Back to Start';
+    default: return text || '';
+  }
+}
+function blockProblem(b: FlowBlock): string {
+  const text = String(b.text || '').trim();
+  if (b.kind === 'message' && !text && !(b.header && b.header !== 'none' && b.headerMediaUrl)) return 'Add a message or a file';
+  if ((b.kind === 'reply' || b.kind === 'list') && !text) return 'Add the message text';
+  if (b.kind === 'cta' && (!b.ctaUrl || b.ctaUrl === 'https://')) return 'Add the link';
+  if (b.kind === 'call' && (!b.callPhone || b.callPhone === '+91')) return 'Add the phone number';
+  if (b.kind === 'template' && !b.templateName) return 'Choose a template';
+  return '';
+}
+
+function BlockNode({ id, data, selected }: NodeProps<{ block: FlowBlock }>) {
+  const b = data.block;
+  const vertical = useVertical();
+  const meta = BLOCK_META[b.kind];
+  const outs = blockOutputs(b);
+  return (
+    <MapCard
+      nodeId={id}
+      kind={b.kind}
+      color={meta.color}
+      icon={meta.icon}
+      title={blockLabel(b.kind, vertical)}
+      sub={blockSummary(b)}
+      warn={blockProblem(b)}
+      next={outs.next}
+      outputs={outs.outputs}
+      selected={selected}
+    />
+  );
+}
+
 // Entry marker. Its single output port designates the flow's first node
 // (a screen or a block). At runtime the flow opens on that node.
-function StartMapNode() {
+function StartMapNode({ id, selected }: NodeProps) {
   return (
-    <div className="map-node start">
-      <div className="map-node-title">
-        <span className="material-icons" style={{ color: '#107c3f', verticalAlign: 'middle' }}>play_arrow</span> Start
-      </div>
-      <div className="map-node-sub">Flow entry</div>
-      <Handle type="source" id="start" position={Position.Right} className="fl-handle" />
-    </div>
+    <MapCard nodeId={id} kind="start" color="#107c3f" icon="play_arrow" title="Start" sub="Where the flow begins" target={false} next="start" selected={selected} />
   );
 }
 
@@ -2792,6 +2946,194 @@ const BLOCK_PALETTE: { label: string; icon: string; color: string; spec: BlockSp
   { label: 'Start over', icon: 'restart_alt', color: '#25d366', spec: { kind: 'restart' } },
 ];
 
+/** A palette entry's label, with the confirmation entries named for the business type. */
+function paletteLabel(p: (typeof BLOCK_PALETTE)[number], v: VerticalConfig): string {
+  if (p.spec.kind === 'orderconfirm') return v.confirm.label;
+  if (p.spec.kind === 'orderdetails') return v.confirm.detailsLabel;
+  // The PDF variants keep their suffix so the two stay distinguishable.
+  if (p.spec.kind === 'pdfdoc' && p.spec.preset === 'confirm') return `${v.confirm.label} (PDF)`;
+  if (p.spec.kind === 'pdfdoc' && p.spec.preset === 'cancel') return `${v.confirm.cancel.pdfTitle} (PDF)`;
+  return p.label;
+}
+
+type MapAddPick = { type: 'screen' } | { type: 'flow' } | { type: 'block'; spec: BlockSpec };
+interface MapAddItem {
+  label: string;
+  icon: string;
+  color: string;
+  pick: MapAddPick;
+}
+function mapAddItems(v: VerticalConfig): MapAddItem[] {
+  return [
+    { label: 'Screen', icon: 'smartphone', color: '#25d366', pick: { type: 'screen' } },
+    { label: 'Flow hand-off', icon: 'account_tree', color: '#6366f1', pick: { type: 'flow' } },
+    ...BLOCK_PALETTE.map((p) => ({ label: paletteLabel(p, v), icon: p.icon, color: p.color, pick: { type: 'block' as const, spec: p.spec } })),
+  ];
+}
+const testSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+
+/** A map node's outputs: the plain one on the right, and the labelled ones. */
+function mapPortsOf(n: Node | undefined): { next: string; outputs: MapOut[] } {
+  if (!n) return { next: '', outputs: [] };
+  if (n.type === 'start') return { next: 'start', outputs: [] };
+  if (n.type === 'screen') return { next: '', outputs: (n.data as ScreenNodeData).handles.map((h) => ({ id: h.id, label: h.label })) };
+  if (n.type === 'block') return blockOutputs((n.data as { block: FlowBlock }).block);
+  return { next: '', outputs: [] };
+}
+/** Whether an output comes out of the bottom edge (several labelled ones) rather than the right. */
+function isBottomPort(n: Node | undefined, handle: string): boolean {
+  const { next, outputs } = mapPortsOf(n);
+  if (!next && outputs.length === 1) return false;
+  return outputs.some((o) => o.id === handle);
+}
+
+/** Closes a pop-up on Escape. */
+function useEscape(onClose: () => void) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+}
+
+/** The pop-up shell shared by a block's and a flow hand-off's settings. */
+function MapModal({
+  color, icon, title, sub, deleteLabel, onDelete, onClose, children,
+}: {
+  color: string;
+  icon: string;
+  title: string;
+  sub: string;
+  deleteLabel: string;
+  onDelete: () => void;
+  onClose: () => void;
+  children: React.ReactNode;
+}) {
+  useEscape(onClose);
+  return (
+    <div className="jn-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="jn-editor-backdrop">
+      <div className="jn-modal" role="dialog" aria-modal="true" aria-label={`${title} settings`} data-testid="jn-editor" style={{ ['--k' as string]: color }}>
+        <header className="jn-modal-head">
+          <span className="jn-ic"><span className="material-icons">{icon}</span></span>
+          <div className="jn-modal-titles">
+            <h3>{title}</h3>
+            <p>{sub}</p>
+          </div>
+          <button type="button" className="jn-modal-x" onClick={onClose} aria-label="Close">
+            <span className="material-icons">close</span>
+          </button>
+        </header>
+        <div className="jn-modal-body">{children}</div>
+        <footer className="jn-modal-foot">
+          <button type="button" className="k-btn ghost sm danger" onClick={onDelete} data-testid="jn-editor-delete">
+            <span className="material-icons">delete_outline</span> {deleteLabel}
+          </button>
+          <span className="jn-modal-note">Changes apply straight away. Save the flow when you’re done.</span>
+          <button type="button" className="k-btn sm" onClick={onClose} data-testid="jn-editor-done">Done</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+/** "+" on a free output: choose what comes next; it's placed beside the output and connected. */
+function MapAddMenu({ items, onPick, onClose }: { items: MapAddItem[]; onPick: (p: MapAddItem) => void; onClose: () => void }) {
+  useEscape(onClose);
+  return (
+    <div className="jn-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="jn-modal jn-add" role="dialog" aria-modal="true" aria-label="Add the next step" data-testid="jn-add-menu">
+        <header className="jn-modal-head">
+          <div className="jn-modal-titles">
+            <h3>Add the next step</h3>
+            <p>It’s placed next to this output and connected.</p>
+          </div>
+          <button type="button" className="jn-modal-x" onClick={onClose} aria-label="Close">
+            <span className="material-icons">close</span>
+          </button>
+        </header>
+        <div className="jn-add-grid">
+          {items.map((p) => (
+            <button type="button" key={p.label} className="jn-add-item" onClick={() => onPick(p)} style={{ ['--k' as string]: p.color }} data-testid={`jn-add-${testSlug(p.label)}`}>
+              <span className="jn-ic"><span className="material-icons">{p.icon}</span></span>
+              {p.label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * "Tidy up": columns left to right in the order the flow runs (Start, then
+ * what it leads to, output by output), each column centred on the tallest.
+ * Nodes nothing leads to go in a last column.
+ */
+function mapTidy(nodes: Node[], edges: Edge[]): Map<string, { x: number; y: number }> {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const portRank = (e: Edge) => {
+    const { next, outputs } = mapPortsOf(byId.get(e.source));
+    const ids = [next, ...outputs.map((o) => o.id)].filter(Boolean);
+    const i = ids.indexOf(e.sourceHandle || '');
+    return i < 0 ? 99 : i;
+  };
+  const out = new Map<string, string[]>();
+  for (const e of [...edges].sort((a, b) => portRank(a) - portRank(b))) {
+    if (!byId.has(e.target)) continue;
+    out.set(e.source, [...(out.get(e.source) || []), e.target]);
+  }
+  const depth = new Map<string, number>([['start', 0]]);
+  const order: string[] = [];
+  const queue = byId.has('start') ? ['start'] : [];
+  while (queue.length) {
+    const id = queue.shift()!;
+    order.push(id);
+    for (const t of out.get(id) || []) {
+      if (depth.has(t)) continue;
+      depth.set(t, (depth.get(id) || 0) + 1);
+      queue.push(t);
+    }
+  }
+  const last = Math.max(0, ...depth.values()) + 1;
+  for (const n of nodes) {
+    if (!depth.has(n.id)) {
+      depth.set(n.id, last);
+      order.push(n.id);
+    }
+  }
+  // The node plus the room its bottom ports take (labels and "+" under it).
+  const height = (n: Node) => {
+    const { next, outputs } = mapPortsOf(n);
+    const bottom = outputs.length > (next ? 0 : 1);
+    return (n.height || 60) + (bottom ? 64 : 0);
+  };
+  const cols = new Map<number, string[]>();
+  for (const id of order) cols.set(depth.get(id)!, [...(cols.get(depth.get(id)!) || []), id]);
+  const GAP_Y = 48;
+  const colH = (ids: string[]) => ids.reduce((s, id) => s + height(byId.get(id)!), 0) + GAP_Y * (ids.length - 1);
+  const tallest = Math.max(0, ...[...cols.values()].map(colH));
+  // Each column starts clear of the widest card before it, plus room for its
+  // side label and "+" (screens with several options are wide).
+  const GAP_X = 170;
+  const colX = new Map<number, number>();
+  let x = 80;
+  for (const d of [...cols.keys()].sort((a, b) => a - b)) {
+    colX.set(d, x);
+    x += Math.max(190, ...cols.get(d)!.map((id) => byId.get(id)!.width || 220)) + GAP_X;
+  }
+  const pos = new Map<string, { x: number; y: number }>();
+  for (const [d, ids] of cols) {
+    let y = 80 + (tallest - colH(ids)) / 2;
+    for (const id of ids) {
+      pos.set(id, { x: colX.get(d)!, y: Math.round(y) });
+      y += height(byId.get(id)!) + GAP_Y;
+    }
+  }
+  return pos;
+}
+
 interface ScreenMapProps {
   screens: FlowScreen[];
   blocks: FlowBlock[];
@@ -2816,9 +3158,10 @@ interface ScreenMapProps {
   onCreateFlow: (linkId: string) => void;
   onRemoveFlowLink: (linkId: string) => void;
   onMovePos: (id: string, pos: { x: number; y: number }) => void;
-  onAddScreen: (pos?: { x: number; y: number }) => void;
-  onAddBlock: (spec: BlockSpec, pos?: { x: number; y: number }) => void;
-  onAddFlowLink: (pos?: { x: number; y: number }) => void;
+  /** Each returns the new node's id (screen_… / block_… / flink_…). */
+  onAddScreen: (pos?: { x: number; y: number }) => string;
+  onAddBlock: (spec: BlockSpec, pos?: { x: number; y: number }) => string;
+  onAddFlowLink: (pos?: { x: number; y: number }) => string;
 }
 
 function ScreenMap(props: ScreenMapProps) {
@@ -2897,7 +3240,8 @@ function ScreenMapInner({
     list.push({
       id: 'start',
       type: 'start',
-      position: positions.start || { x: -200, y: 60 },
+      // Far enough left that its "+" doesn't sit on the first screen.
+      position: positions.start || { x: -320, y: 60 },
       data: {},
       deletable: false,
     });
@@ -2946,7 +3290,11 @@ function ScreenMapInner({
       list.push({
         id: `screen_${s.id}`,
         type: 'screen',
-        position: positions[`screen_${s.id}`] || { x: i * 280, y: 60 },
+        // Room for a card with several bottom ports, and a side label and "+".
+        position: positions[`screen_${s.id}`] || { x: i * 380, y: 60 },
+        // Screens are removed in the Build view; a Delete key here would only
+        // hide the node until the next change.
+        deletable: false,
         data: { title: s.title || s.id, subtitle: `${fieldCount} block${fieldCount === 1 ? '' : 's'}`, handles, screenId: s.id, screen: s, onSelect: stable.onSelect, onChange: stable.onScreenChange },
       });
     });
@@ -2987,7 +3335,11 @@ function ScreenMapInner({
 
   const edges: Edge[] = useMemo(() => {
     const es: Edge[] = [];
-    const line = { animated: true, style: { stroke: '#25d366', strokeWidth: 2 } };
+    const line = {
+      animated: false,
+      style: { stroke: MAP_EDGE_GREY, strokeWidth: 2 },
+      markerEnd: { type: MarkerType.ArrowClosed, color: MAP_EDGE_GREY, width: 16, height: 16 },
+    };
     // Start → entry node.
     if (entryTarget) {
       es.push({ id: 'e_start', source: 'start', sourceHandle: 'start', target: entryTarget, data: { src: 'start', id: 'start', handle: 'start' }, ...line });
@@ -3084,6 +3436,62 @@ function ScreenMapInner({
   function onEdgesDelete(removed: Edge[]) {
     for (const e of removed) removeEdge(e.data as EdgeRef | undefined);
   }
+  // The Delete key on a selected block or flow hand-off removes it from the
+  // flow too, not just from the canvas.
+  function onNodesDelete(removed: Node[]) {
+    for (const n of removed) {
+      if (n.id.startsWith('block_')) onBlockRemove(n.id.slice(6));
+      else if (n.id.startsWith('flink_')) onRemoveFlowLink(n.id.slice(6));
+    }
+  }
+
+  // The node whose pop-up is open (block_… / flink_…), and the free output a
+  // "+" was clicked on.
+  const [editing, setEditing] = useState<string | null>(null);
+  const [adding, setAdding] = useState<{ nodeId: string; handle: string } | null>(null);
+  const connected = useMemo(() => new Set(edges.map((e) => `${e.source}|${e.sourceHandle || ''}`)), [edges]);
+  const canvasApi = useMemo<MapCanvasApi>(
+    () => ({ connected, addFrom: (nodeId, handle) => setAdding({ nodeId, handle }) }),
+    [connected],
+  );
+  const addItems = useMemo(() => mapAddItems(vertical), [vertical]);
+
+  function onNodeClick(_e: React.MouseEvent, n: Node) {
+    if (n.type === 'screen') onSelect(n.id.slice(7));
+    else if (n.type === 'block' || n.type === 'flow') setEditing(n.id);
+  }
+
+  function addAfter(p: MapAddItem) {
+    const from = adding;
+    setAdding(null);
+    if (!from) return;
+    const src = rf.getNode(from.nodeId);
+    if (!src) return;
+    // The plain "next" (or a lone answer): to the right. A branch (a bottom
+    // port): below and to the right, one row per branch, so they fan out.
+    const width = src.width || 220;
+    const idx = mapPortsOf(src).outputs.findIndex((o) => o.id === from.handle);
+    const position = isBottomPort(src, from.handle)
+      ? { x: src.position.x + width + 90, y: src.position.y + (src.height || 60) + 70 + idx * 110 }
+      : { x: src.position.x + width + 110, y: src.position.y };
+    const newId =
+      p.pick.type === 'screen' ? onAddScreen(position)
+        : p.pick.type === 'flow' ? onAddFlowLink(position)
+          : onAddBlock(p.pick.spec, position);
+    onConnect({ source: from.nodeId, sourceHandle: from.handle, target: newId, targetHandle: null });
+    // Straight into the new block's settings (a screen is edited in Build).
+    if (p.pick.type !== 'screen') setTimeout(() => setEditing(newId), 0);
+  }
+
+  function tidy() {
+    const pos = mapTidy(rf.getNodes(), edges);
+    for (const [id, p] of pos) commitPos(id, p);
+    setTimeout(() => rf.fitView({ padding: 0.3, maxZoom: 1, duration: 300 }), 50);
+  }
+
+  const editingBlock = editing?.startsWith('block_') ? blocks.find((b) => `block_${b.id}` === editing) : undefined;
+  const editingLink = editing?.startsWith('flink_') ? flowLinks.find((l) => `flink_${l.id}` === editing) : undefined;
+  const closeEditor = () => setEditing(null);
 
   function onDragOver(e: React.DragEvent) {
     e.preventDefault();
@@ -3108,53 +3516,102 @@ function ScreenMapInner({
     <div className="flow-map-layout">
       <aside className="flow-palette map-palette">
         <div className="fp-title">Blocks</div>
-        <p className="fp-hint">Drag onto the canvas, then connect the green dots.</p>
+        <p className="fp-hint">Drag onto the canvas, or click a “+” on a block. Drag a “+” onto a block to connect it.</p>
         <div className="pal-item" draggable onDragStart={(e) => onPaletteDragStart(e, { type: 'screen' })}>
           <span className="material-icons" style={{ color: '#25d366' }}>smartphone</span> Screen
         </div>
         <div className="pal-item" draggable onDragStart={(e) => onPaletteDragStart(e, { type: 'flow' })}>
           <span className="material-icons" style={{ color: '#6366f1' }}>account_tree</span> Flow hand-off
         </div>
-        {BLOCK_PALETTE.map((p) => {
-          // Rename the confirmation entries for the business type. The PDF
-          // variant keeps its suffix so the two stay distinguishable.
-          const label =
-            p.spec.kind === 'orderconfirm'
-              ? vertical.confirm.label
-              : p.spec.kind === 'orderdetails'
-                ? vertical.confirm.detailsLabel
-                : p.spec.kind === 'pdfdoc' && p.spec.preset === 'confirm'
-                  ? `${vertical.confirm.label} (PDF)`
-                  : p.spec.kind === 'pdfdoc' && p.spec.preset === 'cancel'
-                    ? `${vertical.confirm.cancel.pdfTitle} (PDF)`
-                    : p.label;
-          return (
-            <div key={p.label} className="pal-item" draggable onDragStart={(e) => onPaletteDragStart(e, { type: 'block', spec: p.spec })}>
-              <span className="material-icons" style={{ color: p.color }}>{p.icon}</span> {label}
-            </div>
-          );
-        })}
+        {BLOCK_PALETTE.map((p) => (
+          <div key={p.label} className="pal-item" draggable onDragStart={(e) => onPaletteDragStart(e, { type: 'block', spec: p.spec })}>
+            <span className="material-icons" style={{ color: p.color }}>{p.icon}</span> {paletteLabel(p, vertical)}
+          </div>
+        ))}
       </aside>
-      <div className="flow-map-canvas" onDrop={onDrop} onDragOver={onDragOver}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          nodeTypes={mapNodeTypes}
-          edgeTypes={mapEdgeTypes}
-          onConnect={onConnect}
-          onNodesChange={onNodesChange}
-          onNodeDragStop={onNodeDragStop}
-          onEdgesDelete={onEdgesDelete}
-          fitView
-          fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
-          minZoom={0.3}
-          defaultEdgeOptions={{ animated: true, style: { stroke: '#25d366', strokeWidth: 2 } }}
-          proOptions={{ hideAttribution: true }}
+      <div className="flow-map-canvas jn-canvas" onDrop={onDrop} onDragOver={onDragOver} data-testid="flow-map-canvas">
+        <button
+          type="button"
+          className="jn-tidy"
+          onClick={tidy}
+          title="Lay the map out left to right, in the order the flow runs"
+          data-testid="jn-tidy"
         >
-          <Background variant={BackgroundVariant.Dots} gap={18} size={1.6} color="#c9c2b6" />
-          <Controls />
-        </ReactFlow>
+          <span className="material-icons">auto_fix_high</span> Tidy up
+        </button>
+        <MapCtx.Provider value={canvasApi}>
+          <ReactFlow
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={mapNodeTypes}
+            edgeTypes={mapEdgeTypes}
+            onConnect={onConnect}
+            onNodesChange={onNodesChange}
+            onNodeDragStop={onNodeDragStop}
+            onNodeClick={onNodeClick}
+            onNodesDelete={onNodesDelete}
+            onEdgesDelete={onEdgesDelete}
+            // While a pop-up is open, Backspace edits text, it never deletes a block.
+            deleteKeyCode={editing || adding ? null : ['Backspace', 'Delete']}
+            fitView
+            fitViewOptions={{ padding: 0.3, maxZoom: 1 }}
+            minZoom={0.3}
+            defaultEdgeOptions={{ animated: false, style: { stroke: MAP_EDGE_GREY, strokeWidth: 2 } }}
+            connectionLineStyle={{ stroke: MAP_EDGE_GREY, strokeWidth: 2 }}
+            // A click on a "+" opens "Add the next step"; connecting is by dragging.
+            connectOnClick={false}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background variant={BackgroundVariant.Dots} gap={18} size={1.6} color="#c9c2b6" />
+            <Controls />
+          </ReactFlow>
+        </MapCtx.Provider>
       </div>
+      {editingBlock && (
+        <MapModal
+          color={BLOCK_META[editingBlock.kind].color}
+          icon={BLOCK_META[editingBlock.kind].icon}
+          title={blockLabel(editingBlock.kind, vertical)}
+          sub={blockSummary(editingBlock)}
+          deleteLabel="Delete block"
+          onDelete={() => {
+            setEditing(null);
+            stable.onBlockRemove(editingBlock.id);
+          }}
+          onClose={closeEditor}
+        >
+          <BlockFields
+            data={{
+              block: editingBlock,
+              onChange: stable.onBlockChange,
+              // The PDF designer opens full screen, so the pop-up makes way.
+              onDesignPdf: (id) => {
+                setEditing(null);
+                stable.onDesignPdf(id);
+              },
+            }}
+          />
+        </MapModal>
+      )}
+      {editingLink && (
+        <MapModal
+          color="#6366f1"
+          icon="account_tree"
+          title="Flow hand-off"
+          sub={allFlows.find((f) => f._id === editingLink.flowId)?.name || 'Choose a flow'}
+          deleteLabel="Delete hand-off"
+          onDelete={() => {
+            setEditing(null);
+            stable.onRemoveFlowLink(editingLink.id);
+          }}
+          onClose={closeEditor}
+        >
+          <FlowRefFields
+            data={{ link: editingLink, flows: allFlows, onPickFlow: stable.onPickFlow, onCreateFlow: stable.onCreateFlow, onRemove: stable.onRemoveFlowLink }}
+          />
+        </MapModal>
+      )}
+      {adding && <MapAddMenu items={addItems} onPick={addAfter} onClose={() => setAdding(null)} />}
     </div>
   );
 }
