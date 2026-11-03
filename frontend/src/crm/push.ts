@@ -141,6 +141,23 @@ export function pushSignOut(api: CrmApi): void {
   setSavedEndpoint('');
 }
 
+// The chat open on screen in this tab ('' = none), so its own messages don't
+// pop up a desktop notification while it's being read.
+let watchingPhone = '';
+export const currentlyWatching = () => watchingPhone;
+const tellWorker = () => {
+  try {
+    navigator.serviceWorker?.controller?.postMessage({ type: 'crm-watching', phone: watchingPhone });
+  } catch {
+    /* ignore */
+  }
+};
+if (pushSupported()) navigator.serviceWorker.addEventListener('controllerchange', tellWorker);
+export function setWatchingChat(phone: string | null): void {
+  watchingPhone = phone || '';
+  if (pushSupported()) tellWorker();
+}
+
 /** Clicks on a notification while a tab is open: the worker posts what to open. */
 export function onPushOpen(cb: (d: { id?: string; target?: { view?: string; id?: string; phone?: string } }) => void): () => void {
   if (!pushSupported()) return () => {};

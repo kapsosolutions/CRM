@@ -16,6 +16,7 @@ import type { Chat, ChatMessage, SandboxContacts, TemplateItem, WaFlowDef } from
 import { authBodyWithCode, isAuthTemplate } from '../authTemplate';
 import { notify, previewOf, laterStatus, dayKey, dayLabel, chatDisplayName, isMetaChannelChat } from '../utils';
 import { loadPrefs, playSound, wants } from '../notifyPrefs';
+import { setWatchingChat } from '../push';
 import { CountryFlag } from './CountryFlag';
 import { ChatList } from './ChatList';
 import { DefaultAvatar } from './DefaultAvatar';
@@ -174,6 +175,18 @@ export function CrmApp({
   // Refs so socket handlers see the latest values without re-subscribing.
   const activePhoneRef = useRef<string | null>(null);
   activePhoneRef.current = activePhone;
+  // The chat being read (open, on screen): its messages don't pop up on the
+  // desktop. Every other message, page or app in front does.
+  useEffect(() => {
+    if (demo) return undefined;
+    const report = () => setWatchingChat(visible && !document.hidden ? activePhone : null);
+    report();
+    document.addEventListener('visibilitychange', report);
+    return () => {
+      document.removeEventListener('visibilitychange', report);
+      setWatchingChat(null);
+    };
+  }, [activePhone, visible, demo]);
   const chatsRef = useRef<Chat[]>([]);
   chatsRef.current = chats;
   const messagesRef = useRef<ChatMessage[]>([]);

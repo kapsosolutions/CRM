@@ -1,15 +1,28 @@
 /* Kapso CRM service worker: desktop notifications (Web Push).
  *
  * The backend pushes every CRM notification this browser's Settings allow
- * (backend/services/webPush.js). It is shown as a desktop notification, even
- * with no CRM tab open, unless a CRM tab is in front: that tab already plays
- * its own sound and updates the bell. Clicking one opens what it is about.
+ * (backend/services/webPush.js). Each one pops up as a desktop notification
+ * (Windows: the corner of the screen), with the CRM closed, in the background
+ * or in front. Only a message of the chat being read right now is skipped.
+ * An open CRM tab plays the chosen sound, so the pop-up is silent then.
+ * Clicking one opens what it is about.
  * Nothing is cached here; the app itself loads as usual.
  */
 self.addEventListener('install', () => self.skipWaiting());
 self.addEventListener('activate', (event) => event.waitUntil(self.clients.claim()));
 
 const windows = () => self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+// The chat each CRM tab has open on screen (tab id → phone), told by the page.
+// Lost when the browser stops the worker; then a message simply shows.
+const watching = new Map();
+self.addEventListener('message', (event) => {
+  const d = event.data || {};
+  if (d.type === 'crm-watching' && event.source && event.source.id) {
+    if (d.phone) watching.set(event.source.id, String(d.phone));
+    else watching.delete(event.source.id);
+  }
+});
 
 self.addEventListener('push', (event) => {
   let d = {};
@@ -20,8 +33,10 @@ self.addEventListener('push', (event) => {
   }
   event.waitUntil(
     windows().then((list) => {
-      // Someone is looking at the CRM: the page shows it there.
-      if (list.some((w) => w.focused && w.visibilityState === 'visible')) return undefined;
+      const phone = d.target && d.target.phone ? String(d.target.phone) : '';
+      // Reading that very chat right now: it's already on screen.
+      const reading = phone && list.some((w) => w.focused && w.visibilityState === 'visible' && watching.get(w.id) === phone);
+      if (reading) return undefined;
       return self.registration.showNotification(d.title || 'Kapso CRM', {
         body: d.body || '',
         icon: '/image.png',
@@ -30,6 +45,8 @@ self.addEventListener('push', (event) => {
         // earlier notification (and alerts again) instead of stacking up.
         tag: d.id ? `crm-${d.id}` : 'crm',
         renotify: !!d.id,
+        // An open CRM tab plays the chosen sound itself, so no second one.
+        silent: list.length > 0,
         timestamp: Date.now(),
         data: { id: d.id || '', target: d.target || {} },
       });

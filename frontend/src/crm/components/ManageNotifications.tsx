@@ -40,7 +40,7 @@ function Check({ on, muted, onClick, label }: { on: boolean; muted: boolean; onC
 
 /** What the desktop line under the switches says, per state. */
 const PUSH_TEXT: Record<PushState, string> = {
-  on: 'Desktop notifications are on for this browser. They also arrive when the CRM is closed, as long as the browser is running.',
+  on: 'Desktop notifications are on for this browser. They pop up at the corner of your screen, also when the CRM is closed (as long as the browser is running).',
   off: 'Desktop nudges are switched off for this browser.',
   ask: 'Allow notifications in this browser to get desktop nudges, also when the CRM is closed.',
   blocked: 'This browser blocks notifications for this site. Allow them in the browser’s site settings (the lock icon next to the address), then reload.',
@@ -105,7 +105,7 @@ export function ManageNotifications({ api, demo = false }: { api: CrmApi; demo?:
     try {
       const r = await api.pushTest();
       toast(r.sent ? 'success' : 'error', r.sent ? 'Test sent' : 'Nothing was sent', r.sent
-        ? 'It shows on your desktop when no CRM tab is in front. Switch to another window to see it.'
+        ? 'Look at the bottom-right of your screen. If nothing shows, check that Windows allows notifications from your browser.'
         : 'No browser is subscribed yet. Turn on Desktop Nudge first.');
     } catch (e) {
       toast('error', 'Test not sent', (e as Error).message);

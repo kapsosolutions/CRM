@@ -49,7 +49,7 @@ import { numberStatusTone, CHANNEL_STATUS_EVENT, NUMBER_ACTIVATION_EVENT } from 
 import { preloadMetaSdk } from '../metaSdk';
 import type { SignupActivation } from '../types';
 import { loadPrefs, playSound, wants, PREFS_EVENT, type NotifyPrefs } from '../notifyPrefs';
-import { onPushOpen, pushActive, pushPrefsChanged, syncPush } from '../push';
+import { currentlyWatching, onPushOpen, pushActive, pushPrefsChanged, syncPush } from '../push';
 import './CrmApp.css';
 import './Sidebar.css';
 import '../theme/dark.css';
@@ -700,7 +700,9 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     const cat = n.category || 'account';
     if (wants(prefs, cat, 'sound')) playSound(prefs.soundType);
     if (!wants(prefs, cat, 'desktop') || pushActive()) return;
-    if (document.visibilityState === 'visible' && document.hasFocus()) return;
+    // The chat it's about is open and being read: it's already on screen.
+    const reading = document.visibilityState === 'visible' && document.hasFocus() && !!n.target?.phone && n.target.phone === currentlyWatching();
+    if (reading) return;
     try {
       if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
       const note = new Notification(n.title || 'Kapso CRM', { body: n.body || '', icon: '/image.png', tag: `crm-${n._id}` });
