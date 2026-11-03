@@ -2,13 +2,14 @@
 // Rich WhatsApp blocks: media header + body + reply buttons (each button has
 // its own output port for branching), CTA URL, Call, Ask location, List menu
 // (each row branches), and an approved-Template block.
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import ReactFlow, {
   Background,
   BackgroundVariant,
   Controls,
   MiniMap,
   Handle,
+  MarkerType,
   Position,
   addEdge,
   useNodesState,
@@ -114,11 +115,9 @@ const KINDS: Record<Kind, { title: string; icon: string; color: string }> = {
 
 const HEADER_KINDS = new Set<Kind>(['message', 'reply', 'cta', 'call']);
 const BODY_KINDS = new Set<Kind>(['message', 'reply', 'cta', 'call', 'location', 'list', 'quick', 'carousel']);
-// Nodes with a single right-side output port, so they can chain to the next
-// block. Interactive nodes (reply / list / location) branch via their own
-// per-row ports instead. 'end' is terminal.
-// (A carousel gets its own port too: it continues there after its link-only cards.)
-const SINGLE_SOURCE = new Set<Kind>(['start', 'message', 'cta', 'call', 'template', 'carousel']);
+// A block's outputs (its ports on the right) come from outputsOf(): one for a
+// plain block, one per button / option for the branching ones, none for End
+// and Start again.
 
 const HEADER_ICON: Record<HeaderType, string> = {
   none: 'block',
@@ -176,7 +175,8 @@ const ACCEPT: Record<HeaderType, string> = {
   pdf: 'application/pdf',
 };
 
-function WaNode({ id, data }: NodeProps<WaData>) {
+/** A block's settings, shown in the pop-up when the block is clicked (BlockEditor). */
+function NodeFields({ id, data }: { id: string; data: WaData }) {
   const rf = useReactFlow();
   const templates = useContext(TemplatesCtx);
   const channel = useContext(ChannelCtx);
@@ -210,12 +210,6 @@ function WaNode({ id, data }: NodeProps<WaData>) {
       })
       .catch(() => {});
   };
-  const del = () => {
-    discard(data.headerMediaUrl);
-    rf.setNodes((nds) => nds.filter((n) => n.id !== id));
-    rf.setEdges((es) => es.filter((e) => e.source !== id && e.target !== id));
-  };
-
   const setButton = (i: number, v: string) =>
     patch({ buttons: (data.buttons || []).map((b, idx) => (idx === i ? v : b)) });
   // Buttons whose title repeats an earlier one (WhatsApp refuses those).
@@ -277,24 +271,22 @@ function WaNode({ id, data }: NodeProps<WaData>) {
   };
 
   return (
-    <div className="fl-node">
-      {data.kind !== 'start' && (
-        <Handle type="target" position={Position.Left} className="fl-handle" />
+    <div className="fl-node jn-fields" data-kind={data.kind} style={{ ['--k' as string]: k.color }}>
+      {data.kind === 'start' && (
+        <div className="fl-restart jn-start-note" data-testid="fl-start-note">
+          <span className="material-icons">bolt</span>
+          <div>
+            The journey starts here when a customer messages you (a new chat, or any message while no block is waiting for a tap).
+            Connect it to your first message.
+          </div>
+        </div>
       )}
-
-      {data.kind !== 'start' && (
-        <button className="fl-del" onClick={del} title="Delete block">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round">
-            <line x1="5" y1="5" x2="19" y2="19" />
-            <line x1="19" y1="5" x2="5" y2="19" />
-          </svg>
-        </button>
+      {data.kind === 'end' && (
+        <div className="fl-restart jn-start-note">
+          <span className="material-icons">stop_circle</span>
+          <div>Ends the journey. The customer&apos;s next message starts it again from Start.</div>
+        </div>
       )}
-
-      <div className="fl-node-head" style={{ color: k.color }}>
-        <span className="material-icons">{k.icon}</span>
-        {k.title}
-      </div>
 
       {HEADER_KINDS.has(data.kind) && (
         <div className="fl-header">
@@ -383,12 +375,6 @@ function WaNode({ id, data }: NodeProps<WaData>) {
                 aria-invalid={dupButtons.has(i) || undefined}
                 title={dupButtons.has(i) ? 'Another button has this title: give each button its own' : undefined}
               />
-              <Handle
-                type="source"
-                id={`btn-${i}`}
-                position={Position.Right}
-                className="fl-handle row"
-              />
             </div>
           ))}
           {dupButtons.size > 0 && (
@@ -415,12 +401,6 @@ function WaNode({ id, data }: NodeProps<WaData>) {
               <button className="fl-row-del" onClick={() => removeOption(i)} title="Remove">
                 <span className="material-icons">close</span>
               </button>
-              <Handle
-                type="source"
-                id={`opt-${i}`}
-                position={Position.Right}
-                className="fl-handle row"
-              />
             </div>
           ))}
           {(data.options || []).length < 10 && (
@@ -440,7 +420,6 @@ function WaNode({ id, data }: NodeProps<WaData>) {
               <button className="fl-row-del" onClick={() => removeOption(i)} title="Remove">
                 <span className="material-icons">close</span>
               </button>
-              <Handle type="source" id={`opt-${i}`} position={Position.Right} className="fl-handle row" />
             </div>
           ))}
           {(data.options || []).length < optionMax && (
@@ -485,8 +464,6 @@ function WaNode({ id, data }: NodeProps<WaData>) {
                   <button className="fl-row-del" onClick={() => setCard(i, { buttons: c.buttons.filter((_, idx) => idx !== j) })} title="Remove button">
                     <span className="material-icons">close</span>
                   </button>
-                  {/* A reply button (no link) continues the journey from its own port. */}
-                  {!b.url && <Handle type="source" id={`card-${i}-${j}`} position={Position.Right} className="fl-handle row" />}
                 </div>
               ))}
               {c.buttons.length < META_CARD_BUTTONS && (
@@ -513,13 +490,11 @@ function WaNode({ id, data }: NodeProps<WaData>) {
           <div className="fl-rows">
             <div className="fl-row branch yes">
               <span className="material-icons fl-row-ic ok">check_circle</span>
-              <span className="fl-branch-label">Valid</span>
-              <Handle type="source" id="loc-yes" position={Position.Right} className="fl-handle row" />
+              <span className="fl-branch-label">Valid: the customer shared a location</span>
             </div>
             <div className="fl-row branch no">
               <span className="material-icons fl-row-ic bad">cancel</span>
-              <span className="fl-branch-label">Not valid</span>
-              <Handle type="source" id="loc-no" position={Position.Right} className="fl-handle row" />
+              <span className="fl-branch-label">Not valid: they typed something else</span>
             </div>
           </div>
         </>
@@ -588,12 +563,6 @@ function WaNode({ id, data }: NodeProps<WaData>) {
                       <div className="fl-tbtn" key={i}>
                         <span className="material-icons">reply</span>
                         <span>{b.text}</span>
-                        <Handle
-                          type="source"
-                          id={`tbtn-${i}`}
-                          position={Position.Right}
-                          className="fl-handle row"
-                        />
                       </div>
                     ) : (
                       // URL / call buttons are terminal (open link / dial) → no port.
@@ -608,9 +577,190 @@ function WaNode({ id, data }: NodeProps<WaData>) {
             </>
           );
         })()}
+      {OUTPUT_HINT[data.kind] && <p className="jn-out-hint">{OUTPUT_HINT[data.kind]}</p>}
+    </div>
+  );
+}
 
-      {SINGLE_SOURCE.has(data.kind) && (
-        <Handle type="source" position={Position.Right} className="fl-handle" />
+/** Where a block's connections come out, said in its pop-up. */
+const OUTPUT_HINT: Partial<Record<Kind, string>> = {
+  reply: 'Each button gets its own output on the block: connect it to what happens when the customer taps it.',
+  list: 'Each option gets its own output on the block.',
+  quick: 'Each quick reply gets its own output on the block.',
+  location: 'The block has two outputs: Valid (a location was shared) and Not valid (anything else).',
+  carousel: 'Reply buttons (without a link) get their own outputs; “Next” continues after the cards.',
+  template: 'Quick-reply buttons of the template get their own outputs; “Next” continues right away.',
+};
+
+// ---------------------------------------------------------------------------
+// The block on the canvas (n8n style): icon, name and a one-line summary;
+// branching blocks list their labelled outputs on the right, each with its
+// own port. Clicking it opens BlockEditor. A free output shows a "+" that adds
+// the next block already connected.
+// ---------------------------------------------------------------------------
+interface Output {
+  /** React Flow handle id ('' = the default output). */
+  id: string;
+  label: string;
+  bad?: boolean;
+}
+
+/** The outputs a block has, in order. */
+function outputsOf(data: WaData, templates: TemplateItem[]): Output[] {
+  switch (data.kind) {
+    case 'reply': {
+      const seen = new Set<string>();
+      return (data.buttons || []).map((b, i) => {
+        const t = String(b || '').trim().toLowerCase();
+        const dup = !!t && seen.has(t);
+        seen.add(t);
+        return { id: `btn-${i}`, label: b || `Button ${i + 1}`, bad: dup || !t };
+      });
+    }
+    case 'list':
+    case 'quick':
+      return (data.options || []).map((o, i) => ({ id: `opt-${i}`, label: o || `Option ${i + 1}`, bad: !String(o || '').trim() }));
+    case 'location':
+      return [{ id: 'loc-yes', label: 'Valid' }, { id: 'loc-no', label: 'Not valid' }];
+    case 'carousel': {
+      const out: Output[] = [];
+      (data.cards || []).forEach((c, i) => c.buttons.forEach((b, j) => {
+        if (!b.url) out.push({ id: `card-${i}-${j}`, label: `${(data.cards || []).length > 1 ? `Card ${i + 1} · ` : ''}${b.title || 'Button'}` });
+      }));
+      return out.length ? [...out, { id: '', label: 'Next' }] : [{ id: '', label: '' }];
+    }
+    case 'template': {
+      const tpl = templates.find((t) => t.name === data.templateName);
+      const btns = (tpl?.components || []).find((c) => c.type === 'BUTTONS')?.buttons || [];
+      const out: Output[] = [];
+      btns.forEach((b, i) => {
+        if (b.type === 'QUICK_REPLY') out.push({ id: `tbtn-${i}`, label: b.text || `Button ${i + 1}` });
+      });
+      return out.length ? [...out, { id: '', label: 'Next' }] : [{ id: '', label: '' }];
+    }
+    case 'end':
+    case 'restart':
+      return [];
+    default:
+      return [{ id: '', label: '' }];
+  }
+}
+
+const firstLine = (s?: string) => String(s || '').split('\n').map((x) => x.trim()).find(Boolean) || '';
+
+/** The block's one-line summary under its name. */
+function summaryOf(data: WaData, channel: JourneyChannel): string {
+  const media = data.header && data.header !== 'none' ? `${HEADER_LABEL[data.header]}${data.headerMediaUrl ? '' : ' (not uploaded)'}` : '';
+  const text = firstLine(data.text);
+  switch (data.kind) {
+    case 'start': return `When a customer messages you on ${CHANNEL_NAME[channel]}`;
+    case 'message': return [media, text].filter(Boolean).join(' · ') || 'Empty message';
+    case 'reply': return text || 'Message text not set';
+    case 'cta': return [data.ctaText || 'Button', data.ctaUrl || 'link not set'].join(' → ');
+    case 'call': return [data.callText || 'Call', data.callPhone || 'number not set'].join(' · ');
+    case 'location': return text || 'Asks for a location';
+    case 'list': return `${data.listTitle || 'Menu'} · ${(data.options || []).length} option${(data.options || []).length === 1 ? '' : 's'}`;
+    case 'template': return data.templateName || 'Template not chosen';
+    case 'quick': return text || 'Message text not set';
+    case 'carousel': return `${(data.cards || []).length} card${(data.cards || []).length === 1 ? '' : 's'}${text ? ` · ${text}` : ''}`;
+    case 'end': return 'Ends the journey';
+    case 'restart': return 'Back to Start';
+    default: return '';
+  }
+}
+
+/** What would stop the block from sending (shown as a "!" on it). */
+function problemOf(data: WaData, outputs: Output[]): string {
+  const text = String(data.text || '').trim();
+  switch (data.kind) {
+    case 'message': return !text && !(data.header && data.header !== 'none' && data.headerMediaUrl) ? 'Add a message or a file' : '';
+    case 'reply':
+      if (!text) return 'Add the message text';
+      return outputs.some((o) => o.bad) ? 'Each button needs its own title' : '';
+    case 'quick': return !text ? 'Add the message text' : outputs.some((o) => o.bad) ? 'Every quick reply needs a title' : '';
+    case 'list': return !text ? 'Add the message text' : outputs.some((o) => o.bad) ? 'Every option needs a title' : '';
+    case 'cta': return !String(data.ctaUrl || '').trim() ? 'Add the link' : '';
+    case 'call': return !String(data.callPhone || '').trim() ? 'Add the phone number' : '';
+    case 'template': return !data.templateName ? 'Choose a template' : '';
+    default: return '';
+  }
+}
+
+/** The canvas gives the blocks what they need beyond their own data. */
+interface CanvasApi {
+  /** `${nodeId}|${handleId}` of every output already connected. */
+  connected: Set<string>;
+  addFrom: (nodeId: string, handle: string) => void;
+}
+const CanvasCtx = createContext<CanvasApi>({ connected: new Set(), addFrom: () => {} });
+
+function PlusStub({ nodeId, handle }: { nodeId: string; handle: string }) {
+  const { connected, addFrom } = useContext(CanvasCtx);
+  if (connected.has(`${nodeId}|${handle}`)) return null;
+  return (
+    <span className="jn-stub" aria-hidden="false">
+      <span className="jn-stub-line" />
+      <button
+        type="button"
+        className="jn-plus nodrag nopan"
+        title="Add the next block"
+        aria-label="Add the next block"
+        onClick={(e) => {
+          e.stopPropagation();
+          addFrom(nodeId, handle);
+        }}
+        data-testid="jn-plus"
+      >
+        <span className="material-icons">add</span>
+      </button>
+    </span>
+  );
+}
+
+function WaNode({ id, data, selected }: NodeProps<WaData>) {
+  const templates = useContext(TemplatesCtx);
+  const channel = useContext(ChannelCtx);
+  const k = KINDS[data.kind];
+  const outputs = outputsOf(data, templates);
+  const labelled = outputs.some((o) => o.label);
+  const problem = problemOf(data, outputs);
+  const isStart = data.kind === 'start';
+  return (
+    <div
+      className={`jn-node kind-${data.kind}${selected ? ' selected' : ''}${problem ? ' warn' : ''}`}
+      style={{ ['--k' as string]: k.color }}
+      data-testid="jn-node"
+      data-kind={data.kind}
+      title="Click to edit"
+    >
+      {!isStart && <Handle type="target" position={Position.Left} className="jn-handle in" />}
+      {isStart && <span className="jn-bolt material-icons" aria-hidden="true">bolt</span>}
+      <div className="jn-main">
+        <span className="jn-ic"><span className="material-icons">{k.icon}</span></span>
+        <div className="jn-txt">
+          <div className="jn-title">{k.title}</div>
+          <div className="jn-sub" data-testid="jn-sub">{summaryOf(data, channel)}</div>
+        </div>
+        {problem && (
+          <span className="jn-warn material-icons" title={problem} aria-label={problem} data-testid="jn-warn">error</span>
+        )}
+        {!labelled && outputs.length === 1 && (
+          <>
+            <Handle type="source" position={Position.Right} className="jn-handle out" />
+            <PlusStub nodeId={id} handle="" />
+          </>
+        )}
+      </div>
+      {labelled && (
+        <div className="jn-outs">
+          {outputs.map((o) => (
+            <div className={`jn-out${o.bad ? ' bad' : ''}`} key={o.id || 'next'} data-testid="jn-out">
+              <span className="jn-out-label">{o.label}</span>
+              <Handle type="source" id={o.id || undefined} position={Position.Right} className="jn-handle out" />
+              <PlusStub nodeId={id} handle={o.id} />
+            </div>
+          ))}
+        </div>
       )}
     </div>
   );
@@ -693,20 +843,223 @@ interface FlowCanvasProps {
   setEdges: Dispatch<SetStateAction<Edge[]>>;
 }
 
+/** n8n-style connections: solid curves with an arrow, the channel colour when selected. */
+const EDGE_GREY = '#9aa3ad';
+const edgeLook = (e: Edge, stroke: string): Edge => ({
+  ...e,
+  type: 'default',
+  animated: false,
+  style: { stroke: e.selected ? stroke : EDGE_GREY, strokeWidth: e.selected ? 2.6 : 2 },
+  markerEnd: { type: MarkerType.ArrowClosed, color: e.selected ? stroke : EDGE_GREY, width: 16, height: 16 },
+});
+
+/** One kind of block per choice in the "+" menu (the palette, without Start). */
+function nextId(nds: Node<WaData>[]): string {
+  let id = `n${idCounter++}`;
+  while (nds.some((n) => n.id === id)) id = `n${idCounter++}`;
+  return id;
+}
+
+/**
+ * "Tidy up": columns left to right in the order the journey runs (Start,
+ * then what it leads to, output by output), each column centred on the
+ * tallest. Blocks nothing leads to go in a last column.
+ */
+function tidyLayout(nodes: Node<WaData>[], edges: Edge[], templates: TemplateItem[]): Node<WaData>[] {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const portRank = (e: Edge) => {
+    const src = byId.get(e.source);
+    if (!src) return 0;
+    const i = outputsOf(src.data, templates).findIndex((o) => o.id === (e.sourceHandle || ''));
+    return i < 0 ? 99 : i;
+  };
+  const out = new Map<string, string[]>();
+  for (const e of [...edges].sort((a, b) => portRank(a) - portRank(b))) {
+    if (!byId.has(e.target)) continue;
+    out.set(e.source, [...(out.get(e.source) || []), e.target]);
+  }
+  const depth = new Map<string, number>();
+  const order: string[] = [];
+  const start = nodes.find((n) => n.data?.kind === 'start');
+  const queue = start ? [start.id] : [];
+  if (start) depth.set(start.id, 0);
+  while (queue.length) {
+    const id = queue.shift()!;
+    order.push(id);
+    for (const t of out.get(id) || []) {
+      if (depth.has(t)) continue;
+      depth.set(t, (depth.get(id) || 0) + 1);
+      queue.push(t);
+    }
+  }
+  const last = Math.max(0, ...depth.values()) + 1;
+  for (const n of nodes) {
+    if (!depth.has(n.id)) {
+      depth.set(n.id, last);
+      order.push(n.id);
+    }
+  }
+  const height = (n: Node<WaData>) => {
+    if (n.height) return n.height;
+    const outs = outputsOf(n.data, templates);
+    return 60 + (outs.some((o) => o.label) ? outs.length * 26 + 8 : 0);
+  };
+  const cols = new Map<number, string[]>();
+  for (const id of order) cols.set(depth.get(id)!, [...(cols.get(depth.get(id)!) || []), id]);
+  const GAP_Y = 44;
+  const colH = (ids: string[]) => ids.reduce((s, id) => s + height(byId.get(id)!), 0) + GAP_Y * (ids.length - 1);
+  const tallest = Math.max(0, ...[...cols.values()].map(colH));
+  const pos = new Map<string, { x: number; y: number }>();
+  for (const [d, ids] of cols) {
+    let y = 80 + (tallest - colH(ids)) / 2;
+    for (const id of ids) {
+      pos.set(id, { x: 80 + d * 340, y: Math.round(y) });
+      y += height(byId.get(id)!) + GAP_Y;
+    }
+  }
+  return nodes.map((n) => ({ ...n, position: pos.get(n.id) || n.position }));
+}
+
+/** The pop-up a block opens in: its settings, Delete and Done. */
+function BlockEditor({ node, onClose, onDelete }: { node: Node<WaData>; onClose: () => void; onDelete: () => void }) {
+  const k = KINDS[node.data.kind];
+  const channel = useContext(ChannelCtx);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="jn-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="jn-editor-backdrop">
+      <div className="jn-modal" role="dialog" aria-modal="true" aria-label={`${k.title} block`} data-testid="jn-editor" style={{ ['--k' as string]: k.color }}>
+        <header className="jn-modal-head">
+          <span className="jn-ic"><span className="material-icons">{k.icon}</span></span>
+          <div className="jn-modal-titles">
+            <h3>{k.title}</h3>
+            <p>{summaryOf(node.data, channel)}</p>
+          </div>
+          <button type="button" className="jn-modal-x" onClick={onClose} aria-label="Close">
+            <span className="material-icons">close</span>
+          </button>
+        </header>
+        <div className="jn-modal-body">
+          <NodeFields id={node.id} data={node.data} />
+        </div>
+        <footer className="jn-modal-foot">
+          {node.data.kind !== 'start' && (
+            <button type="button" className="k-btn ghost sm danger" onClick={onDelete} data-testid="jn-editor-delete">
+              <span className="material-icons">delete_outline</span> Delete block
+            </button>
+          )}
+          <span className="jn-modal-note">Changes apply straight away. Save the journey when you’re done.</span>
+          <button type="button" className="k-btn sm" onClick={onClose} data-testid="jn-editor-done">Done</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
+/** "+" on a free output: choose the next block; it's added to the right, connected. */
+function AddMenu({ palette, onPick, onClose }: { palette: PaletteItem[]; onPick: (p: PaletteItem) => void; onClose: () => void }) {
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="jn-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="jn-modal jn-add" role="dialog" aria-modal="true" aria-label="Add the next block" data-testid="jn-add-menu">
+        <header className="jn-modal-head">
+          <div className="jn-modal-titles">
+            <h3>Add the next block</h3>
+            <p>It’s placed to the right and connected.</p>
+          </div>
+          <button type="button" className="jn-modal-x" onClick={onClose} aria-label="Close">
+            <span className="material-icons">close</span>
+          </button>
+        </header>
+        <div className="jn-add-grid">
+          {palette.filter((p) => p.kind !== 'start').map((p) => {
+            const k = KINDS[p.kind];
+            return (
+              <button type="button" key={p.label} className="jn-add-item" onClick={() => onPick(p)} style={{ ['--k' as string]: k.color }} data-testid={`jn-add-${p.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
+                <span className="jn-ic"><span className="material-icons">{p.icon || k.icon}</span></span>
+                {p.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges }: FlowCanvasProps) {
   const rf = useReactFlow();
   const channel = useContext(ChannelCtx);
   const stroke = EDGE_COLOR[channel];
   const hasStart = nodes.some((n) => n.data?.kind === 'start');
   const palette = paletteFor(channel, hasStart);
+  const templates = useContext(TemplatesCtx);
+  const { discard } = useMedia();
+  // The block whose pop-up is open, and the free output a "+" was clicked on.
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [addingFrom, setAddingFrom] = useState<{ nodeId: string; handle: string } | null>(null);
+  const editingNode = editingId ? nodes.find((n) => n.id === editingId) || null : null;
 
   const onConnect = useCallback(
+    // One connection per output: a new one from the same port replaces the old.
     (c: Connection) =>
       setEdges((eds) =>
-        addEdge({ ...c, animated: true, style: { stroke, strokeWidth: 2 } }, eds),
+        addEdge(
+          { ...c, animated: false, style: { stroke: EDGE_GREY, strokeWidth: 2 } },
+          eds.filter((e) => !(e.source === c.source && (e.sourceHandle || null) === (c.sourceHandle || null))),
+        ),
       ),
-    [setEdges, stroke],
+    [setEdges],
   );
+
+  const connected = useMemo(() => new Set(edges.map((e) => `${e.source}|${e.sourceHandle || ''}`)), [edges]);
+  const canvasApi = useMemo<CanvasApi>(() => ({ connected, addFrom: (nodeId, handle) => setAddingFrom({ nodeId, handle }) }), [connected]);
+  const shownEdges = useMemo(() => edges.map((e) => edgeLook(e, stroke)), [edges, stroke]);
+
+  function addAfter(p: PaletteItem) {
+    const from = addingFrom;
+    setAddingFrom(null);
+    if (!from) return;
+    const src = rf.getNode(from.nodeId);
+    if (!src) return;
+    // To the right of the block, level with the port it comes from.
+    const outs = outputsOf(src.data as WaData, templates);
+    const idx = Math.max(0, outs.findIndex((o) => o.id === from.handle));
+    const width = src.width || 240;
+    const position = { x: src.position.x + width + 110, y: src.position.y + (outs.length > 1 ? idx * 90 - 20 : 0) };
+    let newId = '';
+    setNodes((nds) => {
+      newId = nextId(nds);
+      return [...nds, { id: newId, type: 'wa', position, data: makeData(p.kind, p.count, p.header) }];
+    });
+    setEdges((eds) => [
+      ...eds,
+      { id: `e-${from.nodeId}-${from.handle || 'out'}-${newId}`, source: from.nodeId, sourceHandle: from.handle || null, target: newId, animated: false, style: { stroke: EDGE_GREY, strokeWidth: 2 } },
+    ]);
+    // Straight into the new block's settings.
+    setTimeout(() => setEditingId(newId), 0);
+  }
+
+  function deleteNode(id: string) {
+    const n = rf.getNode(id);
+    const d = n?.data as WaData | undefined;
+    discard(d?.headerMediaUrl);
+    (d?.cards || []).forEach((c) => discard(c.imageUrl));
+    setNodes((nds) => nds.filter((x) => x.id !== id));
+    setEdges((es) => es.filter((e) => e.source !== id && e.target !== id));
+    setEditingId(null);
+  }
 
   const onDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault();
@@ -724,8 +1077,7 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         // One Start per journey.
         if (kind === 'start' && nds.some((n) => n.data?.kind === 'start')) return nds;
         // Ids already on the canvas (a saved journey) are never reused.
-        let id = `n${idCounter++}`;
-        while (nds.some((n) => n.id === id)) id = `n${idCounter++}`;
+        const id = nextId(nds);
         return [...nds, { id, type: 'wa', position, data: makeData(kind, count, header) }];
       });
     },
@@ -768,25 +1120,45 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         })}
       </aside>
 
-      <div className="flow-canvas" onDrop={onDrop} onDragOver={onDragOver}>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          fitView
-          fitViewOptions={{ padding: 0.3, maxZoom: 0.8 }}
-          minZoom={0.3}
-          defaultEdgeOptions={{ animated: true, style: { stroke, strokeWidth: 2 } }}
-          proOptions={{ hideAttribution: true }}
+      <div className="flow-canvas jn-canvas" onDrop={onDrop} onDragOver={onDragOver}>
+        <button
+          type="button"
+          className="jn-tidy"
+          onClick={() => {
+            setNodes((nds) => tidyLayout(nds, edges, templates));
+            setTimeout(() => rf.fitView({ padding: 0.3, maxZoom: 0.9, duration: 300 }), 50);
+          }}
+          title="Lay the blocks out left to right, in the order the journey runs"
+          data-testid="jn-tidy"
         >
-          <Background variant={BackgroundVariant.Dots} gap={18} size={1.6} color="#c9c2b6" />
-          <Controls />
-          <MiniMap pannable zoomable nodeColor={() => stroke} />
-        </ReactFlow>
+          <span className="material-icons">auto_fix_high</span> Tidy up
+        </button>
+        <CanvasCtx.Provider value={canvasApi}>
+          <ReactFlow
+            nodes={nodes}
+            edges={shownEdges}
+            onNodesChange={onNodesChange}
+            onEdgesChange={onEdgesChange}
+            onConnect={onConnect}
+            onNodeClick={(_, n) => setEditingId(n.id)}
+            // While a pop-up is open, Backspace edits text, it never deletes the block.
+            deleteKeyCode={editingId || addingFrom ? null : ['Backspace', 'Delete']}
+            nodeTypes={nodeTypes}
+            fitView
+            fitViewOptions={{ padding: 0.3, maxZoom: 0.9 }}
+            minZoom={0.3}
+            defaultEdgeOptions={{ type: 'default', animated: false }}
+            connectionLineStyle={{ stroke: EDGE_GREY, strokeWidth: 2 }}
+            proOptions={{ hideAttribution: true }}
+          >
+            <Background variant={BackgroundVariant.Dots} gap={18} size={1.6} color="#c9c2b6" />
+            <Controls />
+            <MiniMap pannable zoomable nodeColor={(n) => KINDS[(n.data as WaData)?.kind || 'message']?.color || stroke} />
+          </ReactFlow>
+        </CanvasCtx.Provider>
       </div>
+      {editingNode && <BlockEditor node={editingNode} onClose={() => setEditingId(null)} onDelete={() => deleteNode(editingNode.id)} />}
+      {addingFrom && <AddMenu palette={palette} onPick={addAfter} onClose={() => setAddingFrom(null)} />}
     </div>
   );
 }
