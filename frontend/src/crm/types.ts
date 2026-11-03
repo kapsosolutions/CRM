@@ -1435,9 +1435,17 @@ export interface ServiceQuota {
   monthStart?: string;
   resetsAt?: string;
   updatedAt?: string;
-  /** The last good answer, Meta didn't respond just now. */
+  /** Meta's own count (it lags by hours); `used` is the larger of it and ours. */
+  metaUsed?: number;
+  /** When Meta last answered (ISO), null if it hasn't this month. */
+  metaUpdatedAt?: string | null;
+  /** Meta didn't answer just now: `used` is our own count. */
+  metaUnavailable?: boolean;
+  /** The last good answer, Meta didn't respond just now (older servers). */
   stale?: boolean;
   error?: string;
+  /** On live socket pushes: whose count this is. */
+  businessId?: string;
 }
 
 export interface ChannelStatus {

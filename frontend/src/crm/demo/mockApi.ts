@@ -51,9 +51,56 @@ class DemoBus {
   emitTyping(u: TypingUpdate) {
     this.typingCbs.forEach((cb) => cb(u));
   }
+  private quotaCbs = new Set<(q: ServiceQuota) => void>();
+  onServiceQuota(cb: (q: ServiceQuota) => void) {
+    this.quotaCbs.add(cb);
+    return () => this.quotaCbs.delete(cb);
+  }
+  emitServiceQuota(q: ServiceQuota) {
+    this.quotaCbs.forEach((cb) => cb(q));
+  }
 }
 
 const bus = new DemoBus();
+
+// Demo: this month's free service messages. Every demo reply that's
+// "delivered" adds one and pushes the new count, like the real socket.
+type DemoQuotaWindow = {
+  __demoServiceUsed?: number;
+  __demoServicePush?: (used?: number) => void;
+};
+let demoServiceUsed = 412;
+function demoServiceCount(): number {
+  return import.meta.env.DEV ? (window as unknown as DemoQuotaWindow).__demoServiceUsed ?? demoServiceUsed : demoServiceUsed;
+}
+function demoServiceQuota(): ServiceQuota {
+  const ist = new Date(Date.now() + 5.5 * 3600e3);
+  const next = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth() + 1, 1) - 5.5 * 3600e3);
+  const start = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - 5.5 * 3600e3);
+  const used = demoServiceCount();
+  return {
+    success: true, connected: true, limit: 1000, used,
+    free: Math.min(used, 1000), charged: Math.max(0, used - 1000), remaining: Math.max(0, 1000 - used),
+    monthStart: start.toISOString(), resetsAt: next.toISOString(), updatedAt: new Date().toISOString(),
+  };
+}
+function bumpDemoService(by = 1): void {
+  const w = window as unknown as DemoQuotaWindow;
+  if (import.meta.env.DEV && w.__demoServiceUsed !== undefined) w.__demoServiceUsed += by;
+  else demoServiceUsed += by;
+  bus.emitServiceQuota(demoServiceQuota());
+}
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // Dev-only test hook: push a count as if a receipt had just arrived.
+  (window as unknown as DemoQuotaWindow).__demoServicePush = (used?: number) => {
+    if (used === undefined) {
+      bumpDemoService();
+      return;
+    }
+    (window as unknown as DemoQuotaWindow).__demoServiceUsed = used;
+    bus.emitServiceQuota(demoServiceQuota());
+  };
+}
 
 // Mutable copies of the seed data.
 const chats: Chat[] = demoChats.map((c) => ({ ...c }));
@@ -442,17 +489,9 @@ export class MockCrmApi extends CrmApi {
   ];
 
   // Demo: a business part-way through this month's 1,000 free service messages.
+  // Dev-only test hook: try other counts (e.g. __demoServiceUsed = 1040).
   override getServiceQuota(): Promise<ServiceQuota> {
-    const ist = new Date(Date.now() + 5.5 * 3600e3);
-    const next = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth() + 1, 1) - 5.5 * 3600e3);
-    const start = new Date(Date.UTC(ist.getUTCFullYear(), ist.getUTCMonth(), 1) - 5.5 * 3600e3);
-    // Dev-only test hook: try other counts (e.g. __demoServiceUsed = 1040).
-    const used = import.meta.env.DEV ? (window as unknown as { __demoServiceUsed?: number }).__demoServiceUsed ?? 412 : 412;
-    return delay({
-      success: true, connected: true, limit: 1000, used,
-      free: Math.min(used, 1000), charged: Math.max(0, used - 1000), remaining: Math.max(0, 1000 - used),
-      monthStart: start.toISOString(), resetsAt: next.toISOString(), updatedAt: new Date().toISOString(),
-    });
+    return delay(demoServiceQuota());
   }
 
   override getWhatsAppProfile(): Promise<WhatsAppProfileResponse> {
@@ -691,7 +730,11 @@ export class MockCrmApi extends CrmApi {
     bumpChat(phone, text, false);
     bus.emitMessage(msg);
     // Simulate delivery → read receipts rolling in.
-    setTimeout(() => bus.emitStatus({ metaMessageId: msg.metaMessageId!, status: 'delivered' }), 700);
+    setTimeout(() => {
+      bus.emitStatus({ metaMessageId: msg.metaMessageId!, status: 'delivered' });
+      // A reply reaching the phone uses one free service message.
+      bumpDemoService();
+    }, 700);
     setTimeout(() => bus.emitStatus({ metaMessageId: msg.metaMessageId!, status: 'read' }), 1800);
     // Demo flavor: the contact "starts typing" shortly after you message them.
     setTimeout(() => bus.emitTyping({ phone, typing: true }), 2200);
@@ -1185,6 +1228,9 @@ export class MockCrmSocket extends CrmSocket {
   }
   override onTyping(cb: (u: TypingUpdate) => void): () => void {
     return bus.onTyping(cb);
+  }
+  override onServiceQuota(cb: (q: ServiceQuota) => void): () => void {
+    return bus.onServiceQuota(cb);
   }
   override disconnect(): void {
     /* no-op in demo */

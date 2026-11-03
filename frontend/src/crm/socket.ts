@@ -5,13 +5,14 @@
 //   crm:reaction  — emoji reaction
 //   crm:notification / crm:notification-count — header bell + drawer
 //   crm:sandbox   — test-inbox contact counter (shared number)
+//   crm:service-quota — this month's free service messages (profile sidebar)
 //
 // The connection authenticates itself with the same bearer token the HTTP
 // client uses. The server reads it during the handshake and puts the socket in
 // that tenant's room; without it the socket connects but receives nothing.
 // -----------------------------------------------------------------------------
 import { io, type Socket } from 'socket.io-client';
-import type { AppNotification, ChatMessage, MessageError } from './types';
+import type { AppNotification, ChatMessage, MessageError, ServiceQuota } from './types';
 
 export interface StatusUpdate {
   metaMessageId: string;
@@ -124,6 +125,13 @@ export class CrmSocket {
     const s = this.connect();
     s.on('crm:sandbox', cb);
     return () => s.off('crm:sandbox', cb);
+  }
+
+  /** This month's free service messages changed (a reply reached the phone). */
+  onServiceQuota(cb: (q: ServiceQuota) => void): () => void {
+    const s = this.connect();
+    s.on('crm:service-quota', cb);
+    return () => s.off('crm:service-quota', cb);
   }
 
   /** Called on every (re)connect, so missed events can be caught up. */

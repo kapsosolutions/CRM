@@ -23,6 +23,7 @@ import { to12h } from './slots.js';
 import { addressFor, mapImageFor } from './geocode.js';
 import { statusesBelow, parkStatus, takeParkedStatus, statusError } from './messageStatus.js';
 import { notifyChatMessage } from './notifications.js';
+import { noteServiceDelivered } from './serviceQuota.js';
 
 // Log an inbound message to the CRM chat log. For media messages we download
 // the bytes from Meta, host them on Cloudinary, and store the URL so the CRM
@@ -173,6 +174,38 @@ export async function handlePaymentUpdate(payment, ctx = {}) {
   });
 }
 
+// Statuses a message has before it reaches the phone.
+const NOT_YET_DELIVERED = ['pending', 'sent', 'failed'];
+
+/**
+ * Move one message's status forward. The first time one of this business's
+ * WhatsApp service messages (outbound, not a template, not the shared test
+ * number) reaches the phone, it counts against Meta's free 1,000 a month, so
+ * that step is its own update: when it matches, the sidebar's count goes up
+ * (services/serviceQuota.js). Anything else is the plain forward-only update.
+ */
+async function applyStatus(scope, st, set, ctx) {
+  if ((st === 'delivered' || st === 'read') && ctx.tenantId && !ctx.sandbox) {
+    const below = statusesBelow(st).filter((s) => NOT_YET_DELIVERED.includes(s));
+    const first = await Message.updateOne(
+      {
+        ...scope,
+        status: { $in: below },
+        direction: 'out',
+        type: { $ne: 'template' },
+        channel: { $in: ['', null] },
+        'raw.sandbox': { $ne: true },
+      },
+      { $set: set },
+    );
+    if (first.matchedCount) {
+      noteServiceDelivered(ctx.tenantId);
+      return first;
+    }
+  }
+  return Message.updateOne({ ...scope, status: { $in: statusesBelow(st) } }, { $set: set });
+}
+
 // Delivery/read receipts -> update the stored message + notify the CRM (ticks).
 export async function handleStatus(status, ctx = {}) {
   try {
@@ -191,20 +224,14 @@ export async function handleStatus(status, ctx = {}) {
     const error = st === 'failed' ? statusError(status) : null;
     const set = { status: st, ...(error ? { error } : {}) };
     // Only move forward: a late "sent" must not undo "delivered"/"read".
-    const res = await Message.updateOne(
-      { ...scope, status: { $in: statusesBelow(st) } },
-      { $set: set },
-    );
+    const res = await applyStatus(scope, st, set, ctx);
     if (!res.matchedCount) {
       // Already at/after this status: nothing to do.
       if (await Message.exists(scope)) return;
       // The receipt beat our own save of the message: park it for logOutbound,
       // then try once more in case the save finished in between.
       parkStatus(id, st, error);
-      const again = await Message.updateOne(
-        { ...scope, status: { $in: statusesBelow(st) } },
-        { $set: set },
-      );
+      const again = await applyStatus(scope, st, set, ctx);
       if (!again.matchedCount) return;
       takeParkedStatus(id);
     }

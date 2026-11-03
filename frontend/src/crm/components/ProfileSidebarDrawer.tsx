@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import QRCode from 'qrcode';
 import type { BusinessProfile } from '../types';
 import type { CrmView } from './NavRail';
@@ -7,6 +7,7 @@ import { resetBackHandler } from '../useBackHandler';
 import { platformApi } from '../../admin/platformApi';
 import { useConfirm } from './Dialogs';
 import type { CrmApi } from '../api';
+import type { CrmSocket } from '../socket';
 import type { ServiceQuota, WhatsAppProfile } from '../types';
 import { PROFILE_UPDATED_EVENT } from './WhatsAppProfileEditor';
 import { pushSignOut } from '../push';
@@ -24,6 +25,19 @@ interface Props {
   onNavigate: (view: CrmView) => void;
   onOpenChannelStatus?: (channel: 'whatsapp' | 'instagram' | 'messenger') => void;
   onLogout?: () => void;
+  /** The shell's live feed: pushes the free service message count as replies are delivered. */
+  socket?: CrmSocket | null;
+}
+
+/**
+ * The newer of two answers. Within a month the count only goes up, so an
+ * answer that started before a live push and lands after it can't move the
+ * bar back.
+ */
+function newerQuota(prev: ServiceQuota | null, next: ServiceQuota): ServiceQuota {
+  if (!prev || prev.used === undefined || next.used === undefined || prev.error) return next;
+  if (prev.monthStart !== next.monthStart || next.used >= prev.used) return next;
+  return { ...next, used: prev.used, free: prev.free, charged: prev.charged, remaining: prev.remaining };
 }
 
 
@@ -181,7 +195,7 @@ function ServiceQuotaCard({
   const tip =
     `Meta gives every WhatsApp number ${fmt(limit)} free service messages a month: your replies to customers inside the 24-hour window. ` +
     'After that Meta charges for each one. Template messages (campaigns) are charged separately and not counted here. ' +
-    'The count is Meta’s and can lag by a few hours.';
+    'The count goes up as each reply reaches the customer. Meta’s own bill can take a few hours to catch up.';
   return (
     <div className={`crm-ps-quota ${tone}`} data-testid="service-quota">
       <div className="crm-ps-quota-head">
@@ -241,6 +255,7 @@ export function ProfileSidebarDrawer({
   onNavigate,
   onOpenChannelStatus,
   onLogout,
+  socket,
 }: Props) {
   const confirm = useConfirm();
   const [copiedLink, setCopiedLink] = useState(false);
@@ -350,24 +365,47 @@ export function ProfileSidebarDrawer({
     };
   }, [isOpen, api, canReadWaProfile, business?._id]);
 
-  // Meta's free service messages this month (1,000 per number): read each
-  // time the drawer opens; Meta's count, cached a few minutes on the server.
+  // Free service messages this month (1,000 per number). Read when the drawer
+  // opens, then kept current by the socket: the server pushes the new count
+  // each time a reply reaches the customer's phone. Those updates are silent;
+  // only the refresh button spins.
   const [quota, setQuota] = useState<ServiceQuota | null>(null);
   const [quotaLoading, setQuotaLoading] = useState(false);
+  const quotaBizRef = useRef(business?._id);
   const loadQuota = (refresh = false) => {
     if (!api) return;
-    setQuotaLoading(true);
+    if (refresh) setQuotaLoading(true);
+    const biz = business?._id;
     api
       .getServiceQuota(refresh)
-      .then((r) => setQuota(r))
+      .then((r) => {
+        if (quotaBizRef.current === biz) setQuota((q) => newerQuota(q, r));
+      })
       .catch(() => setQuota((q) => q || { connected: true, limit: 1000, error: 'Couldn’t load the count right now.' }))
-      .finally(() => setQuotaLoading(false));
+      .finally(() => {
+        if (refresh) setQuotaLoading(false);
+      });
   };
+  useEffect(() => {
+    // Another business (master login switch): don't show the last one's count.
+    if (quotaBizRef.current !== business?._id) {
+      quotaBizRef.current = business?._id;
+      setQuota(null);
+    }
+  }, [business?._id]);
   useEffect(() => {
     if (!isOpen || !api || !isWhatsAppConnected) return;
     loadQuota();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, api, isWhatsAppConnected, business?._id]);
+  useEffect(() => {
+    if (!socket || !isWhatsAppConnected) return undefined;
+    return socket.onServiceQuota((q) => {
+      if (!q || q.used === undefined) return;
+      if (q.businessId && business?._id && String(q.businessId) !== String(business._id)) return;
+      setQuota((prev) => newerQuota(prev, q));
+    });
+  }, [socket, isWhatsAppConnected, business?._id]);
 
   // Once Meta has answered, its photo (or none) wins over anything stored.
   const avatarUrl = avatarFailed ? '' : waProfile ? waProfile.profilePictureUrl : (

@@ -72,7 +72,21 @@ export function emitSandboxContacts(businessId, payload) {
   return send('crm:sandbox', businessId, { ...payload, businessId: String(businessId) });
 }
 
+/**
+ * This month's free service messages changed (a reply reached the phone):
+ * the profile sidebar's card, live.
+ */
+export function emitServiceQuota(businessId, payload) {
+  return send('crm:service-quota', businessId, payload);
+}
+
+/** How many sockets sit in a tenant's room (0 = nobody has the CRM open). */
+export function roomSize(businessId) {
+  if (!io || !businessId) return 0;
+  return io.sockets?.adapter?.rooms?.get(roomFor(businessId))?.size || 0;
+}
+
 export default {
   setIO, roomFor, emitMessage, emitStatus, emitReaction, emitNotification, emitNotificationCount,
-  emitSandboxContacts,
+  emitSandboxContacts, emitServiceQuota, roomSize,
 };

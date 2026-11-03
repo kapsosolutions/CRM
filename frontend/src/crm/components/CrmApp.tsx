@@ -213,6 +213,8 @@ export function CrmApp({
   // as the agent nears the top, before they get there, so it scrolls on
   // without waiting. The message on screen stays put when a page is added. ----
   const PAGE = 50;
+  // About how long the browser's smooth scroll to a quoted message takes.
+  const JUMP_SCROLL_MS = 900;
   const [hasOlder, setHasOlder] = useState(false);
   const [loadingOlder, setLoadingOlder] = useState(false);
   const hasOlderRef = useRef(false);
@@ -221,23 +223,28 @@ export function CrmApp({
   // The message that was at the top and where it was (CSS px from the box
   // top), so the view is put back exactly once the older page is drawn.
   const anchorRef = useRef<{ id: string; top: number } | null>(null);
+  // Until when a quote jump's smooth scroll is running (ms timestamp).
+  const jumpScrollUntil = useRef(0);
   const loadOlder = useCallback((): Promise<void> => {
     if (olderInFlight.current) return olderInFlight.current;
     const phone = activePhoneRef.current;
     const oldest = messagesRef.current.find((m) => m.createdAt && !isTemp(m));
     if (!phone || !hasOlderRef.current || !oldest) return Promise.resolve();
-    const box = msgBoxRef.current;
-    const el = box?.querySelector<HTMLElement>(`[data-msg-id="${oldest._id}"]`);
-    if (box && el) {
-      const s = uiScale();
-      anchorRef.current = { id: oldest._id, top: (el.getBoundingClientRect().top - box.getBoundingClientRect().top) / s };
-    }
     setLoadingOlder(true);
     const run = api
       .getMessages(phone, { limit: PAGE, before: oldest })
       .then((res) => {
         if (activePhoneRef.current !== phone) return;
         const page = res.data || [];
+        // Where the oldest message is now, just before the page goes in: the
+        // reader may have kept scrolling while it loaded, and that's the
+        // position to keep (measuring at request time put the view back).
+        const box = msgBoxRef.current;
+        const el = box?.querySelector<HTMLElement>(`[data-msg-id="${oldest._id}"]`);
+        if (box && el) {
+          const s = uiScale();
+          anchorRef.current = { id: oldest._id, top: (el.getBoundingClientRect().top - box.getBoundingClientRect().top) / s };
+        }
         setMessages((list) => {
           const have = new Set(list.map((m) => m._id));
           return [...page.filter((m) => !have.has(m._id)), ...list];
@@ -272,6 +279,9 @@ export function CrmApp({
   const maybeLoadOlder = useCallback(() => {
     const box = msgBoxRef.current;
     if (!box || !hasOlderRef.current || olderInFlight.current) return;
+    // A quote jump is scrolling: an older page now would put the view back
+    // (anchor) and cut the smooth scroll short of the quoted message.
+    if (Date.now() < jumpScrollUntil.current) return;
     if (box.scrollTop < Math.max(400, box.clientHeight * 1.5) || box.scrollHeight <= box.clientHeight + 40) loadOlder();
   }, [loadOlder]);
   useEffect(() => {
@@ -308,7 +318,9 @@ export function CrmApp({
     let lastHeight = box.scrollHeight;
     const grew = new ResizeObserver(() => {
       const h = box.scrollHeight;
-      if (h > lastHeight && atBottom) box.scrollTop = h;
+      // Not while a quote jump scrolls up: the older pages it just loaded grow
+      // the list too, and pinning to the bottom would cancel the jump.
+      if (h > lastHeight && atBottom && Date.now() >= jumpScrollUntil.current) box.scrollTop = h;
       lastHeight = h;
     });
     // The list's content box: observe every bubble row as it's added.
@@ -997,6 +1009,8 @@ export function CrmApp({
     let el = find();
     // Quoting a message older than what's loaded: load earlier pages until
     // it's there (a long way back stops after 20 pages, 1,000 messages).
+    // Meanwhile the list must not pin itself to the bottom as it grows.
+    if (!el) jumpScrollUntil.current = Date.now() + 60_000;
     for (let i = 0; !el && hasOlderRef.current && i < 20; i += 1) {
       // eslint-disable-next-line no-await-in-loop
       await loadOlder();
@@ -1004,13 +1018,23 @@ export function CrmApp({
       await new Promise((r) => setTimeout(r, 40));
       el = find();
     }
-    if (!el) return;
+    if (!el) {
+      jumpScrollUntil.current = 0;
+      return;
+    }
     // Scroll only the message list. scrollIntoView() would also scroll every
     // ancestor (even overflow:hidden ones) and shift the whole CRM.
     // Rects are screen px, scrollTop / clientHeight are CSS px (they differ in the 90% view).
     const s = uiScale();
     const boxRect = box!.getBoundingClientRect();
     const elRect = el.getBoundingClientRect();
+    // No prefetch while it scrolls; once it's there, look again (it may have
+    // landed near the top, where the next page is due).
+    jumpScrollUntil.current = Date.now() + JUMP_SCROLL_MS;
+    setTimeout(() => {
+      jumpScrollUntil.current = 0;
+      maybeLoadOlder();
+    }, JUMP_SCROLL_MS + 50);
     box!.scrollTo({
       top: box!.scrollTop + (elRect.top - boxRect.top) / s - (box!.clientHeight - elRect.height / s) / 2,
       behavior: 'smooth',

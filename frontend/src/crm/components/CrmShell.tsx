@@ -10,7 +10,7 @@ import { PlanContext, type PlanContextValue } from '../PlanContext';
 import { hasFeature, tierFor, TIER_NAMES } from '../plans';
 import { PlanLockedPage } from './PlanLocked';
 import { WalletButton } from './WalletButton';
-import { MockCrmApi } from '../demo/mockApi';
+import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, type CrmView, SettingsRailSvg, ProfileRailSvg } from './NavRail';
 import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
@@ -598,6 +598,9 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [notificationsUnread, setNotificationsUnread] = useState(0);
   const [notificationSocket, setNotificationSocket] = useState<CrmSocket | null>(null);
+  // The demo has no server: its feed is the in-memory one (profile sidebar's
+  // live service message count).
+  const demoSocket = useMemo(() => (demo ? new MockCrmSocket('') : null), [demo]);
   // A record to open on the page a notification leads to (template, campaign, order).
   const [focusRequest, setFocusRequest] = useState<{ view: CrmView; id: string; n: number } | null>(null);
 
@@ -1196,6 +1199,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         onNavigate={navigate}
         onOpenChannelStatus={handleOpenChannelStatus}
         onLogout={onLogout}
+        socket={demo ? demoSocket : notificationSocket}
       />
     </div>
     </PlanContext.Provider>
