@@ -12177,7 +12177,8 @@ button.pd-phone-chip:hover {
 .pdfd-overlay {
   position: fixed;
   inset: 0;
-  z-index: 300;
+  /* Above a full-screen flow map (.canvas-full), which it's opened from. */
+  z-index: 1300;
   background: #eef1f4;
   display: flex;
   flex-direction: column;
@@ -20853,4 +20854,45 @@ label.k-label,
 .jn-modal .flowref-select {
   font-size: 13.5px;
   padding: 8px 10px;
+}
+
+/* A block's other inputs: the top (it sits under the block leading to it) and
+   the bottom (it sits above). Shown when a connection uses them, or while the
+   pointer is over the block, so a line can be dropped there. */
+.jn-handle.in.top {
+  left: 50% !important;
+  top: -6px !important;
+  transform: translateX(-50%) !important;
+}
+.jn-handle.in.bottom {
+  left: 50% !important;
+  top: auto !important;
+  bottom: -6px !important;
+  transform: translateX(-50%) !important;
+}
+.jn-handle.in.top:not(.used),
+.jn-handle.in.bottom:not(.used) {
+  opacity: 0;
+}
+.jn-node:hover .jn-handle.in.top,
+.jn-node:hover .jn-handle.in.bottom,
+.jn-handle.in.connectingto {
+  opacity: 1;
+}
+
+/* Full screen: the palette and the canvas fill the window. Pop-ups (1200) and
+   the PDF designer (1300) open above it. */
+.canvas-full {
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 1150;
+  width: auto !important;
+  height: auto !important;
+  margin: 0 !important;
+  border-radius: 0 !important;
+  background: var(--wa-surface);
+}
+.react-flow__controls-button.canvas-full-btn .material-icons {
+  font-size: 15px;
+  line-height: 1;
 }

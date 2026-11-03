@@ -52,6 +52,7 @@ import { useBackHandler } from '../useBackHandler';
 import { BladeSpinner } from './BladeSpinner';
 import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { PhoneStatusBar } from './TemplatePhonePreview';
+import { FullscreenButton, IN_HANDLE, inSideFor, organizeLayout, useCanvasFullscreen, type LayoutPort } from './canvasTools';
 
 // Sample categories shown in the preview for a dynamic "Category list" block.
 // At runtime the backend endpoint serves the business's real categories (1:1).
@@ -2546,9 +2547,11 @@ interface MapOut {
 interface MapCanvasApi {
   /** `${nodeId}|${handle}` of every connected output. */
   connected: Set<string>;
+  /** `${nodeId}|top` / `${nodeId}|bottom`: a connection enters the block there. */
+  inUsed: Set<string>;
   addFrom: (nodeId: string, handle: string) => void;
 }
-const MapCtx = createContext<MapCanvasApi>({ connected: new Set(), addFrom: () => {} });
+const MapCtx = createContext<MapCanvasApi>({ connected: new Set(), inUsed: new Set(), addFrom: () => {} });
 
 function MapPort({ nodeId, handle, side }: { nodeId: string; handle: string; side: 'right' | 'bottom' }) {
   const { connected, addFrom } = useContext(MapCtx);
@@ -2600,7 +2603,7 @@ function MapCard({
   // One labelled output and no plain one: on the right, labelled there.
   const side = !next && outputs.length === 1 ? outputs[0] : null;
   const bottom = side ? [] : outputs;
-  const { connected } = useContext(MapCtx);
+  const { connected, inUsed } = useContext(MapCtx);
   const portsKey = [next, ...outputs.map((o) => o.id)].map((h) => `${h}:${connected.has(`${nodeId}|${h}`) ? 1 : 0}`).join(',');
   const updateInternals = useUpdateNodeInternals();
   useEffect(() => {
@@ -2614,7 +2617,13 @@ function MapCard({
       data-kind={kind}
       title={kind === 'start' ? undefined : 'Click to edit'}
     >
+      {/* The left input first: a connection without a named input uses it. */}
       {target && <Handle type="target" position={Position.Left} className="jn-handle in" />}
+      {/* Used when the block sits under (or over) the one leading to it. */}
+      {target && <Handle type="target" id={IN_HANDLE.top!} position={Position.Top} className={`jn-handle in top${inUsed.has(`${nodeId}|top`) ? ' used' : ''}`} />}
+      {target && !bottom.length && (
+        <Handle type="target" id={IN_HANDLE.bottom!} position={Position.Bottom} className={`jn-handle in bottom${inUsed.has(`${nodeId}|bottom`) ? ' used' : ''}`} />
+      )}
       {kind === 'start' && <span className="jn-bolt material-icons" aria-hidden="true">bolt</span>}
       <div className="jn-main">
         <span className="jn-ic"><span className="material-icons">{icon}</span></span>
@@ -3066,72 +3075,15 @@ function MapAddMenu({ items, onPick, onClose }: { items: MapAddItem[]; onPick: (
   );
 }
 
-/**
- * "Tidy up": columns left to right in the order the flow runs (Start, then
- * what it leads to, output by output), each column centred on the tallest.
- * Nodes nothing leads to go in a last column.
- */
-function mapTidy(nodes: Node[], edges: Edge[]): Map<string, { x: number; y: number }> {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const portRank = (e: Edge) => {
-    const { next, outputs } = mapPortsOf(byId.get(e.source));
-    const ids = [next, ...outputs.map((o) => o.id)].filter(Boolean);
-    const i = ids.indexOf(e.sourceHandle || '');
-    return i < 0 ? 99 : i;
-  };
-  const out = new Map<string, string[]>();
-  for (const e of [...edges].sort((a, b) => portRank(a) - portRank(b))) {
-    if (!byId.has(e.target)) continue;
-    out.set(e.source, [...(out.get(e.source) || []), e.target]);
-  }
-  const depth = new Map<string, number>([['start', 0]]);
-  const order: string[] = [];
-  const queue = byId.has('start') ? ['start'] : [];
-  while (queue.length) {
-    const id = queue.shift()!;
-    order.push(id);
-    for (const t of out.get(id) || []) {
-      if (depth.has(t)) continue;
-      depth.set(t, (depth.get(id) || 0) + 1);
-      queue.push(t);
-    }
-  }
-  const last = Math.max(0, ...depth.values()) + 1;
-  for (const n of nodes) {
-    if (!depth.has(n.id)) {
-      depth.set(n.id, last);
-      order.push(n.id);
-    }
-  }
-  // The node plus the room its bottom ports take (labels and "+" under it).
-  const height = (n: Node) => {
-    const { next, outputs } = mapPortsOf(n);
-    const bottom = outputs.length > (next ? 0 : 1);
-    return (n.height || 60) + (bottom ? 64 : 0);
-  };
-  const cols = new Map<number, string[]>();
-  for (const id of order) cols.set(depth.get(id)!, [...(cols.get(depth.get(id)!) || []), id]);
-  const GAP_Y = 48;
-  const colH = (ids: string[]) => ids.reduce((s, id) => s + height(byId.get(id)!), 0) + GAP_Y * (ids.length - 1);
-  const tallest = Math.max(0, ...[...cols.values()].map(colH));
-  // Each column starts clear of the widest card before it, plus room for its
-  // side label and "+" (screens with several options are wide).
-  const GAP_X = 170;
-  const colX = new Map<number, number>();
-  let x = 80;
-  for (const d of [...cols.keys()].sort((a, b) => a - b)) {
-    colX.set(d, x);
-    x += Math.max(190, ...cols.get(d)!.map((id) => byId.get(id)!.width || 220)) + GAP_X;
-  }
-  const pos = new Map<string, { x: number; y: number }>();
-  for (const [d, ids] of cols) {
-    let y = 80 + (tallest - colH(ids)) / 2;
-    for (const id of ids) {
-      pos.set(id, { x: colX.get(d)!, y: Math.round(y) });
-      y += height(byId.get(id)!) + GAP_Y;
-    }
-  }
-  return pos;
+/** A map card's outputs for the layout and the input sides, with where each comes out. */
+function mapLayoutPorts(n: Node | undefined, connected: Set<string>): LayoutPort[] {
+  if (!n) return [];
+  const { next, outputs } = mapPortsOf(n);
+  const single = !next && outputs.length === 1;
+  return [
+    ...(next ? [{ id: next, side: 'right' as const }] : []),
+    ...outputs.map((o) => ({ id: o.id, side: single ? ('right' as const) : ('bottom' as const) })),
+  ].map((p) => ({ ...p, free: !connected.has(`${n.id}|${p.id}`) }));
 }
 
 interface ScreenMapProps {
@@ -3450,10 +3402,28 @@ function ScreenMapInner({
   const [editing, setEditing] = useState<string | null>(null);
   const [adding, setAdding] = useState<{ nodeId: string; handle: string } | null>(null);
   const connected = useMemo(() => new Set(edges.map((e) => `${e.source}|${e.sourceHandle || ''}`)), [edges]);
+  // Each connection enters its block from the side facing where it comes
+  // from: the left, or the top / bottom when the block sits under / over it.
+  // Worked out from the live positions, so it follows a block being dragged.
+  const shownEdges = useMemo(() => {
+    const rect = new Map(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y, w: n.width || 0, h: n.height || 0 }]));
+    const bottomOuts = new Map(nodes.map((n) => [n.id, mapLayoutPorts(n, connected).some((p) => p.side === 'bottom')]));
+    return edges.map((e) => {
+      const side = inSideFor(rect.get(e.source) || null, rect.get(e.target) || null, !!bottomOuts.get(e.target));
+      return { ...e, targetHandle: IN_HANDLE[side] };
+    });
+  }, [edges, nodes, connected]);
+  // Which input sides are in use, as one string so the cards only re-render
+  // when one changes (not on every frame of a drag).
+  const inUsedKey = shownEdges.filter((e) => e.targetHandle).map((e) => `${e.target}|${e.targetHandle === IN_HANDLE.top ? 'top' : 'bottom'}`).sort().join(',');
+  const inUsed = useMemo(() => new Set(inUsedKey ? inUsedKey.split(',') : []), [inUsedKey]);
   const canvasApi = useMemo<MapCanvasApi>(
-    () => ({ connected, addFrom: (nodeId, handle) => setAdding({ nodeId, handle }) }),
-    [connected],
+    () => ({ connected, inUsed, addFrom: (nodeId, handle) => setAdding({ nodeId, handle }) }),
+    [connected, inUsed],
   );
+  const { full, toggle: toggleFull } = useCanvasFullscreen(() => {
+    setTimeout(() => rf.fitView({ padding: 0.2, maxZoom: 1, duration: 250 }), 120);
+  });
   const addItems = useMemo(() => mapAddItems(vertical), [vertical]);
 
   function onNodeClick(_e: React.MouseEvent, n: Node) {
@@ -3483,10 +3453,17 @@ function ScreenMapInner({
     if (p.pick.type !== 'screen') setTimeout(() => setEditing(newId), 0);
   }
 
-  function tidy() {
-    const pos = mapTidy(rf.getNodes(), edges);
+  function organize() {
+    const all = rf.getNodes();
+    const byId = new Map(all.map((n) => [n.id, n]));
+    const pos = organizeLayout(
+      all.map((n) => ({ id: n.id, width: n.width || 220, height: n.height || 60 })),
+      edges,
+      (id) => mapLayoutPorts(byId.get(id), connected),
+      'start',
+    );
     for (const [id, p] of pos) commitPos(id, p);
-    setTimeout(() => rf.fitView({ padding: 0.3, maxZoom: 1, duration: 300 }), 50);
+    setTimeout(() => rf.fitView({ padding: 0.2, maxZoom: 1, duration: 300 }), 50);
   }
 
   const editingBlock = editing?.startsWith('block_') ? blocks.find((b) => `block_${b.id}` === editing) : undefined;
@@ -3513,7 +3490,7 @@ function ScreenMapInner({
   }
 
   return (
-    <div className="flow-map-layout">
+    <div className={`flow-map-layout${full ? ' canvas-full' : ''}`} data-testid="canvas-wrap">
       <aside className="flow-palette map-palette">
         <div className="fp-title">Blocks</div>
         <p className="fp-hint">Drag onto the canvas, or click a “+” on a block. Drag a “+” onto a block to connect it.</p>
@@ -3533,16 +3510,16 @@ function ScreenMapInner({
         <button
           type="button"
           className="jn-tidy"
-          onClick={tidy}
-          title="Lay the map out left to right, in the order the flow runs"
-          data-testid="jn-tidy"
+          onClick={organize}
+          title="Arrange the map left to right in the order the flow runs, each branch in its own row"
+          data-testid="jn-organize"
         >
-          <span className="material-icons">auto_fix_high</span> Tidy up
+          <span className="material-icons">account_tree</span> Organize
         </button>
         <MapCtx.Provider value={canvasApi}>
           <ReactFlow
             nodes={nodes}
-            edges={edges}
+            edges={shownEdges}
             nodeTypes={mapNodeTypes}
             edgeTypes={mapEdgeTypes}
             onConnect={onConnect}
@@ -3563,7 +3540,9 @@ function ScreenMapInner({
             proOptions={{ hideAttribution: true }}
           >
             <Background variant={BackgroundVariant.Dots} gap={18} size={1.6} color="#c9c2b6" />
-            <Controls />
+            <Controls>
+              <FullscreenButton full={full} onClick={toggleFull} />
+            </Controls>
           </ReactFlow>
         </MapCtx.Provider>
       </div>

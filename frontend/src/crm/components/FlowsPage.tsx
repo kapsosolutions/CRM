@@ -36,6 +36,7 @@ import { useBackHandler } from '../useBackHandler';
 import { BladeSpinner } from './BladeSpinner';
 import { COMING_SOON } from '../features';
 import { ComingSoonPanel, SoonPill } from './ComingSoon';
+import { FullscreenButton, IN_HANDLE, inSideFor, organizeLayout, useCanvasFullscreen, type LayoutPort } from './canvasTools';
 
 type Kind =
   | 'start'
@@ -696,9 +697,24 @@ function problemOf(data: WaData, outputs: Output[]): string {
 interface CanvasApi {
   /** `${nodeId}|${handleId}` of every output already connected. */
   connected: Set<string>;
+  /** `${nodeId}|top` / `${nodeId}|bottom`: a connection enters the block there. */
+  inUsed: Set<string>;
   addFrom: (nodeId: string, handle: string) => void;
 }
-const CanvasCtx = createContext<CanvasApi>({ connected: new Set(), addFrom: () => {} });
+const CanvasCtx = createContext<CanvasApi>({ connected: new Set(), inUsed: new Set(), addFrom: () => {} });
+
+/** A block's outputs for the layout and the input sides, with where each comes out (as WaNode draws them). */
+function waLayoutPorts(n: Node<WaData> | undefined, templates: TemplateItem[], connected: Set<string>): LayoutPort[] {
+  if (!n?.data) return [];
+  const outputs = outputsOf(n.data, templates);
+  const branches = outputs.filter((o) => o.label && o.id);
+  const next = outputs.find((o) => !o.id);
+  const single = !next && branches.length === 1;
+  return [
+    ...(next ? [{ id: '', side: 'right' as const }] : []),
+    ...branches.map((o) => ({ id: o.id, side: single ? ('right' as const) : ('bottom' as const) })),
+  ].map((p) => ({ ...p, free: !connected.has(`${n.id}|${p.id}`) }));
+}
 
 /**
  * One output of a block. Connected: a port on the block's edge. Free: a dot on
@@ -753,7 +769,7 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
   const isStart = data.kind === 'start';
   // A port turns from "+" into a dot when connected (and back): React Flow
   // must measure the block's ports again, or the line starts from the old spot.
-  const { connected } = useContext(CanvasCtx);
+  const { connected, inUsed } = useContext(CanvasCtx);
   const portsKey = outputs.map((o) => `${o.id}:${connected.has(`${id}|${o.id}`) ? 1 : 0}`).join(',');
   const updateInternals = useUpdateNodeInternals();
   useEffect(() => {
@@ -767,7 +783,13 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
       data-kind={data.kind}
       title="Click to edit"
     >
+      {/* The left input first: a connection without a named input uses it. */}
       {!isStart && <Handle type="target" position={Position.Left} className="jn-handle in" />}
+      {/* Used when the block sits under (or over) the one leading to it. */}
+      {!isStart && <Handle type="target" id={IN_HANDLE.top!} position={Position.Top} className={`jn-handle in top${inUsed.has(`${id}|top`) ? ' used' : ''}`} />}
+      {!isStart && !branches.length && (
+        <Handle type="target" id={IN_HANDLE.bottom!} position={Position.Bottom} className={`jn-handle in bottom${inUsed.has(`${id}|bottom`) ? ' used' : ''}`} />
+      )}
       {isStart && <span className="jn-bolt material-icons" aria-hidden="true">bolt</span>}
       <div className="jn-main">
         <span className="jn-ic"><span className="material-icons">{k.icon}</span></span>
@@ -894,64 +916,16 @@ function nextId(nds: Node<WaData>[]): string {
   return id;
 }
 
-/**
- * "Tidy up": columns left to right in the order the journey runs (Start,
- * then what it leads to, output by output), each column centred on the
- * tallest. Blocks nothing leads to go in a last column.
- */
-function tidyLayout(nodes: Node<WaData>[], edges: Edge[], templates: TemplateItem[]): Node<WaData>[] {
+/** "Organize": the journey laid out left to right (see organizeLayout). */
+function organizeJourney(nodes: Node<WaData>[], edges: Edge[], templates: TemplateItem[]): Node<WaData>[] {
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const portRank = (e: Edge) => {
-    const src = byId.get(e.source);
-    if (!src) return 0;
-    const i = outputsOf(src.data, templates).findIndex((o) => o.id === (e.sourceHandle || ''));
-    return i < 0 ? 99 : i;
-  };
-  const out = new Map<string, string[]>();
-  for (const e of [...edges].sort((a, b) => portRank(a) - portRank(b))) {
-    if (!byId.has(e.target)) continue;
-    out.set(e.source, [...(out.get(e.source) || []), e.target]);
-  }
-  const depth = new Map<string, number>();
-  const order: string[] = [];
-  const start = nodes.find((n) => n.data?.kind === 'start');
-  const queue = start ? [start.id] : [];
-  if (start) depth.set(start.id, 0);
-  while (queue.length) {
-    const id = queue.shift()!;
-    order.push(id);
-    for (const t of out.get(id) || []) {
-      if (depth.has(t)) continue;
-      depth.set(t, (depth.get(id) || 0) + 1);
-      queue.push(t);
-    }
-  }
-  const last = Math.max(0, ...depth.values()) + 1;
-  for (const n of nodes) {
-    if (!depth.has(n.id)) {
-      depth.set(n.id, last);
-      order.push(n.id);
-    }
-  }
-  // The block plus the room its bottom ports take (labels and "+" under it).
-  const height = (n: Node<WaData>) => {
-    const outs = outputsOf(n.data, templates);
-    const bottom = outs.filter((o) => o.id && o.label).length > (outs.length === 1 ? 1 : 0);
-    return (n.height || 60) + (bottom ? 64 : 0);
-  };
-  const cols = new Map<number, string[]>();
-  for (const id of order) cols.set(depth.get(id)!, [...(cols.get(depth.get(id)!) || []), id]);
-  const GAP_Y = 48;
-  const colH = (ids: string[]) => ids.reduce((s, id) => s + height(byId.get(id)!), 0) + GAP_Y * (ids.length - 1);
-  const tallest = Math.max(0, ...[...cols.values()].map(colH));
-  const pos = new Map<string, { x: number; y: number }>();
-  for (const [d, ids] of cols) {
-    let y = 80 + (tallest - colH(ids)) / 2;
-    for (const id of ids) {
-      pos.set(id, { x: 80 + d * 340, y: Math.round(y) });
-      y += height(byId.get(id)!) + GAP_Y;
-    }
-  }
+  const connected = new Set(edges.map((e) => `${e.source}|${e.sourceHandle || ''}`));
+  const pos = organizeLayout(
+    nodes.map((n) => ({ id: n.id, width: n.width || 220, height: n.height || 60 })),
+    edges,
+    (id) => waLayoutPorts(byId.get(id), templates, connected),
+    nodes.find((n) => n.data?.kind === 'start')?.id,
+  );
   return nodes.map((n) => ({ ...n, position: pos.get(n.id) || n.position }));
 }
 
@@ -1051,7 +1025,9 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
     (c: Connection) =>
       setEdges((eds) =>
         addEdge(
-          { ...c, animated: false, style: { stroke: EDGE_GREY, strokeWidth: 2 } },
+          // Which side it was dropped on isn't stored: the side is redrawn
+          // from where the blocks are.
+          { ...c, targetHandle: null, animated: false, style: { stroke: EDGE_GREY, strokeWidth: 2 } },
           eds.filter((e) => !(e.source === c.source && (e.sourceHandle || null) === (c.sourceHandle || null))),
         ),
       ),
@@ -1059,8 +1035,28 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
   );
 
   const connected = useMemo(() => new Set(edges.map((e) => `${e.source}|${e.sourceHandle || ''}`)), [edges]);
-  const canvasApi = useMemo<CanvasApi>(() => ({ connected, addFrom: (nodeId, handle) => setAddingFrom({ nodeId, handle }) }), [connected]);
-  const shownEdges = useMemo(() => edges.map((e) => edgeLook(e, stroke)), [edges, stroke]);
+  // Each connection enters its block from the side facing where it comes
+  // from: the left, or the top / bottom when the block sits under / over it.
+  // Worked out from the live positions, so it follows a block being dragged.
+  const shownEdges = useMemo(() => {
+    const rect = new Map(nodes.map((n) => [n.id, { x: n.position.x, y: n.position.y, w: n.width || 0, h: n.height || 0 }]));
+    const bottomOuts = new Map(nodes.map((n) => [n.id, waLayoutPorts(n, templates, connected).some((p) => p.side === 'bottom')]));
+    return edges.map((e) => {
+      const side = inSideFor(rect.get(e.source) || null, rect.get(e.target) || null, !!bottomOuts.get(e.target));
+      return { ...edgeLook(e, stroke), targetHandle: IN_HANDLE[side] };
+    });
+  }, [edges, nodes, stroke, templates, connected]);
+  // Which input sides are in use, as one string so the blocks only re-render
+  // when one changes (not on every frame of a drag).
+  const inUsedKey = shownEdges.filter((e) => e.targetHandle).map((e) => `${e.target}|${e.targetHandle === IN_HANDLE.top ? 'top' : 'bottom'}`).sort().join(',');
+  const inUsed = useMemo(() => new Set(inUsedKey ? inUsedKey.split(',') : []), [inUsedKey]);
+  const canvasApi = useMemo<CanvasApi>(
+    () => ({ connected, inUsed, addFrom: (nodeId, handle) => setAddingFrom({ nodeId, handle }) }),
+    [connected, inUsed],
+  );
+  const { full, toggle: toggleFull } = useCanvasFullscreen(() => {
+    setTimeout(() => rf.fitView({ padding: 0.2, maxZoom: 0.9, duration: 250 }), 120);
+  });
 
   function addAfter(p: PaletteItem) {
     const from = addingFrom;
@@ -1131,7 +1127,7 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
   }
 
   return (
-    <div className="flows-body">
+    <div className={`flows-body${full ? ' canvas-full' : ''}`} data-testid="canvas-wrap">
       <aside className="flow-palette" data-testid="flow-palette" data-channel={channel}>
         <div className="fp-title">{CHANNEL_NAME[channel]} blocks</div>
         <p className="fp-hint">Drag a block onto the canvas, then connect the ports.</p>
@@ -1166,13 +1162,13 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
           type="button"
           className="jn-tidy"
           onClick={() => {
-            setNodes((nds) => tidyLayout(nds, edges, templates));
-            setTimeout(() => rf.fitView({ padding: 0.3, maxZoom: 0.9, duration: 300 }), 50);
+            setNodes((nds) => organizeJourney(nds, edges, templates));
+            setTimeout(() => rf.fitView({ padding: 0.2, maxZoom: 0.9, duration: 300 }), 50);
           }}
-          title="Lay the blocks out left to right, in the order the journey runs"
-          data-testid="jn-tidy"
+          title="Arrange the blocks left to right in the order the journey runs, each branch in its own row"
+          data-testid="jn-organize"
         >
-          <span className="material-icons">auto_fix_high</span> Tidy up
+          <span className="material-icons">account_tree</span> Organize
         </button>
         <CanvasCtx.Provider value={canvasApi}>
           <ReactFlow
@@ -1195,7 +1191,9 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
             proOptions={{ hideAttribution: true }}
           >
             <Background variant={BackgroundVariant.Dots} gap={18} size={1.6} color="#c9c2b6" />
-            <Controls />
+            <Controls>
+              <FullscreenButton full={full} onClick={toggleFull} />
+            </Controls>
             <MiniMap pannable zoomable nodeColor={(n) => KINDS[(n.data as WaData)?.kind || 'message']?.color || stroke} />
           </ReactFlow>
         </CanvasCtx.Provider>
