@@ -1057,6 +1057,14 @@ export class MockCrmApi extends CrmApi {
 
   // ---------- Media (demo: no backend, keep a local object URL) ----------
   override async uploadMedia(file: File): Promise<string> {
+    // Dev-only test hooks: slow uploads (to exercise several at once) and failed ones.
+    if (import.meta.env.DEV) {
+      const w = window as unknown as { __demoUploadDelay?: number; __demoUploadFail?: boolean };
+      if (w.__demoUploadDelay) await new Promise((r) => setTimeout(r, w.__demoUploadDelay));
+      if (w.__demoUploadFail) throw new Error('Upload failed (test)');
+      // A different address from the preview's, like a real upload.
+      if (w.__demoUploadDelay) return `${URL.createObjectURL(file)}#up`;
+    }
     return URL.createObjectURL(file);
   }
 

@@ -80,6 +80,12 @@ export async function embedFlowImages(flow) {
   const failed = [];
 
   const embed = async (url, box, label) => {
+    // The builder's instant preview of a picked file. It only ever existed in
+    // that browser tab: the upload didn't finish before the flow was saved.
+    if (url.startsWith('blob:')) {
+      failed.push(`${label} (it was saved before it finished uploading: upload it again, then republish)`);
+      return '';
+    }
     const b64 = await fetchResizedBase64(url, box);
     if (b64) return `data:image/jpeg;base64,${b64}`;
     failed.push(label);

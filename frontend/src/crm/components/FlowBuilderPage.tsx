@@ -43,7 +43,7 @@ import type {
 } from '../types';
 import { buildFlowJson, incomingDataKeys, isEndpointMode } from '../flowJson';
 import { Dropdown, type KOption } from './Dropdown';
-import { MediaCtx, useMedia, useMediaApi } from './uploadCtx';
+import { MediaCtx, useMedia, useMediaApi, usePendingUploads } from './uploadCtx';
 import { PdfDesigner, confirmPdfTemplate, PDF_A4 } from './PdfDesigner';
 import { FlowMessageFields, FlowMessageModal, flowMessageOf, type FlowMessage } from './FlowMessageEditor';
 import { verticalConfig, type ConfirmWording, type VerticalConfig } from '../verticals';
@@ -53,6 +53,31 @@ import { BladeSpinner } from './BladeSpinner';
 import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { PhoneStatusBar } from './TemplatePhonePreview';
 import { FullscreenButton, IN_HANDLE, inSideFor, organizeLayout, useCanvasFullscreen, type LayoutPort } from './canvasTools';
+
+/**
+ * Images in a flow that still point at an instant-preview `blob:` address
+ * whose upload never finished (failed, or the tab was busy), named the way
+ * the publish warning names them. Those can't be saved: the address exists
+ * only in the browser tab that picked the file.
+ */
+function unsavedImages(f: WaFlowDef, saveable: (url: string) => boolean): string[] {
+  const bad = (u?: string) => !!u && u.startsWith('blob:') && !saveable(u);
+  const out: string[] = [];
+  for (const s of f.screens || []) {
+    if (bad(s.msgHeaderMediaUrl)) out.push(`attachment on "${s.title || s.id}"`);
+    for (const c of s.components || []) {
+      if (c.type === 'Image' && bad(c.src)) out.push(`banner on "${s.title || s.id}"`);
+      for (const o of c.options || []) {
+        if (bad(o.image)) out.push(`image for "${o.title || o.id}" on "${s.title || s.id}"`);
+      }
+    }
+  }
+  for (const b of f.blocks || []) {
+    if (bad(b.headerMediaUrl)) out.push(`${b.headerFileName || 'file'} in a ${BLOCK_META[b.kind]?.label || b.kind} block`);
+  }
+  if (bad((f as { msgHeaderMediaUrl?: string }).msgHeaderMediaUrl)) out.push('the chat message attachment');
+  return out;
+}
 
 // Sample categories shown in the preview for a dynamic "Category list" block.
 // At runtime the backend endpoint serves the business's real categories (1:1).
@@ -754,6 +779,7 @@ function FlowEditor({
     (f) => api.uploadMedia(f, 'flows'),
     (url) => api.deleteMedia(url),
   );
+  const uploading = usePendingUploads(media);
 
   useEffect(() => {
     api
@@ -853,11 +879,28 @@ function FlowEditor({
   function patchScreen(i: number, patch: Partial<FlowScreen>) {
     setScreens((ss) => ss.map((s, idx) => (idx === i ? { ...s, ...patch } : s)));
   }
-  function patchComponent(cid: string, patch: Partial<FlowComponent>) {
+  /**
+   * Change one component. The patch can be worked out from the component's
+   * current value, which is what an upload finishing later needs: patching
+   * with the copy it was given when the file was picked would undo whatever
+   * changed meanwhile (another option's image was being replaced like that).
+   * Found by screen id, not the open screen, so it lands even if the user
+   * has moved to another screen in the meantime.
+   */
+  function patchComponent(
+    screenId: string,
+    cid: string,
+    patch: ComponentPatch,
+  ) {
     setScreens((ss) =>
-      ss.map((s, idx) =>
-        idx === activeScreen
-          ? { ...s, components: s.components.map((c) => (c.cid === cid ? { ...c, ...patch } : c)) }
+      ss.map((s) =>
+        s.id === screenId
+          ? {
+              ...s,
+              components: s.components.map((c) =>
+                c.cid === cid ? { ...c, ...(typeof patch === 'function' ? patch(c) : patch) } : c,
+              ),
+            }
           : s,
       ),
     );
@@ -1552,9 +1595,18 @@ function FlowEditor({
   const endpointMode = useMemo(() => isEndpointMode(currentFlow()), [screens]);
 
   async function save(): Promise<string> {
+    const body = currentFlow();
+    // An image whose upload never finished still has its instant-preview
+    // address, which only exists in this tab: saved, it's lost, and Meta
+    // leaves the image out on publish. Say which ones instead.
+    const unsent = unsavedImages(body, media.saveable);
+    if (unsent.length) {
+      const msg = `Upload ${unsent.length === 1 ? 'this image' : 'these images'} again, then save: ${unsent.join(', ')}.`;
+      setError(msg);
+      throw new Error(msg);
+    }
     setBusy('save');
     setError('');
-    const body = currentFlow();
     try {
       let res;
       if (savedId) res = await api.updateFlowDef(savedId, body);
@@ -1675,12 +1727,26 @@ function FlowEditor({
           <button className="k-btn ghost sm" onClick={() => setShowJson((v) => !v)}>
             <span className="material-icons">data_object</span> {showJson ? 'Hide JSON' : 'View JSON'}
           </button>
-          <button className="k-btn ghost sm" onClick={() => save().then(() => onSaved('Flow saved.')).catch(() => {})} disabled={!!busy}>
-            {busy === 'save' ? 'Saving…' : 'Save'}
+          {/* Held while an image is uploading: saving then would store the
+              preview instead of the uploaded image. */}
+          <button
+            className="k-btn ghost sm"
+            onClick={() => save().then(() => onSaved('Flow saved.')).catch(() => {})}
+            disabled={!!busy || uploading > 0}
+            title={uploading ? 'Waiting for the images to finish uploading' : undefined}
+            data-testid="flow-save"
+          >
+            {busy === 'save' ? 'Saving…' : uploading ? 'Uploading…' : 'Save'}
           </button>
-          <button className="k-btn sm" onClick={publish} disabled={!!busy}>
+          <button
+            className="k-btn sm"
+            onClick={publish}
+            disabled={!!busy || uploading > 0}
+            title={uploading ? 'Waiting for the images to finish uploading' : undefined}
+            data-testid="flow-publish"
+          >
             <span className="material-icons">cloud_upload</span>
-            {busy === 'publish' ? 'Publishing…' : status === 'PUBLISHED' ? 'Republish' : 'Publish'}
+            {busy === 'publish' ? 'Publishing…' : uploading ? 'Uploading…' : status === 'PUBLISHED' ? 'Republish' : 'Publish'}
           </button>
         </div>
       </header>
@@ -1855,7 +1921,7 @@ function FlowEditor({
                 screenOptions={screenOptions}
                 dynamicFields={dynamicFields}
                 branching={screenBranches}
-                onChange={(patch) => patchComponent(c.cid, patch)}
+                onChange={(patch) => patchComponent(screen.id, c.cid, patch)}
                 onRemove={() => removeComponent(c.cid)}
                 onMove={(dir) => moveComponent(c.cid, dir)}
               />
@@ -2103,6 +2169,7 @@ function BlockFields({
   const meta = { ...BLOCK_META[b.kind], label: blockLabel(b.kind, vertical) };
   const fileRef = useRef<HTMLInputElement>(null);
   const { upload, discard } = useMedia();
+  const notify = useNotify();
   const patch = (p: Partial<FlowBlock>) => data.onChange(b.id, p);
 
   const pickHeader = (h: FlowBlockHeader) => {
@@ -2115,13 +2182,18 @@ function BlockFields({
     e.target.value = '';
     if (!f) return;
     const previous = b.headerMediaUrl;
+    const previousName = b.headerFileName;
     patch({ headerMediaUrl: URL.createObjectURL(f), headerFileName: f.name }); // instant preview
     upload(f)
       .then((url) => {
         patch({ headerMediaUrl: url });
         discard(previous); // replaced → reclaim the old upload
       })
-      .catch(() => {});
+      .catch((err) => {
+        // Never leave the preview address in place: it can't be saved.
+        patch({ headerMediaUrl: previous || '', headerFileName: previousName || '' });
+        notify('error', 'File not uploaded', err instanceof Error ? err.message : 'Please try again.');
+      });
   };
   const setButton = (i: number, v: string) => patch({ buttons: (b.buttons || []).map((x, idx) => (idx === i ? v : x)) });
   const setOption = (i: number, v: string) => patch({ options: (b.options || []).map((x, idx) => (idx === i ? v : x)) });
@@ -3600,6 +3672,9 @@ function ScreenMapInner({
 // ---------------------------------------------------------------------------
 // Per-component editor card
 // ---------------------------------------------------------------------------
+/** A change to a component, or a function of its current value giving one. */
+type ComponentPatch = Partial<FlowComponent> | ((current: FlowComponent) => Partial<FlowComponent>);
+
 function ComponentEditor({
   component: c,
   screenOptions,
@@ -3614,12 +3689,13 @@ function ComponentEditor({
   dynamicFields: string[];
   /** True when this screen's options each branch to their own screen. */
   branching?: boolean;
-  onChange: (patch: Partial<FlowComponent>) => void;
+  onChange: (patch: ComponentPatch) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const { upload, discard } = useMedia();
+  const notify = useNotify();
   // Matched on type AND data source, skipping the journey presets.
   //
   // Matching on type alone picked whichever palette entry happened to come
@@ -3638,38 +3714,57 @@ function ComponentEditor({
     e.target.value = '';
     if (!f) return;
     const previous = c.src;
-    onChange({ src: URL.createObjectURL(f) }); // instant preview
+    const preview = URL.createObjectURL(f); // instant preview, swapped for the hosted URL
+    onChange({ src: preview });
     upload(f)
       .then((url) => {
-        onChange({ src: url });
+        // Only if it's still this picture (not replaced again meanwhile).
+        onChange((cur) => (cur.src === preview ? { src: url } : {}));
         discard(previous); // replaced → reclaim the old upload
       })
-      .catch(() => {});
+      .catch((err) => {
+        onChange((cur) => (cur.src === preview ? { src: previous || '' } : {}));
+        notify('error', 'Banner not uploaded', err instanceof Error ? err.message : 'Please try again.');
+      });
   }
 
+  // Worked out from the component's current options, never the copy this
+  // render was given, or an upload finishing later would put back the other
+  // options as they were when its file was picked.
   function setOption(i: number, patch: Partial<FlowOption>) {
-    onChange({ options: (c.options || []).map((o, idx) => (idx === i ? { ...o, ...patch } : o)) });
+    onChange((cur) => ({ options: (cur.options || []).map((o, idx) => (idx === i ? { ...o, ...patch } : o)) }));
   }
   function onOptionImage(i: number, e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
     e.target.value = '';
     if (!f) return;
     const previous = (c.options || [])[i]?.image;
-    setOption(i, { image: URL.createObjectURL(f) }); // instant preview
+    const title = (c.options || [])[i]?.title || `Option ${i + 1}`;
+    const preview = URL.createObjectURL(f); // instant preview, swapped for the hosted URL
+    setOption(i, { image: preview });
+    // The option is found by its preview address, so the hosted URL lands on
+    // the right one even if options were added, removed or moved meanwhile.
+    const swap = (to: string) =>
+      onChange((cur) => ({ options: (cur.options || []).map((o) => (o.image === preview ? { ...o, image: to } : o)) }));
     upload(f)
       .then((url) => {
-        setOption(i, { image: url });
+        swap(url);
         discard(previous);
       })
-      .catch(() => {});
+      .catch((err) => {
+        swap(previous || '');
+        notify('error', `Image for “${title}” not uploaded`, err instanceof Error ? err.message : 'Please try again.');
+      });
   }
   function addOption() {
-    const opts = c.options || [];
-    onChange({ options: [...opts, { id: `opt_${opts.length + 1}`, title: `Option ${opts.length + 1}`, description: '' }] });
+    onChange((cur) => {
+      const opts = cur.options || [];
+      return { options: [...opts, { id: `opt_${opts.length + 1}`, title: `Option ${opts.length + 1}`, description: '' }] };
+    });
   }
   function removeOption(i: number) {
     discard((c.options || [])[i]?.image);
-    onChange({ options: (c.options || []).filter((_, idx) => idx !== i) });
+    onChange((cur) => ({ options: (cur.options || []).filter((_, idx) => idx !== i) }));
   }
 
   return (
