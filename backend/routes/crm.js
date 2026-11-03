@@ -267,17 +267,43 @@ router.post('/chats', async (req, res) => {
 });
 
 // ---------------- Messages for a phone ----------------
+// A page of the chat, oldest first on screen: the newest `limit` messages, or
+// with `before` (+ `beforeId`, the oldest message already shown) the `limit`
+// before it, so the CRM opens a chat with its latest messages and loads older
+// ones as the agent scrolls up instead of the whole history every time.
+// Without `limit` (an older CRM tab) it's the newest 500, as before.
+const PAGE_MAX = 200;
 router.get('/messages/:phone', async (req, res) => {
   const phone = req.params.phone.replace(/\D/g, '');
-  // The newest 500, oldest first on screen. Taking the first 500 instead hid
-  // every message after the 500th in a long chat.
-  const messages = (await Message.find({ ...owner(req), phone })
-    .sort({ createdAt: -1 })
-    .limit(500)
-    .lean()).reverse();
-  await Conversation.updateOne({ ...owner(req), phone }, { $set: { unread: 0 } });
-  markChatRead(req.business._id, phone).catch(() => {});
-  res.json({ success: true, data: messages });
+  const paged = req.query.limit !== undefined;
+  const limit = paged ? Math.min(PAGE_MAX, Math.max(1, Math.floor(Number(req.query.limit)) || 50)) : 500;
+  const before = req.query.before ? new Date(String(req.query.before)) : null;
+  const beforeId = String(req.query.beforeId || '');
+  const filter = { ...owner(req), phone };
+  if (before && !Number.isNaN(before.getTime())) {
+    // Strictly older; messages from the same millisecond go by id, so a page
+    // boundary never skips or repeats one.
+    filter.$or = [
+      { createdAt: { $lt: before } },
+      ...(beforeId ? [{ createdAt: before, _id: { $lt: beforeId } }] : []),
+    ];
+  }
+  const rows = await Message.find(filter)
+    .sort({ createdAt: -1, _id: -1 })
+    .limit(paged ? limit + 1 : limit)
+    .lean();
+  const hasMore = paged && rows.length > limit;
+  const messages = (hasMore ? rows.slice(0, limit) : rows).reverse();
+  // Opening the chat (the first page) is what reads it.
+  let lastInboundAt = null;
+  if (!before) {
+    const convo = await Conversation.findOneAndUpdate({ ...owner(req), phone }, { $set: { unread: 0 } }, { new: true }).lean();
+    lastInboundAt = convo?.lastInboundAt || null;
+    markChatRead(req.business._id, phone).catch(() => {});
+  }
+  // `lastInboundAt` lets the CRM time the 24-hour window even when the
+  // customer's last message is older than this page.
+  res.json({ success: true, data: messages, ...(paged ? { hasMore } : {}), ...(before ? {} : { lastInboundAt }) });
 });
 
 // ---------------- Send a free-text reply (within 24h window) ----------------

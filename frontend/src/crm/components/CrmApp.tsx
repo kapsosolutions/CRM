@@ -7,7 +7,7 @@
 //   multimedia send/receive · emoji reactions · templates (list/preview/send/
 //   create) · delivery & read ticks · live socket · desktop notifications.
 // =============================================================================
-import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CrmApi } from '../api';
 import { CrmSocket } from '../socket';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
@@ -209,6 +209,85 @@ export function CrmApp({
   };
   const msgBoxRef = useRef<HTMLDivElement>(null);
 
+  // ---- Paging: a chat opens on its newest PAGE messages; older pages load
+  // as the agent nears the top, before they get there, so it scrolls on
+  // without waiting. The message on screen stays put when a page is added. ----
+  const PAGE = 50;
+  const [hasOlder, setHasOlder] = useState(false);
+  const [loadingOlder, setLoadingOlder] = useState(false);
+  const hasOlderRef = useRef(false);
+  hasOlderRef.current = hasOlder;
+  const olderInFlight = useRef<Promise<void> | null>(null);
+  // The message that was at the top and where it was (CSS px from the box
+  // top), so the view is put back exactly once the older page is drawn.
+  const anchorRef = useRef<{ id: string; top: number } | null>(null);
+  const loadOlder = useCallback((): Promise<void> => {
+    if (olderInFlight.current) return olderInFlight.current;
+    const phone = activePhoneRef.current;
+    const oldest = messagesRef.current.find((m) => m.createdAt && !isTemp(m));
+    if (!phone || !hasOlderRef.current || !oldest) return Promise.resolve();
+    const box = msgBoxRef.current;
+    const el = box?.querySelector<HTMLElement>(`[data-msg-id="${oldest._id}"]`);
+    if (box && el) {
+      const s = uiScale();
+      anchorRef.current = { id: oldest._id, top: (el.getBoundingClientRect().top - box.getBoundingClientRect().top) / s };
+    }
+    setLoadingOlder(true);
+    const run = api
+      .getMessages(phone, { limit: PAGE, before: oldest })
+      .then((res) => {
+        if (activePhoneRef.current !== phone) return;
+        const page = res.data || [];
+        setMessages((list) => {
+          const have = new Set(list.map((m) => m._id));
+          return [...page.filter((m) => !have.has(m._id)), ...list];
+        });
+        setHasOlder(!!res.hasMore && page.length > 0);
+      })
+      .catch(() => {
+        anchorRef.current = null;
+      })
+      .finally(() => {
+        olderInFlight.current = null;
+        if (activePhoneRef.current === phone) setLoadingOlder(false);
+      });
+    olderInFlight.current = run;
+    return run;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [api]);
+  // Put the anchored message back where it was, before the browser paints.
+  useLayoutEffect(() => {
+    const a = anchorRef.current;
+    const box = msgBoxRef.current;
+    if (!a || !box) return;
+    const el = box.querySelector<HTMLElement>(`[data-msg-id="${a.id}"]`);
+    if (!el) return;
+    anchorRef.current = null;
+    const s = uiScale();
+    const now = (el.getBoundingClientRect().top - box.getBoundingClientRect().top) / s;
+    box.scrollTop += now - a.top;
+  }, [messages]);
+  // Near the top (within ~1.5 screens): fetch the next older page. Also when
+  // a page doesn't fill the box, so there's something to scroll.
+  const maybeLoadOlder = useCallback(() => {
+    const box = msgBoxRef.current;
+    if (!box || !hasOlderRef.current || olderInFlight.current) return;
+    if (box.scrollTop < Math.max(400, box.clientHeight * 1.5) || box.scrollHeight <= box.clientHeight + 40) loadOlder();
+  }, [loadOlder]);
+  useEffect(() => {
+    const box = msgBoxRef.current;
+    if (!box) return undefined;
+    const onScroll = () => maybeLoadOlder();
+    box.addEventListener('scroll', onScroll, { passive: true });
+    return () => box.removeEventListener('scroll', onScroll);
+  }, [maybeLoadOlder, activePhone]);
+  // A page that came in short of filling the box: look again once it's drawn.
+  useEffect(() => {
+    if (!hasOlder || loadingOlder) return undefined;
+    const t = setTimeout(maybeLoadOlder, 150);
+    return () => clearTimeout(t);
+  }, [hasOlder, loadingOlder, messages.length, maybeLoadOlder]);
+
   const scrollToBottom = useCallback(() => {
     setTimeout(() => {
       const box = msgBoxRef.current;
@@ -299,20 +378,27 @@ export function CrmApp({
       // Clear the previous thread so its messages don't flash under the new
       // header, and show placeholders until this one arrives.
       setMessages([]);
+      setHasOlder(false);
+      anchorRef.current = null;
+      olderInFlight.current = null;
+      setLoadingOlder(false);
       setMsgsLoading(true);
       api
-        .getMessages(phone)
+        .getMessages(phone, { limit: PAGE })
         .then((res) => {
           // The user may have switched again while this was in flight.
           if (activePhoneRef.current !== phone) return;
           const list = res.data || [];
           setMessages(list);
+          setHasOlder(!!res.hasMore);
           scrollToBottom();
 
-          // Calculate actual 24h window from actual inbound messages
+          // The 24h window from the customer's last message: in this page, or
+          // (older than the page) the time the server keeps for the chat.
           const lastInboundMsg = [...list].reverse().find((m) => m.direction === 'in');
-          if (lastInboundMsg?.createdAt) {
-            const inTime = new Date(lastInboundMsg.createdAt).getTime();
+          const lastInboundAt = lastInboundMsg?.createdAt || res.lastInboundAt || '';
+          if (lastInboundAt) {
+            const inTime = new Date(lastInboundAt).getTime();
             if (!Number.isNaN(inTime) && inTime > 0 && Date.now() - inTime < WINDOW_MS) {
               setWindowExpiresAt(inTime + WINDOW_MS);
             } else {
@@ -769,6 +855,7 @@ export function CrmApp({
           )
         );
         setMessages([]);
+        setHasOlder(false);
         toast('success', 'Chat deleted', `Messages with ${name} were deleted. Contact remains in your contacts.`);
       })
       .catch((e: Error) => {
@@ -903,10 +990,20 @@ export function CrmApp({
   useBackHandler(!!activePhone, closeActiveChat);
 
   // Scroll to the quoted message and briefly highlight it (WhatsApp style).
-  function jumpToMessage(id?: string) {
+  async function jumpToMessage(id?: string) {
     if (!id) return;
     const box = msgBoxRef.current;
-    const el = box?.querySelector<HTMLElement>(`[data-msg-id="${id}"]`);
+    const find = () => box?.querySelector<HTMLElement>(`[data-msg-id="${id}"]`) || null;
+    let el = find();
+    // Quoting a message older than what's loaded: load earlier pages until
+    // it's there (a long way back stops after 20 pages, 1,000 messages).
+    for (let i = 0; !el && hasOlderRef.current && i < 20; i += 1) {
+      // eslint-disable-next-line no-await-in-loop
+      await loadOlder();
+      // eslint-disable-next-line no-await-in-loop
+      await new Promise((r) => setTimeout(r, 40));
+      el = find();
+    }
     if (!el) return;
     // Scroll only the message list. scrollIntoView() would also scroll every
     // ancestor (even overflow:hidden ones) and shift the whole CRM.
@@ -1136,6 +1233,16 @@ export function CrmApp({
 
 
             <div className="messages" ref={msgBoxRef}>
+              {/* Older messages on the way: a pill floating at the top. It
+                  takes no room, so nothing in the thread moves for it. */}
+              {loadingOlder && (
+                <div className="msgs-older" role="status" data-testid="msgs-older">
+                  <span className="msgs-older-pill">
+                    <span className="msgs-older-spin" aria-hidden="true" />
+                    Loading earlier messages…
+                  </span>
+                </div>
+              )}
               {msgsLoading && messages.length === 0 && <MessageSkeleton />}
               {!msgsLoading && messages.length === 0 && (
                 <div className="day-sep" role="status">

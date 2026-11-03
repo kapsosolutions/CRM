@@ -862,8 +862,23 @@ export class CrmApi {
     });
   }
 
-  getMessages(phone: string): Promise<ApiList<ChatMessage>> {
-    return this.request(`/api/crm/messages/${phone}`, { headers: this.authHeaders() });
+  /**
+   * A page of a chat, oldest first: the newest `limit` messages, or the
+   * `limit` before `before` (the oldest one already shown). `hasMore` = older
+   * ones exist; `lastInboundAt` (first page) times the 24-hour window.
+   */
+  getMessages(
+    phone: string,
+    page: { limit?: number; before?: ChatMessage } = {},
+  ): Promise<ApiList<ChatMessage> & { hasMore?: boolean; lastInboundAt?: string | null }> {
+    const q = new URLSearchParams();
+    if (page.limit) q.set('limit', String(page.limit));
+    if (page.before?.createdAt) {
+      q.set('before', page.before.createdAt);
+      if (page.before._id) q.set('beforeId', page.before._id);
+    }
+    const qs = q.toString();
+    return this.request(`/api/crm/messages/${phone}${qs ? `?${qs}` : ''}`, { headers: this.authHeaders() });
   }
 
   deleteChat(phone: string): Promise<{ success: boolean }> {

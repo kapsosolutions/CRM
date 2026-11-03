@@ -107,6 +107,25 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     many(categories, (c, i) => ({ ...c, _id: `bulk-c${i}`, name: `${c.name} ${i + 1}` }));
     bulkCampaigns = n;
   };
+  // A long chat to try paging: n older messages before the chat's own, a
+  // minute apart, alternating sides; every 25th quotes the one 60 earlier.
+  (window as unknown as { __demoLongChat: (phone: string, n?: number) => number }).__demoLongChat = (phone, n = 300) => {
+    const own = messages[phone] || [];
+    const first = own.length ? new Date(own[0].createdAt || Date.now()).getTime() : Date.now();
+    const older: ChatMessage[] = [];
+    for (let i = 0; i < n; i += 1) {
+      const at = new Date(first - (n - i) * 60_000).toISOString();
+      const m: ChatMessage = {
+        _id: `long-${phone}-${i}`, metaMessageId: `wamid.long.${i}`, phone, direction: i % 2 ? 'out' : 'in',
+        type: 'text', body: `Older message #${i + 1}`, status: 'read', createdAt: at,
+      };
+      // Quotes one 60 back: on an older page than the quote itself.
+      if (i % 25 === 24 && i >= 60) m.raw = { replyTo: { id: `long-${phone}-${i - 60}`, author: 'Customer', preview: `Older message #${i - 59}` } };
+      older.push(m);
+    }
+    messages[phone] = [...older, ...own];
+    return messages[phone].length;
+  };
 }
 const journeys: Journey[] = demoJourneys.map((j) => JSON.parse(JSON.stringify(j)) as Journey);
 
@@ -629,11 +648,29 @@ export class MockCrmApi extends CrmApi {
     return delay({ success: true, data: chats.map((c) => ({ ...c })) });
   }
 
-  override getMessages(phone: string): Promise<ApiList<ChatMessage>> {
-    const list = messages[phone] || [];
+  override getMessages(
+    phone: string,
+    page: { limit?: number; before?: ChatMessage } = {},
+  ): Promise<ApiList<ChatMessage> & { hasMore?: boolean; lastInboundAt?: string | null }> {
+    // Dev-only test hook: __demoLongChat(phone, n) gives a chat n older messages.
+    let list = messages[phone] || [];
     const c = chats.find((x) => x.phone === phone);
-    if (c) c.unread = 0;
-    return delay({ success: true, data: list.map((m) => ({ ...m })) });
+    if (!page.before && c) c.unread = 0;
+    // Same paging as the server: the `limit` newest before the cursor.
+    if (page.before) {
+      const i = list.findIndex((m) => m._id === page.before!._id);
+      list = i >= 0 ? list.slice(0, i) : [];
+    }
+    const limit = page.limit || list.length;
+    const hasMore = list.length > limit;
+    const out = list.slice(Math.max(0, list.length - limit));
+    const lastIn = [...(messages[phone] || [])].reverse().find((m) => m.direction === 'in');
+    return delay({
+      success: true,
+      data: out.map((m) => ({ ...m })),
+      ...(page.limit ? { hasMore } : {}),
+      ...(page.before ? {} : { lastInboundAt: lastIn?.createdAt || null }),
+    }, import.meta.env.DEV ? (window as unknown as { __demoPageDelay?: number }).__demoPageDelay : undefined);
   }
 
   override markRead(): Promise<{ success: boolean }> {

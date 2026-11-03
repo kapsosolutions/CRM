@@ -21200,3 +21200,40 @@ label.k-label,
   font-weight: 600;
   cursor: pointer;
 }
+
+/* "Loading earlier messages…" while an older page of the chat comes in. It
+   floats at the top of the thread and takes no room, so the messages on
+   screen don't move for it. */
+.messages > .msgs-older {
+  position: sticky;
+  top: 8px;
+  z-index: 3;
+  height: 0;
+  display: flex;
+  justify-content: center;
+  overflow: visible;
+  pointer-events: none;
+}
+.msgs-older-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 30px;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #54656f;
+  font-size: 12.5px;
+  box-shadow: 0 1px 4px rgba(11, 20, 26, 0.16);
+}
+.msgs-older-spin {
+  width: 14px;
+  height: 14px;
+  border: 2px solid #d1d7db;
+  border-top-color: #25d366;
+  border-radius: 50%;
+  animation: msgs-older-spin 0.8s linear infinite;
+}
+@keyframes msgs-older-spin {
+  to { transform: rotate(360deg); }
+}
