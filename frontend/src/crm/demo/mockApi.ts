@@ -132,6 +132,10 @@ interface DemoCall {
   rowId: string;
 }
 const demoCalls = new Map<string, DemoCall>();
+// Phones whose call was hung up while being placed (cancelCall).
+const demoCancelled = new Set<string>();
+// Phones with a startCall in flight (the demo's "Meta" is still placing it).
+const demoPlacing = new Set<string>();
 const demoPermissions = new Map<string, CallPermission['status']>();
 let demoCallSettings: CallSettings = {
   enabled: true, configured: true, showCallButton: true, callbackPermission: true,
@@ -626,16 +630,28 @@ export class MockCrmApi extends CrmApi {
     return delay({ success: true }, 80);
   }
 
+  override cancelCall(phone: string): Promise<{ success: boolean }> {
+    // Like the server: a call still being placed is ended once it has an id.
+    if (demoPlacing.has(phone)) demoCancelled.add(phone);
+    for (const d of demoCalls.values()) if (d.call.direction === 'out' && d.call.phone === phone) setTimeout(() => demoEndCall(d.call.id), 50);
+    return delay({ success: true }, 40);
+  }
+
   override async startCall(phone: string, sdp: string, tabId: string, name = ''): Promise<{ success: boolean; call: LiveCall }> {
     if ((demoPermissions.get(phone) || 'temporary') === 'no_permission') {
       throw Object.assign(new Error('This customer hasn’t allowed calls from you yet. Ask for permission first.'), { status: 409, data: { code: 138006 } });
     }
+    demoPlacing.add(phone);
     const pc = new RTCPeerConnection({ iceServers: [] });
     const voice = demoVoice();
     if (voice) for (const t of voice.stream.getTracks()) pc.addTrack(t, voice.stream);
     await pc.setRemoteDescription({ type: 'offer', sdp });
     await pc.setLocalDescription(await pc.createAnswer());
     await demoIceDone(pc);
+    // Dev hook: how long "Meta" takes to place the call (a slow network).
+    const slow = import.meta.env.DEV ? Number((window as unknown as { __demoCallPlaceMs?: number }).__demoCallPlaceMs) || 0 : 0;
+    if (slow) await new Promise((r) => setTimeout(r, slow));
+    demoPlacing.delete(phone);
     const id = `wacid.demo${nextId()}`;
     const chat = chats.find((c) => c.phone === phone);
     const call: LiveCall = {
@@ -645,6 +661,7 @@ export class MockCrmApi extends CrmApi {
     const dc: DemoCall = { call, pc, tone: voice, answeredAt: null, rowId: nextId() };
     demoCalls.set(id, dc);
     demoCallRow(dc, 'ringing');
+    if (demoCancelled.delete(phone)) setTimeout(() => demoEndCall(id), 50);
     // Like Meta: the answer, then ringing, then the customer picks up.
     const answer = pc.localDescription?.sdp || '';
     setTimeout(() => bus.emitCall({ kind: 'answer', call, sdp: answer }), 150);

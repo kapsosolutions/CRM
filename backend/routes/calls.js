@@ -16,7 +16,7 @@
 import express from 'express';
 import { requireBusiness } from '../middleware/auth.js';
 import {
-  getCallSettings, updateCallSettings, ringingCalls, acceptCall, rejectCall, endCall, startCall,
+  getCallSettings, updateCallSettings, ringingCalls, acceptCall, rejectCall, endCall, startCall, cancelCall,
   callPermission, requestCallPermission, iceServers, callError, CallError,
 } from '../services/calling.js';
 import { isWhatsAppConnected } from '../services/sandbox.js';
@@ -90,6 +90,16 @@ router.post('/', async (req, res) => {
     return res.json({ success: true, call });
   } catch (err) {
     return fail(res, req, 'start', err);
+  }
+});
+
+// End pressed before the browser had the call's id: { phone, tabId }.
+router.post('/cancel', async (req, res) => {
+  const b = req.body || {};
+  try {
+    return res.json({ success: true, ...(await cancelCall(req.business, { phone: b.phone, tabId: b.tabId })) });
+  } catch (err) {
+    return fail(res, req, 'cancel', err);
   }
 });
 

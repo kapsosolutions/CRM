@@ -325,7 +325,17 @@ export class CrmApi {
   }
 
   endCall(id: string): Promise<{ success: boolean }> {
-    return this.request(`/api/calls/${encodeURIComponent(id)}/end`, { method: 'POST', headers: this.authHeaders() });
+    return this.request(`/api/calls/${encodeURIComponent(id)}/end`, { method: 'POST', headers: this.authHeaders(), keepalive: true });
+  }
+
+  /** Hang up a call still being placed (no id yet): the server ends it once Meta returns one. */
+  cancelCall(phone: string, tabId: string): Promise<{ success: boolean }> {
+    return this.request('/api/calls/cancel', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ phone, tabId }),
+      keepalive: true,
+    });
   }
 
   startCall(phone: string, sdp: string, tabId: string, name = ''): Promise<{ success: boolean; call: LiveCall }> {

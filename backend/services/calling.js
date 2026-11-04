@@ -564,7 +564,7 @@ export async function endCall(biz, callId) {
     await client.callAction({ call_id: id, action: 'terminate' });
   } catch (err) {
     const e = callError(err);
-    logger.info('ending call failed', { business: biz.name, call: id, error: e.message });
+    logger.warn('ending call failed', { business: biz.name, call: id, error: e.message, code: e.code });
   }
   // The terminate webhook records the outcome; the tabs can stop now.
   const c = live.get(id);
@@ -580,7 +580,7 @@ export async function startCall(biz, { phone, sdp, tabId, name = '' } = {}) {
   if (to.length < 8) throw new CallError('This chat has no phone number to call.');
   if (!sdp || !/^v=0/.test(String(sdp).trim())) throw new CallError('The browser didn’t produce a call offer.');
   const key = `${businessId}|${to}`;
-  placing.set(key, { at: Date.now(), tabId: tabId ? String(tabId).slice(0, 64) : null });
+  placing.set(key, { at: Date.now(), tabId: tabId ? String(tabId).slice(0, 64) : null, cancelled: false });
   let data;
   try {
     data = await client.callAction({ to, action: 'connect', session: { sdp_type: 'offer', sdp: String(sdp) } });
@@ -593,7 +593,16 @@ export async function startCall(biz, { phone, sdp, tabId, name = '' } = {}) {
   }
   const id = String(data?.calls?.[0]?.id || '');
   if (!id) throw new CallError('Meta didn’t return a call id.', { status: 502 });
+  const wasCancelled = !!placing.get(key)?.cancelled;
   placing.delete(key);
+  // The agent hung up while Meta was still placing it: end it now, or the
+  // customer's phone keeps ringing for a call nobody is on.
+  if (wasCancelled) {
+    await client.callAction({ call_id: id, action: 'terminate' }).catch((err) => {
+      logger.warn('ending a cancelled call failed', { business: biz.name, call: id, error: callError(err).message });
+    });
+    logger.info('call cancelled while being placed', { business: biz.name, call: id });
+  }
   // The connect webhook may have created it already.
   const c = live.get(id) || {
     id, businessId, phone: to, name: String(name || '').slice(0, 120), direction: 'out', state: 'ringing', at: Date.now(),
@@ -604,6 +613,33 @@ export async function startCall(biz, { phone, sdp, tabId, name = '' } = {}) {
   await upsertRow(c);
   await touchChat(c);
   return present(c);
+}
+
+/**
+ * Hang up a call to this customer that the browser has no id for yet (End
+ * pressed while it was being placed). A call still being placed is ended as
+ * soon as Meta returns its id; one already known is ended now.
+ */
+export async function cancelCall(biz, { phone, tabId } = {}) {
+  const client = own(biz);
+  const businessId = String(biz._id);
+  const to = digits(phone);
+  if (!to) return { ok: true, ended: 0 };
+  const tab = tabId ? String(tabId).slice(0, 64) : null;
+  const p = placing.get(`${businessId}|${to}`);
+  if (p && (!tab || !p.tabId || p.tabId === tab)) p.cancelled = true;
+  let ended = 0;
+  for (const c of live.values()) {
+    if (c.businessId !== businessId || c.direction !== 'out' || c.phone !== to || c.terminated) continue;
+    if (tab && c.answeredBy && c.answeredBy !== tab) continue;
+    if (TERMINAL.includes(c.state)) continue;
+    ended += 1;
+    // eslint-disable-next-line no-await-in-loop
+    await client.callAction({ call_id: c.id, action: 'terminate' }).catch((err) => {
+      logger.warn('ending call failed', { business: biz.name, call: c.id, error: callError(err).message });
+    });
+  }
+  return { ok: true, ended, pending: !!p };
 }
 
 // --------------------------------------------------------- permissions --
@@ -669,6 +705,6 @@ export function iceServers() {
 
 export default {
   getCallSettings, updateCallSettings, forgetCallSettings, shapeSettings, settingsPatch,
-  handleCallsValue, ringingCalls, acceptCall, rejectCall, endCall, startCall,
+  handleCallsValue, ringingCalls, acceptCall, rejectCall, endCall, startCall, cancelCall,
   callPermission, requestCallPermission, iceServers, callLabel, callError, CallError,
 };

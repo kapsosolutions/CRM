@@ -96,6 +96,10 @@ export function CallProvider({ api, socket, enabled, demo = false, onOpenChat, o
   // Meta's answer can arrive before /calls returns our call id.
   const earlyAnswer = useRef<{ phone: string; sdp: string; id: string } | null>(null);
   const [needsOn, setNeedsOn] = useState(false);
+  // End pressed before the call had an id: end it as soon as it has one.
+  const hangupPending = useRef(false);
+  // Calls already ended from here (so a late event doesn't end them twice).
+  const killed = useRef(new Set<string>());
 
   const ice = useCallback(async () => {
     if (iceRef.current) return iceRef.current;
@@ -180,6 +184,26 @@ export function CallProvider({ api, socket, enabled, demo = false, onOpenChat, o
         return;
       }
       const call = e.call;
+      // A call this tab placed. Meta can ring the customer (and they can pick
+      // up) before /calls has given us the id, so the first event for it
+      // tells us the id. And a call this tab no longer wants (hung up while it
+      // was being placed) is ended at Meta the moment we hear of it, or the
+      // customer's phone keeps ringing.
+      const mine = call.direction === 'out' && call.answeredBy === me;
+      const over = ['ended', 'missed', 'declined', 'no_answer', 'failed'].includes(call.state);
+      if (mine && e.kind !== 'ended' && e.kind !== 'hangup' && !over) {
+        const cur = activeRef.current;
+        if (cur && cur.direction === 'out' && !cur.id && cur.phase !== 'ended' && cur.phone === call.phone && !hangupPending.current) {
+          activeRef.current = { ...cur, id: call.id };
+          setActive((x) => (x && !x.id ? { ...x, id: call.id } : x));
+        } else if (!cur || cur.id !== call.id || cur.phase === 'ended') {
+          if (!killed.current.has(call.id)) {
+            killed.current.add(call.id);
+            api.endCall(call.id).catch(() => {});
+          }
+          return;
+        }
+      }
       const a = activeRef.current;
       switch (e.kind) {
         case 'incoming': {
@@ -302,10 +326,19 @@ export function CallProvider({ api, socket, enabled, demo = false, onOpenChat, o
 
   const hangUp = useCallback(() => {
     const a = activeRef.current;
-    if (!a) return;
-    if (a.id) api.endCall(a.id).catch(() => {});
+    if (!a || a.phase === 'ended') return;
+    if (a.id) {
+      killed.current.add(a.id);
+      api.endCall(a.id).catch(() => {});
+    } else {
+      // Still being placed: ended at Meta once its id is known, by the
+      // server (cancel) and by this tab (dial() or the socket), whichever
+      // hears of it first.
+      hangupPending.current = true;
+      if (a.direction === 'out') api.cancelCall(a.phone, me).catch(() => {});
+    }
     finish(a.since ? 'Call ended' : 'Cancelled');
-  }, [api, finish]);
+  }, [api, finish, me]);
 
   const toggleMute = useCallback(() => {
     setActive((a) => {
@@ -319,20 +352,32 @@ export function CallProvider({ api, socket, enabled, demo = false, onOpenChat, o
   const dial = useCallback(async (phone: string, name: string) => {
     setActive({ id: '', phone, name, direction: 'out', phase: 'preparing', since: null, muted: false });
     earlyAnswer.current = null;
+    hangupPending.current = false;
     try {
       const servers = await ice();
       const { media, sdp } = await makeOffer(servers, setRemote);
+      if (hangupPending.current) {
+        // Hung up while the microphone was starting: don't place it at all.
+        hangupPending.current = false;
+        media.close();
+        return;
+      }
       mediaRef.current = media;
-      setActive((a) => (a ? { ...a, phase: 'calling' } : a));
+      setActive((a) => (a && a.phase !== 'ended' ? { ...a, phase: 'calling' } : a));
       const r = await api.startCall(phone, sdp, me, name);
-      if (!activeRef.current || activeRef.current.phone !== phone) {
-        // Hung up while it was being placed.
-        api.endCall(r.call.id).catch(() => {});
+      const cur = activeRef.current;
+      if (hangupPending.current || !cur || cur.phase === 'ended' || cur.phone !== phone) {
+        // Hung up while it was being placed: end it at Meta now.
+        hangupPending.current = false;
+        if (!killed.current.has(r.call.id)) {
+          killed.current.add(r.call.id);
+          api.endCall(r.call.id).catch(() => {});
+        }
         media.close();
         return;
       }
       setActive((a) => (a ? { ...a, id: r.call.id } : a));
-      activeRef.current = activeRef.current ? { ...activeRef.current, id: r.call.id } : activeRef.current;
+      activeRef.current = { ...cur, id: r.call.id };
       // Set by the socket while /calls was in flight (TS can't see that).
       const early = earlyAnswer.current as { phone: string; sdp: string; id: string } | null;
       if (early && early.id === r.call.id) {
@@ -342,6 +387,11 @@ export function CallProvider({ api, socket, enabled, demo = false, onOpenChat, o
       }
     } catch (err) {
       closeMedia();
+      // Hung up already: nothing more to say.
+      if (hangupPending.current) {
+        hangupPending.current = false;
+        return;
+      }
       setActive(null);
       const e = err as Error & { data?: { code?: number } };
       if (e?.data?.code === 138006) {
