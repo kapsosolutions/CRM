@@ -13,6 +13,7 @@ import {
 import { sendFlowToChat } from '../services/flowMapRuntime.js';
 import { channelClientForChat, chatChannel, channelUnsupported } from '../services/metaChannels.js';
 import { touchOutbound } from '../services/conversationState.js';
+import { sendPoll, sendEvent, ExtraError } from '../services/chatExtras.js';
 import { setReaction, resolveAgentReply } from '../services/reactions.js';
 import { THREAD_CONTROLLED_ELSEWHERE, THREAD_CONTROL_MESSAGE } from '../services/otherApps.js';
 import { notifyTemplateStatus, markChatRead } from '../services/notifications.js';
@@ -324,6 +325,36 @@ router.post('/send', async (req, res) => {
     logger.error('crm send failed', { error: errMessage(err) });
     sendFailure(res, err);
   }
+});
+
+// ---------------- Polls and events (the composer's + menu) ----------------
+// WhatsApp's API has no native poll or event message: services/chatExtras.js
+// builds them from buttons / lists and a calendar button. WhatsApp chats only.
+async function sendExtra(req, res, what, send) {
+  try {
+    const clean = String(req.body?.phone || '').replace(/\D/g, '');
+    if (!clean) return res.status(400).json({ success: false, message: 'phone required' });
+    const otherChannel = await chatChannel(req.business, clean);
+    if (otherChannel) return channelRefusal(res, otherChannel);
+    const out = await send(await chatClient(req, clean), clean);
+    await touchOutbound(clean, what, req.business._id, { markRead: true });
+    return res.json({ success: true, ...out });
+  } catch (err) {
+    if (err instanceof ExtraError) return res.status(400).json({ success: false, message: err.message });
+    logger.error(`crm send ${what} failed`, { error: errMessage(err) });
+    return sendFailure(res, err);
+  }
+}
+
+router.post('/send-poll', (req, res) => {
+  const b = req.body || {};
+  return sendExtra(req, res, `📊 ${String(b.question || 'Poll').slice(0, 80)}`, (c, phone) => sendPoll(c, phone, b));
+});
+
+router.post('/send-event', (req, res) => {
+  const b = req.body || {};
+  const own = req.business.meta?.displayPhoneNumber || req.business.whatsappNumber || '';
+  return sendExtra(req, res, `📅 ${String(b.name || 'Event').slice(0, 80)}`, (c, phone) => sendEvent(c, phone, b, own));
 });
 
 // ---------------- Send a published Flow (interactive form) ----------------

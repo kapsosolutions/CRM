@@ -11,6 +11,7 @@ import { buildSubmissionSummary, summaryToText } from './flowSubmission.js';
 import { priceCart, cartToText, cartBubble } from './cart.js';
 import { replyToFromContext } from './reactions.js';
 import { emitCall } from './eventBus.js';
+import { parsePollReply, recordPollVote } from './chatExtras.js';
 
 // Per chat and second: the last time handed out, so messages sent in the same
 // second keep the order they reached us in.
@@ -125,6 +126,12 @@ export async function processInboundMessage(message, names, ctx) {
   logInbound(msg.phone, msg.name, msg.type, msg.logBody, msg.voicemail ? { ...message, voicemail: true } : message, message.id, msg.media, {
     ...ctx, form: msg.form, order: msg.orderInfo, replyTo, at,
   }).catch(() => {});
+  // An answer to a poll sent from the chat: counted on the poll, and not
+  // something for the bot to answer.
+  if (parsePollReply(msg.selectedId)) {
+    await recordPollVote(msg.selectedId, { businessId: ctx.tenantId, phone: msg.phone });
+    return;
+  }
   // A voicemail isn't a question for the bot.
   if (msg.voicemail) return;
   // Delivered on `standby`: another Meta app on the same number holds the

@@ -364,6 +364,8 @@ export function jumboEmojiCount(text: string | undefined | null): number {
 /** One-line preview of a message (used for reply quotes + chat list). */
 export function previewOf(m: ChatMessage): string {
   if (m.type === 'call') return `📞 ${m.body || 'Voice call'}`;
+  if (m.raw?.poll) return `📊 ${m.raw.poll.question}`;
+  if (m.raw?.event) return `📅 ${m.raw.event.name}`;
   if (m.type === 'call_permission') return m.body || 'Call permission';
   if (m.raw?.voicemail) return '🎙️ Voicemail';
   if (m.raw?.order) return '🧾 Order';

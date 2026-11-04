@@ -9,7 +9,7 @@ import { CrmSocket, type StatusUpdate, type ReactionUpdate, type TypingUpdate } 
 import type { CrmConfig } from '../config';
 import type { AppNotification, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, Order, OrderStatus, Journey, Registration, RegistrationStatus, BusinessSettings, PaymentSettings, SandboxInfo, ChannelStatus, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, WhatsAppVertical, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, CampaignStats, CampaignRecipientResult, BillingSummary } from '../types';
 import type { MetaChannelsInfo, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
-import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall } from '../types';
+import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall, EventInput, PollInput } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
 import { demoChats, demoMessages, demoTemplates } from './mockData';
@@ -579,6 +579,58 @@ export class MockCrmApi extends CrmApi {
 
   override startPlanCheckout(): Promise<never> {
     return Promise.reject(new Error('Payments are switched off in the demo. Sign up to choose a plan.'));
+  }
+
+  // ---------- Polls and events (demo) ----------
+  // Dev hooks: __demoPollVote(index) answers the latest poll in the open chat
+  // (the demo also answers a moment after it's sent); __demoExtraFail = 'message'.
+  override sendPoll(phone: string, poll: PollInput): Promise<{ success: boolean; id: string }> {
+    const fail = import.meta.env.DEV ? (window as unknown as { __demoExtraFail?: string }).__demoExtraFail : '';
+    if (fail) return Promise.reject(new Error(fail));
+    const id = Math.random().toString(16).slice(2, 14).padEnd(12, '0');
+    const msg: ChatMessage = {
+      _id: nextId(), phone, direction: 'out', type: 'interactive', body: `📊 *${poll.question}*`,
+      status: 'sent', metaMessageId: nextId(), createdAt: new Date().toISOString(),
+      raw: { poll: { id, ...poll, style: poll.options.length <= 3 ? 'buttons' : 'list', votes: [], answeredAt: null } },
+    };
+    (messages[phone] ||= []).push(msg);
+    bumpChat(phone, `📊 ${poll.question}`, false);
+    setTimeout(() => bus.emitMessage({ ...msg }), 100);
+    setTimeout(() => bus.emitStatus({ metaMessageId: msg.metaMessageId!, status: 'read' }), 700);
+    if (import.meta.env.DEV) {
+      (window as unknown as { __demoPollVote?: (i: number) => void }).__demoPollVote = (i: number) => {
+        const p = msg.raw!.poll!;
+        const votes = p.multiple ? [...new Set([...p.votes, i])].sort((a, b) => a - b) : [i];
+        msg.raw = { ...msg.raw, poll: { ...p, votes, answeredAt: new Date().toISOString() } };
+        const reply: ChatMessage = {
+          _id: nextId(), phone, direction: 'in', type: 'button', body: p.options[i], status: 'received', createdAt: new Date().toISOString(),
+          raw: { replyTo: { author: 'You', preview: `📊 ${p.question}`, id: msg._id } },
+        };
+        (messages[phone] ||= []).push(reply);
+        bus.emitMessage(reply);
+        bus.emitMessage({ ...msg });
+      };
+    }
+    return delay({ success: true, id }, 250);
+  }
+
+  override sendEvent(phone: string, ev: EventInput): Promise<{ success: boolean }> {
+    const fail = import.meta.env.DEV ? (window as unknown as { __demoExtraFail?: string }).__demoExtraFail : '';
+    if (fail) return Promise.reject(new Error(fail));
+    const s = new Date(ev.start);
+    const e = ev.end ? new Date(ev.end) : new Date(s.getTime() + 3600e3);
+    const g = (d: Date) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}Z$/, 'Z');
+    const callUrl = ev.callLink ? 'https://wa.me/call/919876543210' : '';
+    const calendarUrl = `https://calendar.google.com/calendar/render?${new URLSearchParams({ action: 'TEMPLATE', text: ev.name, dates: `${g(s)}/${g(e)}`, ...(ev.location ? { location: ev.location } : {}) })}`;
+    const msg: ChatMessage = {
+      _id: nextId(), phone, direction: 'out', type: 'interactive', body: `📅 *${ev.name}*`,
+      status: 'sent', metaMessageId: nextId(), createdAt: new Date().toISOString(),
+      raw: { event: { ...ev, callUrl, calendarUrl } },
+    };
+    (messages[phone] ||= []).push(msg);
+    bumpChat(phone, `📅 ${ev.name}`, false);
+    setTimeout(() => bus.emitMessage({ ...msg }), 100);
+    return delay({ success: true }, 250);
   }
 
   // ---------- WhatsApp voice calls (demo; see demoIncoming above) ----------

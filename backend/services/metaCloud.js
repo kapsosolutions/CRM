@@ -338,7 +338,8 @@ export function createMetaClient(creds = {}) {
 
     // ---------- Interactive messages (used by the journey runtime) ----------
     // header: { type:'image'|'video'|'document', link } | { type:'text', text } | null
-    async sendButtons(phone, { body, header = null, footer = '', buttons = [] }) {
+    // `logExtra`: CRM-only data kept with the logged message (a poll, an event).
+    async sendButtons(phone, { body, header = null, footer = '', buttons = [] }, logExtra = null) {
       // WhatsApp refuses buttons with the same title (#131009 "Duplicate
       // button title"), so the whole message would go nowhere: a repeated
       // title gets a number ("click", "click 2").
@@ -362,11 +363,11 @@ export function createMetaClient(creds = {}) {
       };
       if (header) interactive.header = headerJson(header);
       if (footer) interactive.footer = { text: footer.slice(0, 60) };
-      const { data } = await post({ messaging_product: 'whatsapp', to: clean(phone), type: 'interactive', interactive });
+      const { data } = await post({ messaging_product: 'whatsapp', to: clean(phone), type: 'interactive', interactive }, logExtra);
       return data;
     },
 
-    async sendCtaUrl(phone, { body, displayText, url, header = null, footer = '' }) {
+    async sendCtaUrl(phone, { body, displayText, url, header = null, footer = '' }, logExtra = null) {
       const interactive = {
         type: 'cta_url',
         body: { text: body || ' ' },
@@ -374,11 +375,11 @@ export function createMetaClient(creds = {}) {
       };
       if (header) interactive.header = headerJson(header);
       if (footer) interactive.footer = { text: footer.slice(0, 60) };
-      const { data } = await post({ messaging_product: 'whatsapp', to: clean(phone), type: 'interactive', interactive });
+      const { data } = await post({ messaging_product: 'whatsapp', to: clean(phone), type: 'interactive', interactive }, logExtra);
       return data;
     },
 
-    async sendList(phone, { body, buttonText = 'Menu', header = '', footer = '', rows = [] }) {
+    async sendList(phone, { body, buttonText = 'Menu', header = '', footer = '', rows = [] }, logExtra = null) {
       const interactive = {
         type: 'list',
         body: { text: body || ' ' },
@@ -388,7 +389,7 @@ export function createMetaClient(creds = {}) {
         },
       };
       if (footer) interactive.footer = { text: footer.slice(0, 60) };
-      const { data } = await post({ messaging_product: 'whatsapp', to: clean(phone), type: 'interactive', interactive });
+      const { data } = await post({ messaging_product: 'whatsapp', to: clean(phone), type: 'interactive', interactive }, logExtra);
       return data;
     },
 

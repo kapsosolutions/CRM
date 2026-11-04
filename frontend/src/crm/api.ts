@@ -6,7 +6,7 @@
 // -----------------------------------------------------------------------------
 import type { CrmConfig } from './config';
 import type { MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
-import type { CallPermission, CallSettings, CallSettingsUpdate, LiveCall } from './types';
+import type { CallPermission, CallSettings, CallSettingsUpdate, LiveCall, PollInput, EventInput } from './types';
 import type {
   CommentActivity, CommentRule, CommentRuleInput, CommentRuleWrite, SocialMedia, SocialOverview, SocialPost, SocialPostInput, SocialRecentPost, SocialTarget,
 } from './types';
@@ -287,6 +287,24 @@ export class CrmApi {
 
   getChannelStatus(refresh = false): Promise<ChannelStatus> {
     return this.request(`/api/channel/status${refresh ? '?refresh=1' : ''}`, { headers: this.authHeaders() });
+  }
+
+  /** Send a poll into a chat (buttons / a list; answers come back on its card). */
+  sendPoll(phone: string, poll: PollInput): Promise<{ success: boolean; id: string }> {
+    return this.request('/api/crm/send-poll', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ phone, ...poll }),
+    });
+  }
+
+  /** Send an event into a chat (details + "Add to calendar"). */
+  sendEvent(phone: string, ev: EventInput): Promise<{ success: boolean }> {
+    return this.request('/api/crm/send-event', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ phone, ...ev }),
+    });
   }
 
   // ---------- WhatsApp voice calls (backend routes/calls.js) ----------

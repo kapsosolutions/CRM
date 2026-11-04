@@ -6,7 +6,7 @@
 //  - delivery/read ticks + emoji reaction chip + the reaction picker trigger
 import { memo, useState } from 'react';
 import type { CrmApi } from '../api';
-import type { ChatMessage } from '../types';
+import type { ChatMessage, EventRecord, PollRecord } from '../types';
 import {
   outboundOf,
   mediaOf,
@@ -134,6 +134,97 @@ function formatMessageText(text: string): React.ReactNode {
 }
 
 const formatLinks = formatMessageText;
+
+/** A poll sent from the chat, with the customer's answer (it's a 1:1 chat). */
+function PollCard({ poll }: { poll: PollRecord }) {
+  const votes = new Set(poll.votes || []);
+  const answered = votes.size > 0;
+  return (
+    <div className="poll-card">
+      <div className="poll-q">{poll.question}</div>
+      <div className="poll-hint">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor" aria-hidden="true">
+          <path d="M4 18c0-.55.2-1.02.59-1.41.39-.4.86-.59 1.41-.59h3c.55 0 1.02.2 1.41.59.4.39.59.86.59 1.41 0 .55-.2 1.02-.59 1.41-.39.4-.86.59-1.41.59H6c-.55 0-1.02-.2-1.41-.59-.4-.39-.59-.86-.59-1.41Zm0-6c0-.55.2-1.02.59-1.41.39-.4.86-.59 1.41-.59h12c.55 0 1.02.2 1.41.59.4.39.59.86.59 1.41 0 .55-.2 1.02-.59 1.41-.39.4-.86.59-1.41.59H6c-.55 0-1.02-.2-1.41-.59-.4-.39-.59-.86-.59-1.41Zm0-6c0-.55.2-1.02.59-1.41C4.98 4.19 5.45 4 6 4h7c.55 0 1.02.2 1.41.59.4.39.59.86.59 1.41 0 .55-.2 1.02-.59 1.41-.39.4-.86.59-1.41.59H6c-.55 0-1.02-.2-1.41-.59C4.19 7.02 4 6.55 4 6Z" />
+        </svg>
+        {poll.multiple ? 'Select one or more' : 'Select one'}
+      </div>
+      <ul className="poll-options">
+        {poll.options.map((o, i) => {
+          const on = votes.has(i);
+          return (
+            <li key={i} className={`poll-opt${on ? ' on' : ''}`} data-testid="poll-opt">
+              <span className={`poll-mark${poll.multiple ? ' sq' : ''}`} aria-hidden="true">
+                {on && (
+                  <svg viewBox="0 0 24 24" width="12" height="12" fill="currentColor"><path d="M9.5 16.2 5.3 12l-1.4 1.4 5.6 5.6 11-11-1.4-1.4z" /></svg>
+                )}
+              </span>
+              <span className="poll-opt-main">
+                <span className="poll-opt-row">
+                  <span className="poll-opt-text">{o}</span>
+                  <span className="poll-opt-n">{on ? 1 : 0}</span>
+                </span>
+                <span className="poll-bar"><span style={{ width: on ? '100%' : '0%' }} /></span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+      <div className="poll-foot" data-testid="poll-status">
+        {answered
+          ? `Answered${poll.answeredAt ? ` · ${timeHHmm(poll.answeredAt)}` : ''}`
+          : 'Waiting for their answer'}
+      </div>
+    </div>
+  );
+}
+
+/** An event sent from the chat: what, when, where, and its calendar / call links. */
+function EventCard({ ev }: { ev: EventRecord }) {
+  const fmt = (iso: string) => new Date(iso).toLocaleString('en-IN', {
+    weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit', timeZone: ev.timeZone || undefined,
+  });
+  const start = new Date(ev.start);
+  const dayKeyOf = (iso: string) => new Date(iso).toLocaleDateString('en-CA', { timeZone: ev.timeZone || undefined });
+  const endText = !ev.end ? ''
+    : dayKeyOf(ev.end) === dayKeyOf(ev.start)
+      ? new Date(ev.end).toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', timeZone: ev.timeZone || undefined })
+      : fmt(ev.end);
+  return (
+    <div className="event-card">
+      <div className="event-head">
+        <span className="event-date" aria-hidden="true">
+          <span className="event-mon">{start.toLocaleString('en-IN', { month: 'short', timeZone: ev.timeZone || undefined })}</span>
+          <span className="event-day">{start.toLocaleString('en-IN', { day: 'numeric', timeZone: ev.timeZone || undefined })}</span>
+        </span>
+        <div className="event-main">
+          <div className="event-name">{ev.name}</div>
+          <div className="event-when" data-testid="event-when">{fmt(ev.start)}{endText ? ` – ${endText}` : ''}</div>
+          {ev.location && (
+            <div className="event-where">
+              <span className="material-icons" aria-hidden="true">place</span>
+              {ev.location}
+            </div>
+          )}
+        </div>
+      </div>
+      {ev.description && <div className="event-desc">{ev.description}</div>}
+      <div className="event-links">
+        {ev.calendarUrl && (
+          <a href={ev.calendarUrl} target="_blank" rel="noopener noreferrer" className="event-link">
+            <span className="material-icons" aria-hidden="true">event</span>
+            Add to calendar
+          </a>
+        )}
+        {ev.callUrl && (
+          <a href={ev.callUrl} target="_blank" rel="noopener noreferrer" className="event-link">
+            <span className="material-icons" aria-hidden="true">call</span>
+            WhatsApp call link
+          </a>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /** A call entry (type 'call') or a call permission answer (type 'call_permission'). */
 function CallLine({ m }: { m: ChatMessage }) {
@@ -299,7 +390,21 @@ export const MessageItem = memo(function MessageItem({
       data-msg-id={m._id}
     >
       <div className="msg-col">
-        {location ? (
+        {m.raw?.poll ? (
+          <div className="bubble poll-bubble" data-testid="poll-card">
+            {quoteBlock}
+            <PollCard poll={m.raw.poll} />
+            {metaRow}
+            {reactionChip}
+          </div>
+        ) : m.raw?.event ? (
+          <div className="bubble event-bubble" data-testid="event-card">
+            {quoteBlock}
+            <EventCard ev={m.raw.event} />
+            {metaRow}
+            {reactionChip}
+          </div>
+        ) : location ? (
           <div className="bubble loc-bubble">
             <a
               className="loc-map"

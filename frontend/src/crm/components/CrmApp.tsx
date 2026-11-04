@@ -12,7 +12,7 @@ import { CrmApi } from '../api';
 import { CrmSocket } from '../socket';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { defaultConfig, type CrmConfig } from '../config';
-import type { Chat, ChatMessage, SandboxContacts, TemplateItem, WaFlowDef } from '../types';
+import type { Chat, ChatMessage, SandboxContacts, TemplateItem, WaFlowDef, PollInput, EventInput } from '../types';
 import { authBodyWithCode, isAuthTemplate } from '../authTemplate';
 import { notify, previewOf, laterStatus, dayKey, dayLabel, chatDisplayName, isMetaChannelChat } from '../utils';
 import { loadPrefs, playSound, wants } from '../notifyPrefs';
@@ -309,6 +309,42 @@ export function CrmApp({
     }, 60);
   }, []);
 
+  // ---- "Scroll to the latest" arrow: shown while the reader is up in the
+  // history; counts customer messages that arrive meanwhile. ----
+  const [showJump, setShowJump] = useState(false);
+  const [unseen, setUnseen] = useState(0);
+  const nearBottomRef = useRef(true);
+  useEffect(() => {
+    const box = msgBoxRef.current;
+    setShowJump(false);
+    setUnseen(0);
+    nearBottomRef.current = true;
+    if (!box) return undefined;
+    const onScroll = () => {
+      const gap = box.scrollHeight - box.scrollTop - box.clientHeight;
+      const near = gap < 160;
+      nearBottomRef.current = near;
+      setShowJump(gap > 300);
+      if (near) setUnseen(0);
+    };
+    box.addEventListener('scroll', onScroll, { passive: true });
+    return () => box.removeEventListener('scroll', onScroll);
+  }, [activePhone]);
+  const jumpToLatest = useCallback(() => {
+    const box = msgBoxRef.current;
+    if (!box) return;
+    setUnseen(0);
+    box.scrollTo({ top: box.scrollHeight, behavior: 'smooth' });
+  }, []);
+  /** A new message in the open chat: follow it if at the bottom, else count it on the arrow. */
+  const followNew = useCallback((m: ChatMessage) => {
+    if (m.direction === 'out' || nearBottomRef.current) {
+      scrollToBottom();
+      return;
+    }
+    setUnseen((n) => n + 1);
+  }, [scrollToBottom]);
+
   // Photos and videos get their height only once they load, after the chat
   // has scrolled to the newest message. If the reader was at the bottom, keep
   // them there as the media grows the list.
@@ -549,7 +585,7 @@ export function CrmApp({
           }
           return [...list.slice(0, pos), fresh, ...list.slice(pos)];
         });
-        scrollToBottom();
+        followNew(m);
         // Only mark it read if the chat is really on screen; otherwise it waits
         // (and counts as unread) until the user comes back to it.
         if (m.direction === 'in' && isWatching()) api.markRead(m.phone).catch(() => {});
@@ -822,6 +858,22 @@ export function CrmApp({
       setUploading(false);
       toast('error', 'File not sent', e instanceof Error ? e.message : 'Could not send the file.');
     }
+  }
+
+  // Polls and events from the composer's + menu. The sent message comes back
+  // over the socket like any other; a failure is thrown to the dialog, which
+  // keeps what was typed.
+  async function sendPoll(poll: PollInput) {
+    const phone = activePhone;
+    if (!phone) return;
+    await api.sendPoll(phone, poll);
+    jumpToLatest();
+  }
+  async function sendEvent(ev: EventInput) {
+    const phone = activePhone;
+    if (!phone) return;
+    await api.sendEvent(phone, ev);
+    jumpToLatest();
   }
 
   function togglePause() {
@@ -1292,6 +1344,7 @@ export function CrmApp({
             </header>
 
 
+            <div className="messages-wrap">
             <div className="messages" ref={msgBoxRef}>
               {/* Older messages on the way: a pill floating at the top. It
                   takes no room, so nothing in the thread moves for it. */}
@@ -1349,6 +1402,24 @@ export function CrmApp({
                 </div>
               )}
             </div>
+              {/* Scrolled up: a round arrow to the newest message (WhatsApp style),
+                  with how many arrived meanwhile. Gone at the bottom. */}
+              {showJump && (
+                <button
+                  type="button"
+                  className="jump-latest"
+                  onClick={jumpToLatest}
+                  aria-label={unseen ? `${unseen} new message${unseen === 1 ? '' : 's'}: scroll to the latest` : 'Scroll to the latest message'}
+                  title="Scroll to the latest message"
+                  data-testid="jump-latest"
+                >
+                  {unseen > 0 && <span className="jump-count" data-testid="jump-count">{unseen > 99 ? '99+' : unseen}</span>}
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor" aria-hidden="true">
+                    <path d="M12 15.4 6.6 10l1.4-1.4 4 4 4-4 1.4 1.4z" />
+                  </svg>
+                </button>
+              )}
+            </div>
 
             {activeChat?.locked ? (
               // Outside the plan (Free: after its first 10 contacts). Messages
@@ -1394,6 +1465,9 @@ export function CrmApp({
               onCancelReply={() => setReplyingTo(null)}
               channel={metaChat ? activeChat?.channel || '' : 'whatsapp'}
               onOpenQuickMessages={metaChat && !demo ? () => setQuickOpen((v) => !v) : undefined}
+              onSendPoll={metaChat ? undefined : sendPoll}
+              onSendEvent={metaChat ? undefined : sendEvent}
+              canCallLink={!!calls?.available}
             />
             )}
 

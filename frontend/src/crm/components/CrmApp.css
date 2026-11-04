@@ -21366,3 +21366,249 @@ label.k-label,
   background: #f1f5f9;
   color: #64748b;
 }
+
+/* ---- "Scroll to the latest" arrow (bottom-right of the thread) ---- */
+.messages-wrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+}
+.jump-latest {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  z-index: 5;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  border: none;
+  background: #ffffff;
+  color: #54656f;
+  box-shadow: 0 2px 8px rgba(11, 20, 26, 0.2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  animation: jump-in 0.15s ease-out;
+}
+.jump-latest:hover {
+  color: #111b21;
+}
+@keyframes jump-in {
+  from { transform: scale(0.8); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+.jump-count {
+  position: absolute;
+  top: -6px;
+  left: -4px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  box-sizing: border-box;
+  border-radius: 999px;
+  background: #25d366;
+  color: #ffffff;
+  font-size: 11.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- polls and events sent from the chat (MessageItem) ---- */
+.poll-bubble,
+.event-bubble {
+  min-width: 280px;
+  max-width: 340px;
+}
+.poll-card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 2px 2px 4px;
+}
+.poll-q {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #111b21;
+  word-break: break-word;
+}
+.poll-hint {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  color: #667781;
+}
+.poll-options {
+  list-style: none;
+  margin: 4px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.poll-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.poll-mark {
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  border: 2px solid #8696a0;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+  box-sizing: border-box;
+}
+.poll-mark.sq {
+  border-radius: 4px;
+}
+.poll-opt.on .poll-mark {
+  background: #25d366;
+  border-color: #25d366;
+  color: #ffffff;
+}
+.poll-opt-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.poll-opt-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 14px;
+  color: #111b21;
+}
+.poll-opt-text {
+  word-break: break-word;
+}
+.poll-opt-n {
+  color: #667781;
+  font-variant-numeric: tabular-nums;
+}
+.poll-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(134, 150, 160, 0.25);
+  overflow: hidden;
+}
+.poll-bar > span {
+  display: block;
+  height: 100%;
+  background: #25d366;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.poll-foot {
+  margin-top: 6px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(134, 150, 160, 0.25);
+  font-size: 12.5px;
+  color: #008069;
+  text-align: center;
+  font-weight: 500;
+}
+.event-card {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 2px 4px;
+}
+.event-head {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+.event-date {
+  width: 46px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  overflow: hidden;
+  text-align: center;
+  background: #ffffff;
+  box-shadow: 0 0 0 1px rgba(134, 150, 160, 0.35);
+  display: flex;
+  flex-direction: column;
+}
+.event-mon {
+  background: #ff3b6b;
+  color: #ffffff;
+  font-size: 10.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 2px 0;
+}
+.event-day {
+  font-size: 18px;
+  font-weight: 700;
+  color: #111b21;
+  padding: 3px 0 4px;
+}
+.event-main {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.event-name {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #111b21;
+  word-break: break-word;
+}
+.event-when {
+  font-size: 12.5px;
+  color: #3b4a54;
+}
+.event-where {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 12.5px;
+  color: #667781;
+}
+.event-where .material-icons {
+  font-size: 14px;
+}
+.event-desc {
+  font-size: 13.5px;
+  color: #111b21;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.event-links {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid rgba(134, 150, 160, 0.25);
+}
+.event-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 0 2px;
+  color: #008069;
+  font-size: 13.5px;
+  font-weight: 500;
+  text-decoration: none;
+}
+.event-link .material-icons {
+  font-size: 17px;
+}
+.event-link:hover {
+  text-decoration: underline;
+}
+.mic-btn svg {
+  display: block;
+}

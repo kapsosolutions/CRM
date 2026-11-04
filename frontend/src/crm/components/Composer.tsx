@@ -1,6 +1,8 @@
 // Message composer: templates, attach, emoji, text input, and voice recording.
-import { lazy, Suspense, useEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNotify } from './Dialogs';
+import type { EventInput, PollInput } from '../types';
+import { AttachMenu, CameraDialog, EventDialog, ExtraSvg, PollDialog, type AttachKind } from './ComposerExtras';
 
 // Its own chunk, fetched and built while the browser is idle (see below).
 const EmojiPicker = lazy(() => import('./FastEmojiPicker'));
@@ -48,6 +50,11 @@ interface Props {
    * offers the approved utility templates instead.
    */
   onOpenQuickMessages?: () => void;
+  /** WhatsApp chats: send a poll / an event (the + menu). Throws to keep the dialog open. */
+  onSendPoll?: (poll: PollInput) => Promise<void>;
+  onSendEvent?: (ev: EventInput) => Promise<void>;
+  /** The business has its own number, so an event can carry a WhatsApp call link. */
+  canCallLink?: boolean;
 }
 
 export function Composer({
@@ -65,11 +72,42 @@ export function Composer({
   onCancelReply,
   channel = 'whatsapp',
   onOpenQuickMessages,
+  onSendPoll,
+  onSendEvent,
+  canCallLink = false,
 }: Props) {
   const whatsapp = !channel || channel === 'whatsapp';
   const notify = useNotify();
   const fileRef = useRef<HTMLInputElement>(null);
+  const mediaRef = useRef<HTMLInputElement>(null);
+  const audioRef = useRef<HTMLInputElement>(null);
+  const captureRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  // ---- the + menu ----
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [sheet, setSheet] = useState<'poll' | 'event' | 'camera' | null>(null);
+  const closeMenu = useCallback(() => setMenuOpen(false), []);
+  // Polls and events are WhatsApp messages; Messenger / Instagram get files only.
+  const kinds: AttachKind[] = [
+    'document', 'media', 'camera', 'audio',
+    ...(whatsapp && onSendPoll ? ['poll' as const] : []),
+    ...(whatsapp && onSendEvent ? ['event' as const] : []),
+  ];
+  function pick(kind: AttachKind) {
+    setMenuOpen(false);
+    if (kind === 'document') fileRef.current?.click();
+    else if (kind === 'media') mediaRef.current?.click();
+    else if (kind === 'audio') audioRef.current?.click();
+    else if (kind === 'camera') {
+      if (typeof navigator.mediaDevices?.getUserMedia === 'function') setSheet('camera');
+      else captureRef.current?.click();
+    } else setSheet(kind);
+  }
+  // The menu closes when the chat is locked or a file starts uploading.
+  useEffect(() => {
+    if (uploading || !windowOpen) setMenuOpen(false);
+  }, [uploading, windowOpen]);
 
   // ---- Voice recording ----
   const [recording, setRecording] = useState(false);
@@ -333,17 +371,24 @@ export function Composer({
                 <span className="material-icons" aria-hidden="true">{locked && channel === 'messenger' ? 'assignment' : 'bolt'}</span>
               </button>
             )}
-            <button
-              className="icon-btn"
-              onClick={() => fileRef.current?.click()}
-              title={locked ? 'Window closed' : 'Attach file'}
-              aria-label="Attach file"
-              disabled={uploading || locked}
-            >
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21.44 11.05l-9.19 9.19a5 5 0 0 1-7.07-7.07l9.19-9.19a3.5 3.5 0 0 1 4.95 4.95l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48" />
-              </svg>
-            </button>
+            <div className="attach-anchor">
+              <button
+                className={`icon-btn plus-btn${menuOpen ? ' open active' : ''}`}
+                onClick={() => setMenuOpen((v) => !v)}
+                title={locked ? 'Window closed' : 'Attach'}
+                aria-label="Attach"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                disabled={uploading || locked}
+                data-attach-toggle
+                data-testid="composer-plus"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M11 13H6q-.42 0-.71-.29A1 1 0 0 1 5 12q0-.42.29-.71A1 1 0 0 1 6 11h5V6q0-.42.29-.71A1 1 0 0 1 12 5q.42 0 .71.29.3.29.29.71v5h5q.42 0 .71.29.3.29.29.71 0 .42-.29.71A1 1 0 0 1 18 13h-5v5q0 .42-.29.71A1 1 0 0 1 12 19a1 1 0 0 1-.71-.29A1 1 0 0 1 11 18z" />
+                </svg>
+              </button>
+              {menuOpen && <AttachMenu kinds={kinds} onPick={pick} onClose={closeMenu} />}
+            </div>
             <div className="emoji-anchor">
               <button
                 className={`icon-btn${showEmoji ? ' active' : ''}`}
@@ -375,18 +420,32 @@ export function Composer({
             </div>
           </div>
 
+          {/* One picker per menu item, each limited to its kind of file. */}
           <input
             ref={fileRef}
             type="file"
             multiple
             onChange={handleFile}
             hidden
+            data-testid="pick-document"
             accept={
               channel === 'instagram'
-                ? 'image/png,image/jpeg,video/*,audio/*,application/pdf'
-                : 'image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt'
+                ? 'application/pdf'
+                : 'application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.csv,.zip,.txt'
             }
           />
+          <input
+            ref={mediaRef}
+            type="file"
+            multiple
+            onChange={handleFile}
+            hidden
+            data-testid="pick-media"
+            accept={channel === 'instagram' ? 'image/png,image/jpeg,video/*' : 'image/*,video/*'}
+          />
+          <input ref={audioRef} type="file" multiple onChange={handleFile} hidden accept="audio/*" data-testid="pick-audio" />
+          {/* No camera API (old browsers): the phone's camera app instead. */}
+          <input ref={captureRef} type="file" onChange={handleFile} hidden accept="image/*" capture="environment" data-testid="pick-capture" />
 
           <textarea
             ref={inputRef}
@@ -456,12 +515,24 @@ export function Composer({
                 onClick={startRecording}
                 title="Record voice message"
                 aria-label="Record voice message"
+                data-testid="composer-mic"
               >
-                <span className="material-icons">mic</span>
+                <ExtraSvg name="mic" size={24} />
               </button>
             )}
           </div>
         </div>
+      )}
+      {sheet === 'poll' && onSendPoll && <PollDialog onClose={() => setSheet(null)} onSend={onSendPoll} />}
+      {sheet === 'event' && onSendEvent && <EventDialog onClose={() => setSheet(null)} onSend={onSendEvent} canCallLink={canCallLink} />}
+      {sheet === 'camera' && (
+        <CameraDialog
+          onClose={() => setSheet(null)}
+          onShot={(f) => {
+            setSheet(null);
+            onPickFiles([f]);
+          }}
+        />
       )}
     </footer>
   );

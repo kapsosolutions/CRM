@@ -2113,11 +2113,47 @@ export interface ChatMessage {
     meta?: { context?: { id?: string; from?: string } };
     /** A WhatsApp voice call (type 'call'). */
     call?: CallRecord;
+    /** A poll sent from the chat, with the customer's answer(s). */
+    poll?: PollRecord;
+    /** An event sent from the chat. */
+    event?: EventRecord;
     /** The customer's answer to "Allow calls?" (type 'call_permission'). */
     callPermission?: CallPermissionReply;
     /** An audio message that is a voicemail left on a missed call. */
     voicemail?: boolean;
   };
+}
+
+// ---- Polls and events from the composer (backend services/chatExtras.js) ----
+
+export interface PollInput {
+  question: string;
+  options: string[];
+  multiple: boolean;
+}
+
+export interface PollRecord extends PollInput {
+  id: string;
+  style: 'buttons' | 'list';
+  /** Indexes of the options the customer picked. */
+  votes: number[];
+  answeredAt: string | null;
+}
+
+export interface EventInput {
+  name: string;
+  description: string;
+  /** ISO times. */
+  start: string;
+  end: string | null;
+  location: string;
+  callLink: boolean;
+  timeZone: string;
+}
+
+export interface EventRecord extends EventInput {
+  callUrl?: string;
+  calendarUrl?: string;
 }
 
 // ---- WhatsApp voice calls (backend services/calling.js) ----

@@ -1,0 +1,484 @@
+/* The composer's + menu and its Poll / Event / Camera sheets
+   (ComposerExtras.tsx). Light theme; dark copies are generated at build time. */
+
+.attach-anchor {
+  position: relative;
+  display: inline-flex;
+}
+
+.ax-menu {
+  position: absolute;
+  left: -6px;
+  bottom: calc(100% + 14px);
+  z-index: 60;
+  min-width: 210px;
+  padding: 8px;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(11, 20, 26, 0.18), 0 2px 6px rgba(11, 20, 26, 0.08);
+  display: flex;
+  flex-direction: column;
+  animation: ax-pop 0.14s ease-out;
+  transform-origin: bottom left;
+}
+
+@keyframes ax-pop {
+  from { transform: scale(0.94) translateY(6px); opacity: 0; }
+  to { transform: none; opacity: 1; }
+}
+
+.ax-item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 12px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: #111b21;
+  font-size: 14.5px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+}
+
+.ax-item:hover,
+.ax-item:focus-visible {
+  background: #f0f2f5;
+  outline: none;
+}
+
+.ax-ico {
+  display: inline-flex;
+  width: 20px;
+  justify-content: center;
+}
+
+/* WhatsApp's colours for each attachment. */
+.ax-document .ax-ico { color: #7f66ff; }
+.ax-media .ax-ico { color: #007bfc; }
+.ax-camera .ax-ico { color: #ff2e74; }
+.ax-audio .ax-ico { color: #fa6533; }
+.ax-poll .ax-ico { color: #ffb938; }
+.ax-event .ax-ico { color: #ff3b6b; }
+
+/* + button turns into × while the menu is open. */
+.icon-btn.plus-btn svg {
+  transition: transform 0.18s ease;
+}
+.icon-btn.plus-btn.open svg {
+  transform: rotate(45deg);
+}
+
+/* ---- sheets (Poll, Event, Camera) ---- */
+.ax-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2500;
+  background: rgba(11, 20, 26, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+}
+
+.ax-sheet {
+  position: relative;
+  width: 560px;
+  max-width: 100%;
+  max-height: calc(var(--crm-vh, 1vh) * 100 - 32px);
+  display: flex;
+  flex-direction: column;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 20px 50px rgba(11, 20, 26, 0.3);
+  overflow: hidden;
+}
+
+.ax-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 18px 22px 10px;
+}
+
+.ax-sheet-head h3 {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 500;
+  color: #111b21;
+}
+
+.ax-x {
+  border: none;
+  background: transparent;
+  color: #54656f;
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 50%;
+  display: inline-flex;
+}
+
+.ax-x:hover {
+  background: #f0f2f5;
+}
+
+.ax-sheet-body {
+  padding: 8px 24px 20px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.ax-sheet-foot {
+  display: flex;
+  justify-content: flex-end;
+  padding: 12px 22px 18px;
+  background: #f7f8fa;
+}
+
+.ax-h {
+  margin: 10px 0 -2px;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111b21;
+}
+
+.ax-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border-bottom: 1.5px solid #d1d7db;
+  transition: border-color 0.15s;
+}
+
+.ax-line:focus-within {
+  border-bottom-color: #25d366;
+}
+
+.ax-input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  padding: 10px 2px;
+  font: inherit;
+  font-size: 15px;
+  color: #111b21;
+  outline: none;
+}
+
+.ax-input::placeholder,
+.ax-textarea::placeholder {
+  color: #8696a0;
+}
+
+.ax-area {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: #f0f2f5;
+  border-radius: 10px;
+  padding: 8px 10px 8px 14px;
+  border-bottom: 1.5px solid transparent;
+}
+
+.ax-area:focus-within {
+  border-bottom-color: #25d366;
+}
+
+.ax-textarea {
+  flex: 1;
+  border: none;
+  background: transparent;
+  resize: vertical;
+  min-height: 64px;
+  font: inherit;
+  font-size: 15px;
+  color: #111b21;
+  outline: none;
+  padding: 4px 0;
+}
+
+.ax-emoji-btn,
+.ax-pin,
+.ax-drag {
+  border: none;
+  background: transparent;
+  color: #54656f;
+  display: inline-flex;
+  padding: 4px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ax-emoji-btn {
+  cursor: pointer;
+}
+
+.ax-emoji-btn:hover {
+  background: #f0f2f5;
+}
+
+.ax-drag {
+  cursor: grab;
+  color: #8696a0;
+}
+
+.ax-count {
+  font-size: 12px;
+  color: #8696a0;
+  font-variant-numeric: tabular-nums;
+}
+
+.ax-label {
+  font-size: 13.5px;
+  color: #54656f;
+  margin-bottom: -8px;
+}
+
+.ax-label-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.ax-pair {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.ax-pair .ax-input {
+  border-bottom: 1.5px solid #d1d7db;
+  padding: 8px 4px;
+}
+
+.ax-pair .ax-input:focus {
+  border-bottom-color: #25d366;
+}
+
+.ax-add,
+.ax-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: #111b21;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 4px 0;
+  align-self: flex-start;
+}
+
+.ax-link {
+  font-size: 13px;
+  color: #008069;
+  font-weight: 600;
+}
+
+.ax-row-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding-top: 6px;
+  font-size: 15px;
+  color: #111b21;
+}
+
+.ax-row-toggle > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ax-row-toggle small {
+  font-size: 12px;
+  color: #667781;
+}
+
+.ax-toggle {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  border: 1.5px solid #8696a0;
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: background 0.15s, border-color 0.15s;
+}
+
+.ax-toggle > span {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 15px;
+  height: 15px;
+  border-radius: 50%;
+  background: #8696a0;
+  transition: transform 0.15s, background 0.15s;
+}
+
+.ax-toggle.on {
+  background: #25d366;
+  border-color: #25d366;
+}
+
+.ax-toggle.on > span {
+  transform: translateX(20px);
+  background: #ffffff;
+}
+/* WhatsApp's dark theme uses a dark knob on the green track. */
+:root[data-theme='dark'] .ax-toggle.on > span {
+  background: #0b141a;
+}
+
+.ax-note {
+  margin: 0;
+  font-size: 12.5px;
+  color: #667781;
+  line-height: 1.45;
+}
+
+.ax-error {
+  font-size: 13px;
+  color: #b91c1c;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 8px 12px;
+}
+
+.ax-fab {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: #25d366;
+  color: #0b141a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(11, 20, 26, 0.2);
+  transition: background 0.15s, transform 0.1s;
+}
+
+.ax-fab:hover:not(:disabled) {
+  background: #1fbd59;
+}
+
+.ax-fab:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.ax-fab:disabled {
+  background: #e9edef;
+  color: #aebac1;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
+.ax-spin {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 2.5px solid rgba(11, 20, 26, 0.25);
+  border-top-color: #0b141a;
+  animation: ax-rot 0.8s linear infinite;
+}
+
+@keyframes ax-rot {
+  to { transform: rotate(360deg); }
+}
+
+.ax-emoji-pop {
+  position: fixed;
+  z-index: 2600;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(11, 20, 26, 0.22);
+  overflow: hidden;
+}
+
+.ax-emoji-loading {
+  width: 352px;
+  height: 360px;
+}
+
+/* ---- camera ---- */
+.ax-cam {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: #0b141a;
+  border-radius: 10px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.ax-cam-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scaleX(-1);
+}
+
+.ax-cam-wait,
+.ax-cam-error {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 20px;
+  color: #e9edef;
+  font-size: 14px;
+}
+
+.ax-cam-actions {
+  display: flex;
+  justify-content: center;
+}
+
+.ax-shutter {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  border: none;
+  background: #25d366;
+  color: #0b141a;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(11, 20, 26, 0.2);
+}
+
+.ax-shutter:disabled {
+  background: #e9edef;
+  color: #aebac1;
+  cursor: not-allowed;
+}
+
+@media (max-width: 600px) {
+  .ax-overlay {
+    padding: 0;
+    align-items: stretch;
+  }
+  .ax-sheet {
+    border-radius: 0;
+    max-height: none;
+    height: 100%;
+  }
+  .ax-pair {
+    gap: 12px;
+  }
+}
