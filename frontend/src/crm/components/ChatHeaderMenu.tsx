@@ -66,6 +66,19 @@ const IconHeart = ({ on }: { on: boolean }) => <Ico fill={on ? 'currentColor' : 
 const IconClose = () => <Ico><circle cx="12" cy="12" r="9" /><path d="M9 9l6 6M15 9l-6 6" /></Ico>;
 const IconBlock = () => <Ico><circle cx="12" cy="12" r="9" /><path d="M5.6 5.6l12.8 12.8" /></Ico>;
 const IconClear = () => <Ico><circle cx="12" cy="12" r="9" /><path d="M8 12h8" /></Ico>;
+/** Bot mode. currentColor, so it takes the row's green and the dark theme. */
+const BotIcon = () => (
+  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true" data-testid="bot-icon">
+    <path d="M10 2V4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <circle cx="10" cy="1.75" r="0.75" fill="currentColor" />
+    <rect x="3" y="4.5" width="14" height="11.5" rx="3" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="M3 8H1.75V12H3M17 8H18.25V12H17" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    <circle cx="7.5" cy="9.5" r="1.25" fill="currentColor" />
+    <circle cx="12.5" cy="9.5" r="1.25" fill="currentColor" />
+    <path d="M7.5 13H12.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    <path d="M7 16V17.5M13 16V17.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+  </svg>
+);
 const IconTrash = () => (
   <Ico>
     <path d="M4 6.5h16M9.5 6.5V4.5h5v2M6 6.5l.9 12.1c.07.9.8 1.6 1.7 1.6h6.8c.9 0 1.63-.7 1.7-1.6L18 6.5M10 10.5v6M14 10.5v6" />
@@ -219,7 +232,11 @@ export default function ChatHeaderMenu({
             data-cm-main=""
           >
             <span className={`cm-ico ${paused ? 'manual' : 'bot'}`}>
-              <span className="material-icons" aria-hidden="true">{paused ? 'support_agent' : 'smart_toy'}</span>
+              {paused ? (
+                <span className="material-icons" aria-hidden="true">support_agent</span>
+              ) : (
+                <BotIcon />
+              )}
             </span>
             <span className="cm-auto-group bot-toggle-group">
               <span
