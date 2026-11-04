@@ -549,28 +549,71 @@
   color: #ea0038;
 }
 
-/* ♥ Favourites tab: just the heart. "All" keeps its word; the channel names
-   give way instead. */
+/* "All" keeps its word; the channel names give way instead. */
 .chats-tab[data-testid='chats-tab-all'] {
   flex: 0 0 auto;
   padding: 6px 8px;
 }
-.chats-tab.chats-tab-fav {
-  flex: 0 0 auto;
-  padding: 6px 9px;
+
+/* Chats header: ♥ Favourites filter, then +. */
+.chats-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
 }
-.chats-tab-heart {
+.chats-fav-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: #111b21;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+.chats-fav-btn:hover {
+  background: #f0f2f5;
+}
+.chats-fav-btn:active {
+  transform: scale(0.94);
+}
+.chats-fav-btn:focus-visible {
+  outline: 2px solid #16a34a;
+  outline-offset: 1px;
+}
+.chats-fav-heart {
   display: block;
   fill: none;
   stroke: currentColor;
-  stroke-width: 2;
+  stroke-width: 1.8;
   stroke-linejoin: round;
 }
-.chats-tab-fav.active {
+.chats-fav-btn.active {
   color: #e11d48;
+  background: #fff1f3;
 }
-.chats-tab-fav.active .chats-tab-heart {
+.chats-fav-btn.active .chats-fav-heart {
   fill: currentColor;
+}
+.chats-fav-badge {
+  position: absolute;
+  top: 2px;
+  right: 1px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 8px;
+  background: #16a34a;
+  color: #ffffff;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+  pointer-events: none;
 }
 
 /* ---- Thread ---- */

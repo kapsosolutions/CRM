@@ -940,7 +940,7 @@ export function CrmApp({
       .then((res) => {
         patchChat(phone, { favourite: res.favourite });
         toast('success', res.favourite ? 'Added to favourites' : 'Removed from favourites',
-          res.favourite ? 'Find it under the ♥ filter above your chats.' : '');
+          res.favourite ? 'Tap ♥ next to + above your chats to see your favourites.' : '');
       })
       .catch((e: Error) => toast('error', 'Failed', e.message || 'Could not update favourites.'))
       .finally(() => setMenuBusy(null));

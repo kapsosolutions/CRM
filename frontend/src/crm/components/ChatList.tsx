@@ -627,6 +627,26 @@ export function ChatList({
       <aside className="chats">
         <div className="chats-head">
           <h2>Chats</h2>
+          <div className="chats-head-actions">
+          {/* ♥ Favourites (from a chat's ⋮ menu): shows only those; again for All. */}
+          <button
+            type="button"
+            className={`chats-fav-btn${tab === 'favourites' ? ' active' : ''}`}
+            onClick={() => pickTab(tab === 'favourites' ? 'all' : 'favourites')}
+            aria-pressed={tab === 'favourites'}
+            aria-label="Favourites"
+            title={tab === 'favourites' ? 'Showing favourites — show all chats' : 'Show favourite chats'}
+            data-testid="chats-tab-favourites"
+          >
+            <svg className="chats-fav-heart" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true">
+              <path d="M12 20.3s-7.6-4.6-9.3-9.4C1.5 7.4 3.9 4.2 7.3 4.2c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.4 0 5.8 3.2 4.6 6.7-1.7 4.8-9.3 9.4-9.3 9.4z" />
+            </svg>
+            {unreadByTab.favourites > 0 && (
+              <span className="chats-fav-badge" aria-label={`${unreadByTab.favourites} unread`}>
+                {unreadByTab.favourites > 99 ? '99+' : unreadByTab.favourites}
+              </span>
+            )}
+          </button>
           <button
             type="button"
             className={`chats-add-btn${isFull || planFull ? ' is-locked' : ''}`}
@@ -658,6 +678,7 @@ export function ChatList({
               </svg>
             )}
           </button>
+          </div>
         </div>
         {(needsConnect || sandboxContacts) && (
           <DailyMessagingLimitBar
@@ -694,27 +715,20 @@ export function ChatList({
           </div>
         </div>
         <div className="chats-tabs" role="tablist" aria-label="Channel">
-          {CHANNEL_TABS.map((t) => (
+          {/* Favourites lives in the header (♥ beside +), not in this row. */}
+          {CHANNEL_TABS.filter((t) => t.key !== 'favourites').map((t) => (
             <button
               key={t.key}
               type="button"
               role="tab"
               aria-selected={tab === t.key}
-              className={`chats-tab${tab === t.key ? ' active' : ''}${t.key === 'favourites' ? ' chats-tab-fav' : ''}`}
+              className={`chats-tab${tab === t.key ? ' active' : ''}`}
               onClick={() => pickTab(t.key)}
-              title={t.key === 'all' ? 'All chats' : t.key === 'favourites' ? 'Favourite chats' : `${t.label} chats`}
-              aria-label={t.key === 'favourites' ? 'Favourites' : undefined}
+              title={t.key === 'all' ? 'All chats' : `${t.label} chats`}
               data-testid={`chats-tab-${t.key}`}
             >
               {t.icon && <img src={t.icon} alt="" className="chats-tab-icon" />}
-              {/* Favourites is just its heart: the row is already tight. */}
-              {t.key === 'favourites' ? (
-                <svg className="chats-tab-heart" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M12 20.3s-7.6-4.6-9.3-9.4C1.5 7.4 3.9 4.2 7.3 4.2c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.4 0 5.8 3.2 4.6 6.7-1.7 4.8-9.3 9.4-9.3 9.4z" />
-                </svg>
-              ) : (
-                <span className="chats-tab-text">{t.label}</span>
-              )}
+              <span className="chats-tab-text">{t.label}</span>
               {(t.key === 'instagram' || t.key === 'messenger') && COMING_SOON[t.key] && unreadByTab[t.key] === 0 && (
                 <span className="material-icons soon-tab-lock" aria-label="Coming soon" data-testid={`chats-tab-soon-${t.key}`}>lock</span>
               )}
@@ -741,6 +755,9 @@ export function ChatList({
               ) : (
                 <>
                   <p>{query ? 'No chats found' : EMPTY_TEXT[tab]}</p>
+                  {!query && tab === 'favourites' && (
+                    <small className="chats-empty-hint">Open a chat, tap ⋮ and choose Add to favourites.</small>
+                  )}
                   {!query && tab === 'instagram' && (
                     <small className="chats-empty-hint">Direct messages to your connected Instagram account appear here.</small>
                   )}
