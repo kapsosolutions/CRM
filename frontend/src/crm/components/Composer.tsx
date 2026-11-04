@@ -336,6 +336,25 @@ export function Composer({
       ) : (
         <div className={`composer-pill${locked ? ' is-locked' : ''}`}>
           <div className="composer-left-actions">
+            {/* + first, then Templates and Emoji. */}
+            <div className="attach-anchor">
+              <button
+                className={`icon-btn plus-btn${menuOpen ? ' open active' : ''}`}
+                onClick={() => setMenuOpen((v) => !v)}
+                title={locked ? 'Window closed' : 'Attach'}
+                aria-label="Attach"
+                aria-haspopup="menu"
+                aria-expanded={menuOpen}
+                disabled={uploading || locked}
+                data-attach-toggle
+                data-testid="composer-plus"
+              >
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                  <path d="M11 13H6q-.42 0-.71-.29A1 1 0 0 1 5 12q0-.42.29-.71A1 1 0 0 1 6 11h5V6q0-.42.29-.71A1 1 0 0 1 12 5q.42 0 .71.29.3.29.29.71v5h5q.42 0 .71.29.3.29.29.71 0 .42-.29.71A1 1 0 0 1 18 13h-5v5q0 .42-.29.71A1 1 0 0 1 12 19a1 1 0 0 1-.71-.29A1 1 0 0 1 11 18z" />
+                </svg>
+              </button>
+              {menuOpen && <AttachMenu kinds={kinds} onPick={pick} onClose={closeMenu} />}
+            </div>
             {whatsapp && (
             <button
               className="icon-btn"
@@ -371,24 +390,6 @@ export function Composer({
                 <span className="material-icons" aria-hidden="true">{locked && channel === 'messenger' ? 'assignment' : 'bolt'}</span>
               </button>
             )}
-            <div className="attach-anchor">
-              <button
-                className={`icon-btn plus-btn${menuOpen ? ' open active' : ''}`}
-                onClick={() => setMenuOpen((v) => !v)}
-                title={locked ? 'Window closed' : 'Attach'}
-                aria-label="Attach"
-                aria-haspopup="menu"
-                aria-expanded={menuOpen}
-                disabled={uploading || locked}
-                data-attach-toggle
-                data-testid="composer-plus"
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-                  <path d="M11 13H6q-.42 0-.71-.29A1 1 0 0 1 5 12q0-.42.29-.71A1 1 0 0 1 6 11h5V6q0-.42.29-.71A1 1 0 0 1 12 5q.42 0 .71.29.3.29.29.71v5h5q.42 0 .71.29.3.29.29.71 0 .42-.29.71A1 1 0 0 1 18 13h-5v5q0 .42-.29.71A1 1 0 0 1 12 19a1 1 0 0 1-.71-.29A1 1 0 0 1 11 18z" />
-                </svg>
-              </button>
-              {menuOpen && <AttachMenu kinds={kinds} onPick={pick} onClose={closeMenu} />}
-            </div>
             <div className="emoji-anchor">
               <button
                 className={`icon-btn${showEmoji ? ' active' : ''}`}
@@ -528,6 +529,10 @@ export function Composer({
       {sheet === 'camera' && (
         <CameraDialog
           onClose={() => setSheet(null)}
+          onFallback={() => {
+            setSheet(null);
+            captureRef.current?.click();
+          }}
           onShot={(f) => {
             setSheet(null);
             onPickFiles([f]);

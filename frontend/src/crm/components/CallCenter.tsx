@@ -24,6 +24,7 @@ import { useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { SoonPill } from './ComingSoon';
 import { notify as desktopNotify } from '../utils';
+import { uiScale } from '../uiScale';
 import './CallCenter.css';
 
 type Phase = 'preparing' | 'connecting' | 'calling' | 'ringing' | 'active' | 'ended';
@@ -451,6 +452,36 @@ export function CallProvider({ api, socket, enabled, demo = false, onOpenChat, o
     }
   }, [api, ask]);
 
+  // The cards sit above the chat's message box, so they never cover the Send
+  // or mic button (the box grows as you type, and the cards move with it).
+  const [lift, setLift] = useState(20);
+  const showing = ringing.length > 0 || !!active;
+  useEffect(() => {
+    if (!showing) return undefined;
+    const measure = () => {
+      const box = document.querySelector('.composer');
+      const s = uiScale();
+      if (!box) {
+        setLift(20);
+        return;
+      }
+      const r = box.getBoundingClientRect();
+      if (!r.height) {
+        setLift(20);
+        return;
+      }
+      const next = Math.max(20, Math.round((window.innerHeight - r.top) / s + 10));
+      setLift((cur) => (Math.abs(cur - next) > 1 ? next : cur));
+    };
+    measure();
+    const t = setInterval(measure, 300);
+    window.addEventListener('resize', measure);
+    return () => {
+      clearInterval(t);
+      window.removeEventListener('resize', measure);
+    };
+  }, [showing]);
+
   // Leaving the page mid-call hangs up at Meta too.
   useEffect(() => {
     const onLeave = () => {
@@ -473,7 +504,7 @@ export function CallProvider({ api, socket, enabled, demo = false, onOpenChat, o
       {children}
       <audio ref={audioRef} autoPlay playsInline data-testid="call-remote-audio" style={{ display: 'none' }} />
       {createPortal(
-        <div className="cc-layer" data-demo={demo ? '1' : undefined}>
+        <div className="cc-layer" data-demo={demo ? '1' : undefined} style={{ bottom: lift }} data-testid="call-layer">
           {ringing.map((call) => (
             <IncomingCard
               key={call.id}
@@ -567,6 +598,38 @@ const PHASE_TEXT: Record<Phase, string> = {
   ended: '',
 };
 
+/** A round control with its label under it (and a Soon badge for what isn't in the API yet). */
+function RoundCtl({ icon, label, onClick, tone = '', pressed, disabled, soon, title, testId }: {
+  icon: ReactNode;
+  label: string;
+  onClick?: () => void;
+  tone?: '' | 'on' | 'hang';
+  pressed?: boolean;
+  disabled?: boolean;
+  soon?: boolean;
+  title?: string;
+  testId?: string;
+}) {
+  return (
+    <div className={`cc-rb${soon ? ' soon' : ''}`}>
+      <button
+        type="button"
+        className={`cc-round${tone ? ` ${tone}` : ''}`}
+        onClick={onClick}
+        disabled={disabled || soon}
+        aria-pressed={pressed}
+        aria-label={soon ? `${label} (coming soon)` : label}
+        title={title || label}
+        data-testid={testId}
+      >
+        {icon}
+      </button>
+      <span className="cc-rb-label">{label}</span>
+      {soon && <SoonPill />}
+    </div>
+  );
+}
+
 function ActiveCard({ call, seconds, onMute, onHangUp, onOpenChat }: {
   call: ActiveCall;
   seconds: number;
@@ -576,14 +639,26 @@ function ActiveCard({ call, seconds, onMute, onHangUp, onOpenChat }: {
 }) {
   const ended = call.phase === 'ended';
   const status = ended ? call.note || 'Call ended' : call.phase === 'active' ? clock(seconds) : PHASE_TEXT[call.phase];
+  // The voice bars move while the call is ringing or live (still while muted).
+  const wave = !ended && call.phase !== 'preparing';
   return (
     <div className={`cc-card cc-active${ended ? ' ended' : ''}`} role="region" aria-label={`Call with ${who(call)}`} data-testid="call-active">
       <div className="cc-head">
-        <span className={`cc-avatar${call.phase === 'active' ? ' live' : ''}`} aria-hidden="true">{initial(call)}</span>
+        <span className={`cc-avatar big${call.phase === 'active' ? ' live' : ''}`} aria-hidden="true">{initial(call)}</span>
         <div className="cc-who">
           <strong>{who(call)}</strong>
-          <span data-testid="call-status" className={call.phase === 'active' ? 'cc-timer' : ''}>{status}</span>
+          <span className="cc-status-row">
+            {!ended && <span className={`cc-dot${call.phase === 'active' ? ' live' : ''}`} aria-hidden="true" />}
+            <span data-testid="call-status" className={call.phase === 'active' ? 'cc-timer' : ''}>{status}</span>
+          </span>
         </div>
+        {wave && (
+          <span className={`cc-wave${call.muted ? ' muted' : ''}`} aria-hidden="true">
+            {[0.35, 0.55, 0.4, 0.7, 0.5, 0.9, 1, 0.75, 0.5, 0.65, 0.4, 0.3].map((h, i) => (
+              <i key={i} style={{ height: `${Math.round(h * 22)}px`, animationDelay: `${i * 0.09}s` }} />
+            ))}
+          </span>
+        )}
         {onOpenChat && !ended && (
           <button type="button" className="cc-icon" onClick={onOpenChat} title="Open chat" aria-label="Open chat">
             <span className="material-icons">chat</span>
@@ -591,31 +666,23 @@ function ActiveCard({ call, seconds, onMute, onHangUp, onOpenChat }: {
         )}
       </div>
       {!ended && (
-        <div className="cc-controls">
-          <button
-            type="button"
-            className={`cc-ctl${call.muted ? ' on' : ''}`}
-            onClick={onMute}
-            aria-pressed={call.muted}
-            data-testid="call-mute"
-            disabled={call.phase === 'preparing'}
-          >
-            <span className="material-icons">{call.muted ? 'mic_off' : 'mic'}</span>
-            <span>{call.muted ? 'Unmute' : 'Mute'}</span>
-          </button>
-          <button type="button" className="cc-ctl soon" disabled title="Video calls aren’t in WhatsApp’s Calling API yet">
-            <span className="material-icons">videocam</span>
-            <span>Video <SoonPill /></span>
-          </button>
-          <button type="button" className="cc-ctl soon" disabled title="Screen sharing isn’t in WhatsApp’s Calling API yet">
-            <span className="material-icons">screen_share</span>
-            <span>Share <SoonPill /></span>
-          </button>
-          <button type="button" className="cc-ctl hang" onClick={onHangUp} data-testid="call-hangup" aria-label="Hang up">
-            <PhoneSvg down />
-            <span>End</span>
-          </button>
-        </div>
+        <>
+          <div className="cc-divider" />
+          <div className="cc-round-row">
+            <RoundCtl
+              icon={<span className="material-icons">{call.muted ? 'mic_off' : 'mic'}</span>}
+              label={call.muted ? 'Unmute' : 'Mute'}
+              tone={call.muted ? 'on' : ''}
+              pressed={call.muted}
+              onClick={onMute}
+              disabled={call.phase === 'preparing'}
+              testId="call-mute"
+            />
+            <RoundCtl icon={<span className="material-icons">videocam</span>} label="Video" soon title="Video calls aren’t in WhatsApp’s Calling API yet" />
+            <RoundCtl icon={<span className="material-icons">screen_share</span>} label="Share" soon title="Screen sharing isn’t in WhatsApp’s Calling API yet" />
+            <RoundCtl icon={<PhoneSvg down size={24} />} label="End" tone="hang" onClick={onHangUp} testId="call-hangup" />
+          </div>
+        </>
       )}
     </div>
   );

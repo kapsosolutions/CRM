@@ -442,7 +442,7 @@ export function EventDialog({ onClose, onSend, canCallLink }: { onClose: () => v
 
 // ---- Camera ----
 
-export function CameraDialog({ onClose, onShot }: { onClose: () => void; onShot: (f: File) => void }) {
+export function CameraDialog({ onClose, onShot, onFallback }: { onClose: () => void; onShot: (f: File) => void; onFallback?: () => void }) {
   const video = useRef<HTMLVideoElement>(null);
   const stream = useRef<MediaStream | null>(null);
   const [error, setError] = useState('');
@@ -466,7 +466,7 @@ export function CameraDialog({ onClose, onShot }: { onClose: () => void; onShot:
       } catch (e) {
         const n = (e as { name?: string }).name || '';
         setError(n === 'NotAllowedError' || n === 'SecurityError'
-          ? 'Allow the camera for this site (the icon in the address bar), then try again.'
+          ? 'The camera is blocked for this site. Click the camera icon in the address bar, choose Allow, then try again.'
           : n === 'NotFoundError' ? 'No camera found on this device.'
             : n === 'NotReadableError' ? 'Another app is using the camera.'
               : 'The camera couldn’t be started in this browser.');
@@ -495,7 +495,16 @@ export function CameraDialog({ onClose, onShot }: { onClose: () => void; onShot:
   return (
     <Sheet title="Take photo" onClose={onClose} testId="camera-dialog">
       <div className="ax-cam">
-        {error ? <div className="ax-cam-error" role="alert">{error}</div> : (
+        {error ? (
+          <div className="ax-cam-error" role="alert" data-testid="camera-error">
+            <span>{error}</span>
+            {onFallback && (
+              <button type="button" className="ax-cam-fallback" onClick={onFallback} data-testid="camera-fallback">
+                Choose a photo instead
+              </button>
+            )}
+          </div>
+        ) : (
           <>
             <video ref={video} playsInline muted className="ax-cam-video" data-testid="camera-video" />
             {!ready && <div className="ax-cam-wait">Starting camera…</div>}
