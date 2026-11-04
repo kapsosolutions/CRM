@@ -446,12 +446,20 @@ export function CrmApp({
           setHasOlder(!!res.hasMore);
           scrollToBottom();
 
-          // The 24h window from the customer's last message: in this page, or
-          // (older than the page) the time the server keeps for the chat.
+          // The 24h window: the later of the customer's last message in this
+          // page and the time the server keeps for the chat. The server's can
+          // be later with no inbound row to show for it: the customer picking
+          // up one of our calls opens the window too (the call row is ours,
+          // "out"). Taking only the row made the timer jump back after load.
           const lastInboundMsg = [...list].reverse().find((m) => m.direction === 'in');
-          const lastInboundAt = lastInboundMsg?.createdAt || res.lastInboundAt || '';
+          const ms = (iso?: string | null) => {
+            const t = iso ? new Date(iso).getTime() : 0;
+            return Number.isNaN(t) ? 0 : t;
+          };
+          const latestIn = Math.max(ms(lastInboundMsg?.createdAt), ms(res.lastInboundAt));
+          const lastInboundAt = latestIn > 0 ? new Date(latestIn).toISOString() : '';
           if (lastInboundAt) {
-            const inTime = new Date(lastInboundAt).getTime();
+            const inTime = latestIn;
             if (!Number.isNaN(inTime) && inTime > 0 && Date.now() - inTime < WINDOW_MS) {
               setWindowExpiresAt(inTime + WINDOW_MS);
             } else {
@@ -551,6 +559,9 @@ export function CrmApp({
         // A call row moves on (ringing → missed / 2:14): the chat list line follows.
         if (m.type === 'call') {
           setChats((list) => list.map((c) => (c.phone === m.phone ? { ...c, lastMessageBody: previewOf(m) } : c)));
+          // The customer picking up our call opens the 24h window on the
+          // server: re-read the chat record so the open timer follows.
+          scheduleChatsRefresh();
         }
         return;
       }

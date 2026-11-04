@@ -231,6 +231,7 @@ async function demoIncoming(phone?: string, name?: string): Promise<string> {
   };
   const dc: DemoCall = { call, pc, tone: voice, answeredAt: null, rowId: nextId() };
   demoCalls.set(id, dc);
+  callOpensWindow(p);
   bus.emitCall({ kind: 'incoming', call });
   demoCallRow(dc, 'ringing');
   // Meta gives up after about a minute.
@@ -432,6 +433,16 @@ function bumpChat(phone: string, body: string, inbound: boolean) {
   }
   // Move most-recent to the top.
   sortChats();
+}
+
+/** Like the server's touchChat(opensWindow): a customer's call, or them
+ *  picking up ours, opens (or refreshes) the 24-hour window. */
+function callOpensWindow(phone: string) {
+  const c = chats.find((x) => x.phone === phone);
+  if (!c) return;
+  c.lastInboundAt = new Date().toISOString();
+  c.windowMsLeft = 24 * 60 * 60 * 1000;
+  c.windowOpen = true;
 }
 
 /** A few notifications for the demo drawer, newest first. */
@@ -728,6 +739,7 @@ export class MockCrmApi extends CrmApi {
       }
       d.answeredAt = Date.now();
       d.call = { ...d.call, state: 'answered', answeredAt: new Date().toISOString() };
+      callOpensWindow(d.call.phone);
       bus.emitCall({ kind: 'status', status: 'accepted', call: d.call });
       demoCallRow(d, 'answered');
     }, noAnswer ? 2500 : 1600);
@@ -1031,12 +1043,14 @@ export class MockCrmApi extends CrmApi {
     const limit = page.limit || list.length;
     const hasMore = list.length > limit;
     const out = list.slice(Math.max(0, list.length - limit));
+    // Like the server: the chat record's time (calls move it too), else the
+    // customer's last message.
     const lastIn = [...(messages[phone] || [])].reverse().find((m) => m.direction === 'in');
     return delay({
       success: true,
       data: out.map((m) => ({ ...m })),
       ...(page.limit ? { hasMore } : {}),
-      ...(page.before ? {} : { lastInboundAt: lastIn?.createdAt || null }),
+      ...(page.before ? {} : { lastInboundAt: c?.lastInboundAt || lastIn?.createdAt || null }),
     }, import.meta.env.DEV ? (window as unknown as { __demoPageDelay?: number }).__demoPageDelay : undefined);
   }
 
