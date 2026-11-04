@@ -34,6 +34,7 @@ import { AttachmentPreview } from './AttachmentPreview';
 import { ConnectWhatsAppOnboarding } from './ConnectWhatsAppOnboarding';
 import { uiScale } from '../uiScale';
 import { useCalls } from './CallCenter';
+import ChatHeaderMenu from './ChatHeaderMenu';
 import { SoonPill } from './ComingSoon';
 import './CrmApp.css';
 
@@ -1220,7 +1221,8 @@ export function CrmApp({
                     </span>
                   ) : (
                     <>
-                      <CountryFlag phone={activePhone} size={18} className="flag" />+{activePhone}
+                      <CountryFlag phone={activePhone} size={18} className="flag" />
+                      <span className="th-num">+{activePhone}</span>
                     </>
                   )}
                 </div>
@@ -1256,91 +1258,16 @@ export function CrmApp({
                 </div>
               )}
 
-              {/* Bot / Manual for this chat: on Messenger / Instagram it switches that
-                  channel's journey (Automation) on or off for this customer. */}
-              {(
-              <div
-                data-testid="bot-toggle"
-                className="bot-toggle-group"
-                title={!paused ? 'Bot active (Auto) — click for Manual' : 'Manual mode — click for Bot'}
-              >
-                <span
-                  className={`bot-toggle-label manual${paused ? ' active' : ''}`}
-                  onClick={togglePause}
-                >
-                  Manual
-                </span>
-                <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={!paused}
-                    disabled={pausing}
-                    onChange={togglePause}
-                  />
-                  <div className="slider">
-                    <div className="circle">
-                      <svg
-                        className="cross"
-                        xmlSpace="preserve"
-                        viewBox="0 0 365.696 365.696"
-                        y="0"
-                        x="0"
-                        height="6"
-                        width="6"
-                        version="1.1"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <g>
-                          <path
-                            fill="currentColor"
-                            d="M243.188 182.86 356.32 69.726c12.5-12.5 12.5-32.766 0-45.247L341.238 9.398c-12.504-12.503-32.77-12.503-45.25 0L182.86 122.528 69.727 9.374c-12.5-12.5-32.766-12.5-45.247 0L9.375 24.457c-12.5 12.504-12.5 32.77 0 45.25l113.152 113.152L9.398 295.99c-12.503 12.503-12.503 32.769 0 45.25L24.48 356.32c12.5 12.5 32.766 12.5 45.247 0l113.132-113.132L295.99 356.32c12.503 12.5 32.769 12.5 45.25 0l15.081-15.082c12.5-12.504 12.5-32.77 0-45.25zm0 0"
-                          />
-                        </g>
-                      </svg>
-                      <svg
-                        className="checkmark"
-                        xmlSpace="preserve"
-                        viewBox="0 0 24 24"
-                        y="0"
-                        x="0"
-                        height="10"
-                        width="10"
-                        version="1.1"
-                        xmlns="http://www.w3.org/2000/svg"
-                      >
-                        <g>
-                          <path
-                            fill="currentColor"
-                            d="M9.707 19.121a.997.997 0 0 1-1.414 0l-5.646-5.647a1.5 1.5 0 0 1 0-2.121l.707-.707a1.5 1.5 0 0 1 2.121 0L9 14.171l9.525-9.525a1.5 1.5 0 0 1 2.121 0l.707.707a1.5 1.5 0 0 1 0 2.121z"
-                          />
-                        </g>
-                      </svg>
-                    </div>
-                  </div>
-                </label>
-                <span
-                  className={`bot-toggle-label bot${!paused ? ' active' : ''}`}
-                  onClick={togglePause}
-                >
-                  Bot
-                </span>
-              </div>
-              )}
-
-              <button
-                className="del-chat"
-                onClick={deleteChat}
-                disabled={deleting}
-                title="Delete chat"
-                aria-label="Delete chat"
-              >
-                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M3.5 5.5H16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                  <path d="M8 5.5V3.5H12V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M5 5.5L5.8 16C5.86 16.84 6.56 17.5 7.4 17.5H12.6C13.44 17.5 14.14 16.84 14.2 16L15 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                  <path d="M8 8.5V14.5M12 8.5V14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
+              {/* ⋮ menu: Bot / Manual for this chat (on Messenger / Instagram it switches
+                  that channel's journey on or off for this customer) and Delete chat. */}
+              <ChatHeaderMenu
+                key={activePhone}
+                paused={paused}
+                pausing={pausing}
+                onTogglePause={togglePause}
+                deleting={deleting}
+                onDelete={deleteChat}
+              />
             </header>
 
 

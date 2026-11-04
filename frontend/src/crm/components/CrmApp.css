@@ -537,6 +537,8 @@
   display: flex;
   flex-direction: column;
   min-height: 0;
+  /* A grid item: without this the header's buttons widen the whole pane past a phone screen. */
+  min-width: 0;
   height: 100%;
   position: relative;
   background-color: #ffffff;
@@ -602,6 +604,9 @@
   font-size: 15px;
   font-weight: 600;
   color: var(--wa-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .th-sub {
   font-size: 12px;
@@ -609,6 +614,13 @@
   display: flex;
   align-items: center;
   gap: 6px;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.th-num {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 .th-sub .flag {
   width: 18px;
@@ -824,28 +836,6 @@
   cursor: not-allowed;
 }
 
-.del-chat {
-  background: transparent !important;
-  border: none;
-  cursor: pointer;
-  color: #000000;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--wa-radius-full);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: color 0.15s ease;
-}
-.del-chat:hover {
-  background: transparent !important;
-  color: #ea4335 !important;
-}
-.del-chat svg {
-  display: block;
-}
-
 /* WhatsApp voice call (CallCenter) and video call (Soon) in the chat header. */
 .th-call-group {
   display: inline-flex;
@@ -892,6 +882,32 @@
   font-size: 8px;
   padding: 1px 4px;
   pointer-events: none;
+}
+
+/* Phone: tighter header so the name keeps some room and ⋮ stays on screen. */
+@media (max-width: 560px) {
+  .thread-head {
+    gap: 6px;
+    padding: 0 8px;
+  }
+  .timer-box {
+    padding: 2px 8px;
+    height: 26px;
+  }
+  .timer-box .timer {
+    font-size: 11.5px;
+    letter-spacing: 0.5px;
+  }
+  .th-call-group {
+    gap: 0;
+    margin-right: 4px;
+  }
+  .th-call {
+    width: 34px;
+  }
+  .th-call.soon .soon-pill {
+    right: -4px;
+  }
 }
 
 /* ---- Delete confirmation modal ---- */
