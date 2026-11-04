@@ -12,6 +12,7 @@ import type { CrmView } from './NavRail';
 import { Dropdown } from './Dropdown';
 import { useNotify } from './Dialogs';
 import { BusinessProfilePhonePreview } from './BusinessProfilePhonePreview';
+import { ProfilePhotoCropper } from './ProfilePhotoCropper';
 import { verticalConfig } from '../verticals';
 import './WhatsAppProfileEditor.css';
 
@@ -30,8 +31,11 @@ export const PROFILE_UPDATED_EVENT = 'crm_profile_updated';
 
 const ABOUT_MAX = 139;
 const DESCRIPTION_MAX = 512;
+// What Meta takes (the cropped JPEG is far smaller)…
 const PHOTO_MAX_BYTES = 5 * 1024 * 1024;
-const PHOTO_TYPES = ['image/jpeg', 'image/png'];
+// …and what can be picked: it's cropped and re-saved before upload.
+const PHOTO_PICK_MAX_BYTES = 20 * 1024 * 1024;
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 interface Form {
   about: string;
@@ -79,6 +83,8 @@ export function WhatsAppProfileEditor({
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [photoFailed, setPhotoFailed] = useState(false);
+  // The photo being cropped, before upload.
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const [products, setProducts] = useState<{ name: string; imageUrl?: string; price?: number }[]>([]);
   const [bizCat, setBizCat] = useState<string>(category || business?.category || '');
 
@@ -235,16 +241,18 @@ export function WhatsAppProfileEditor({
     }
   }
 
-  async function onPhoto(e: ChangeEvent<HTMLInputElement>) {
+  // A picked photo opens the cropper first; what it returns (a 640×640 JPEG,
+  // the size and format WhatsApp wants) is what goes to Meta.
+  function onPhoto(e: ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
     if (!PHOTO_TYPES.includes(file.type)) {
-      setErrors((x) => ({ ...x, picture: 'The photo must be a JPEG or PNG image.' }));
+      setErrors((x) => ({ ...x, picture: 'The photo must be a JPEG, PNG or WebP image.' }));
       return;
     }
-    if (file.size > PHOTO_MAX_BYTES) {
-      setErrors((x) => ({ ...x, picture: 'The photo must be 5 MB or smaller.' }));
+    if (file.size > PHOTO_PICK_MAX_BYTES) {
+      setErrors((x) => ({ ...x, picture: 'The photo must be 20 MB or smaller.' }));
       return;
     }
     setErrors((x) => {
@@ -252,6 +260,15 @@ export function WhatsAppProfileEditor({
       delete next.picture;
       return next;
     });
+    setCropFile(file);
+  }
+
+  async function uploadPhoto(file: File) {
+    setCropFile(null);
+    if (file.size > PHOTO_MAX_BYTES) {
+      setErrors((x) => ({ ...x, picture: 'The cropped photo came out larger than 5 MB. Try a simpler photo.' }));
+      return;
+    }
     setAlert('');
     setUploading(true);
     try {
@@ -325,7 +342,7 @@ export function WhatsAppProfileEditor({
         <input
           ref={fileRef}
           type="file"
-          accept="image/jpeg,image/png"
+          accept="image/jpeg,image/png,image/webp"
           onChange={onPhoto}
           style={{ display: 'none' }}
           aria-hidden="true"
@@ -364,10 +381,13 @@ export function WhatsAppProfileEditor({
               <span className="material-icons" aria-hidden="true">photo_camera</span>
               {uploading ? 'Updating photo on WhatsApp…' : 'Change photo'}
             </button>
-            <small className="wpe-hint">JPEG or PNG, up to 5 MB. A square image of at least 640×640 looks best.</small>
+            <small className="wpe-hint">JPEG, PNG or WebP. You’ll crop it to a square, saved at 640×640 as WhatsApp recommends.</small>
             {err('picture')}
           </div>
         </div>
+        {cropFile && (
+          <ProfilePhotoCropper file={cropFile} onCancel={() => setCropFile(null)} onDone={uploadPhoto} />
+        )}
 
         <div className="wpe-grid">
           <div className="wpe-field wide">
