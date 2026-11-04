@@ -135,6 +135,43 @@ function formatMessageText(text: string): React.ReactNode {
 
 const formatLinks = formatMessageText;
 
+/** A call entry (type 'call') or a call permission answer (type 'call_permission'). */
+function CallLine({ m }: { m: ChatMessage }) {
+  if (m.type === 'call_permission') {
+    const yes = m.raw?.callPermission?.response !== 'reject';
+    return (
+      <div className="call-row" data-msg-id={m._id} data-testid="call-permission-line">
+        <div className={`call-chip perm${yes ? '' : ' no'}`}>
+          <span className="call-ico"><span className="material-icons">{yes ? 'phone_enabled' : 'phone_disabled'}</span></span>
+          <span className="call-text">
+            <span className="call-title">{m.body || (yes ? 'Allowed calls' : 'Declined calls')}</span>
+            <span className="call-sub">{timeHHmm(m.createdAt)}</span>
+          </span>
+        </div>
+      </div>
+    );
+  }
+  const c = m.raw?.call;
+  const state = c?.state || 'ended';
+  const inbound = (c?.direction || m.direction) === 'in';
+  const icon = state === 'missed' ? 'phone_missed'
+    : state === 'declined' || state === 'failed' || state === 'no_answer' ? 'phone_disabled'
+      : state === 'ringing' || state === 'answered' ? 'phone_in_talk'
+        : inbound ? 'call_received' : 'call_made';
+  const title = m.body || 'Voice call';
+  return (
+    <div className="call-row" data-msg-id={m._id} data-testid="call-line">
+      <div className={`call-chip ${state}`} title={c?.error?.message || undefined}>
+        <span className="call-ico"><span className="material-icons">{icon}</span></span>
+        <span className="call-text">
+          <span className="call-title">{title}</span>
+          <span className="call-sub">WhatsApp voice call · {timeHHmm(m.createdAt)}</span>
+        </span>
+      </div>
+    </div>
+  );
+}
+
 interface Props {
   message: ChatMessage;
   api: CrmApi;
@@ -249,6 +286,12 @@ export const MessageItem = memo(function MessageItem({
         ))}
     </span>
   );
+
+  // A WhatsApp call, or the customer's answer to "Allow calls?": a centred
+  // line in the thread, like WhatsApp's call entries.
+  if (m.type === 'call' || m.type === 'call_permission') {
+    return <CallLine m={m} />;
+  }
 
   return (
     <div
@@ -702,7 +745,13 @@ export const MessageItem = memo(function MessageItem({
         );
       case 'audio':
         return (
-          <div className="audio-wrap">
+          <div className={`audio-wrap${m.raw?.voicemail ? ' voicemail' : ''}`}>
+            {m.raw?.voicemail && (
+              <span className="vm-label" data-testid="voicemail-label">
+                <span className="material-icons" aria-hidden="true">voicemail</span>
+                Voicemail
+              </span>
+            )}
             <span className={`audio-kind material-icons${md.voice ? ' voice' : ''}`}>
               {md.voice ? 'mic' : 'headphones'}
             </span>

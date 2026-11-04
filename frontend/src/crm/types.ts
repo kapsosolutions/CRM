@@ -2111,8 +2111,102 @@ export interface ChatMessage {
     context?: { id?: string; from?: string };
     /** Meta's raw message, when the media was re-hosted (`raw.meta.context`). */
     meta?: { context?: { id?: string; from?: string } };
+    /** A WhatsApp voice call (type 'call'). */
+    call?: CallRecord;
+    /** The customer's answer to "Allow calls?" (type 'call_permission'). */
+    callPermission?: CallPermissionReply;
+    /** An audio message that is a voicemail left on a missed call. */
+    voicemail?: boolean;
   };
 }
+
+// ---- WhatsApp voice calls (backend services/calling.js) ----
+
+export type CallState = 'ringing' | 'answered' | 'ended' | 'missed' | 'declined' | 'no_answer' | 'failed';
+
+/** A call as kept on its chat row. */
+export interface CallRecord {
+  id: string;
+  direction: 'in' | 'out';
+  state: CallState;
+  startedAt?: string | null;
+  endedAt?: string;
+  /** Seconds talked. */
+  duration?: number;
+  error?: { code: number | null; message: string };
+}
+
+/** A live call, as the server pushes it. */
+export interface LiveCall {
+  id: string;
+  phone: string;
+  name: string;
+  direction: 'in' | 'out';
+  state: CallState;
+  at: string;
+  answeredAt: string | null;
+  /** The browser tab that answered / placed it. */
+  answeredBy: string | null;
+  messageId: string | null;
+  /** The customer's SDP offer (an incoming call that's still ringing). */
+  offerSdp?: string;
+}
+
+/** crm:call — what changed about a call. */
+export type CallEvent =
+  | { kind: 'incoming'; call: LiveCall }
+  | { kind: 'answer'; call: LiveCall; sdp: string }
+  | { kind: 'answered'; call: LiveCall }
+  | { kind: 'status'; status: 'ringing' | 'accepted' | 'rejected'; call: LiveCall }
+  | { kind: 'hangup'; call: LiveCall }
+  | { kind: 'ended'; call: LiveCall; duration: number }
+  | { kind: 'permission'; phone: string; permission: CallPermissionReply };
+
+export interface CallPermissionReply {
+  response: 'accept' | 'reject';
+  permanent: boolean;
+  expiresAt: string | null;
+  source: 'user_action' | 'automatic' | string;
+}
+
+/** May the business call this customer now? (GET /api/calls/permission) */
+export interface CallPermission {
+  success?: boolean;
+  status: 'no_permission' | 'temporary' | 'permanent';
+  expiresAt: string | null;
+  canCall: boolean;
+  canAsk: boolean;
+  askAgainAt: string | null;
+  callAgainAt: string | null;
+}
+
+export interface CallHoursRange {
+  day: 'MONDAY' | 'TUESDAY' | 'WEDNESDAY' | 'THURSDAY' | 'FRIDAY' | 'SATURDAY' | 'SUNDAY';
+  /** "09:30" */
+  open: string;
+  close: string;
+}
+
+/** The number's calling settings at Meta (GET/PUT /api/calls/settings). */
+export interface CallSettings {
+  enabled: boolean;
+  /** Ever set up on this number (Meta says NOT_SET before). */
+  configured: boolean;
+  showCallButton: boolean;
+  callbackPermission: boolean;
+  callHours: {
+    enabled: boolean;
+    timezone: string;
+    weekly: CallHoursRange[];
+    holidays: { date: string; start: string; end: string }[];
+  };
+  restrictions: { type: string; reason: string; expiresAt: string | null }[];
+  sip: boolean;
+}
+
+export type CallSettingsUpdate = Partial<Pick<CallSettings, 'enabled' | 'showCallButton' | 'callbackPermission'>> & {
+  callHours?: CallSettings['callHours'];
+};
 
 /** A template message as sent: header, filled-in body, buttons, extras. */
 export interface RenderedTemplate {

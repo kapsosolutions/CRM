@@ -23,7 +23,11 @@ const OBJECT = 'whatsapp_business_account';
 // number holds a chat (an old automation still attached), its messages come on
 // `standby` instead of `messages`, and would otherwise never reach the CRM
 // (services/otherApps.js).
-const REQUIRED_FIELDS = ['messages', 'message_template_status_update', 'standby', 'messaging_handovers'];
+// `calls`: WhatsApp voice calls (services/calling.js); `account_settings_update`:
+// the number's calling settings changed at Meta.
+const REQUIRED_FIELDS = [
+  'messages', 'message_template_status_update', 'standby', 'messaging_handovers', 'calls', 'account_settings_update',
+];
 
 const graph = (business) =>
   `https://graph.facebook.com/${business.graphVersion || process.env.WA_GRAPH_VERSION || 'v22.0'}`;
@@ -128,13 +132,15 @@ export async function syncWebhookSubscription(business) {
     return { ok: false, changed: false, reason: e.response?.data?.error?.message || e.message };
   }
 
-  if (current?.callback_url === want && current?.active) {
-    return { ok: true, changed: false, to: want };
-  }
-
   // Re-sending a subscription replaces its field list, so carry the existing
   // fields over instead of silently narrowing what the app receives.
   const existing = (current?.fields || []).map((f) => f.name || f).filter(Boolean);
+  // A field added to REQUIRED_FIELDS later (e.g. `calls`) is sent too, even
+  // when the URL is already right.
+  const hasFields = REQUIRED_FIELDS.every((f) => existing.includes(f));
+  if (current?.callback_url === want && current?.active && hasFields) {
+    return { ok: true, changed: false, to: want };
+  }
   const fields = [...new Set([...existing, ...REQUIRED_FIELDS])].join(',');
 
   try {

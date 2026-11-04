@@ -1,0 +1,392 @@
+/* Channel Status → Calling (CallingSettings.tsx). */
+
+.cl-loading {
+  padding: 30px 0;
+  font-size: 13.5px;
+  color: #64748b;
+}
+
+.cl-left {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.cl-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.cl-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cl-row.main {
+  padding-top: 4px;
+}
+
+.cl-row-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.cl-row-text strong {
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.cl-row-text span {
+  font-size: 12.5px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.cl-state {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: #f1f5f9;
+  color: #64748b;
+}
+
+.cl-state.on {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.cl-sub.off {
+  opacity: 0.55;
+}
+
+.cl-switch {
+  position: relative;
+  width: 42px;
+  height: 24px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 999px;
+  background: #cbd5e1;
+  cursor: pointer;
+  transition: background 0.15s;
+  padding: 0;
+}
+
+.cl-switch .cl-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.25);
+  transition: transform 0.15s;
+}
+
+.cl-switch.on {
+  background: #22c55e;
+}
+
+.cl-switch.on .cl-knob {
+  transform: translateX(18px);
+}
+
+.cl-switch:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cl-switch:focus-visible {
+  outline: 2px solid #22c55e;
+  outline-offset: 2px;
+}
+
+.cl-hours {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 12px 0 6px;
+}
+
+.cl-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+  max-width: 280px;
+}
+
+.cl-field select,
+.cl-range input {
+  height: 36px;
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  background: #ffffff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 400;
+  color: #0f172a;
+}
+
+.cl-days {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+}
+
+.cl-day {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 9px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.cl-day:last-child {
+  border-bottom: none;
+}
+
+.cl-day-name {
+  width: 120px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: #0f172a;
+  padding-top: 8px;
+  cursor: pointer;
+}
+
+.cl-day-name input {
+  accent-color: #22c55e;
+  width: 15px;
+  height: 15px;
+}
+
+.cl-ranges {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  align-items: flex-start;
+}
+
+.cl-range {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12.5px;
+  color: #64748b;
+}
+
+.cl-closed {
+  font-size: 13px;
+  color: #94a3b8;
+  padding-top: 8px;
+}
+
+.cl-x {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 6px;
+  border-radius: 6px;
+}
+
+.cl-x:hover:not(:disabled) {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.cl-link {
+  border: none;
+  background: transparent;
+  color: #16a34a;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.cl-link:disabled {
+  color: #94a3b8;
+  cursor: default;
+}
+
+.cl-holidays {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.cl-holidays-head {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cl-holidays-head strong {
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.cl-holidays-head span {
+  font-size: 12px;
+  color: #64748b;
+}
+
+.cl-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding-top: 14px;
+}
+
+.cl-btn {
+  padding: 9px 20px;
+  border-radius: 6px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cl-btn.primary {
+  background: #22c55e;
+  border: none;
+  color: #ffffff;
+}
+
+.cl-btn.primary:hover:not(:disabled) {
+  background: #16a34a;
+}
+
+.cl-btn.primary:disabled {
+  background: #a7e3bd;
+  cursor: not-allowed;
+}
+
+.cl-btn.ghost {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #334155;
+}
+
+.cl-hint {
+  font-size: 12px;
+  color: #64748b;
+  flex-basis: 100%;
+}
+
+.cl-warn {
+  font-size: 13px;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 8px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+
+.cl-alert {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 10px 14px;
+}
+
+.cl-error {
+  font-size: 13px;
+  color: #991b1b;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  padding: 9px 12px;
+  margin-top: 10px;
+}
+
+.cl-feature-list {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.cl-feature-list li {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.cl-feature-list li > .material-icons {
+  font-size: 19px;
+  color: #94a3b8;
+  margin-top: 1px;
+}
+
+.cl-feature-list li > .material-icons.ok {
+  color: #16a34a;
+}
+
+.cl-feature-list li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.cl-feature-list strong {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 13px;
+  color: #0f172a;
+}
+
+.cl-feature-list span:not(.soon-pill):not(.material-icons) {
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+.cl-feature-list li.soon strong {
+  color: #64748b;
+}
+
+.cl-small {
+  margin-top: 14px;
+  font-size: 12px;
+}
+
+@media (max-width: 640px) {
+  .cl-day {
+    flex-direction: column;
+    gap: 6px;
+  }
+  .cl-day-name {
+    padding-top: 0;
+  }
+}

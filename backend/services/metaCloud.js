@@ -116,6 +116,10 @@ export function describeOutbound(payload) {
       // button that opens the form.
       d.flowCta = it.action?.parameters?.flow_cta || 'Open';
       d.buttons = [{ text: d.flowCta, kind: 'flow' }];
+    } else if (it.type === 'call_permission_request') {
+      // "Allow calls?" (services/calling.js). WhatsApp draws the buttons; the
+      // CRM shows the request as the card the customer got.
+      d.buttons = [{ text: 'Allow calls', kind: 'call_permission' }];
     }
   } else {
     return null;
@@ -742,6 +746,46 @@ export function createMetaClient(creds = {}) {
       return client.updateBusinessProfile({ profile_picture_handle: handle });
     },
 
+    // ---------- Calling (services/calling.js) ----------
+    /** The number's calling settings as Meta has them (the `calling` object). */
+    async getCallSettings() {
+      const { data } = await api.get(`${base()}/settings`, { headers: authHeaders(), timeout: 15000 });
+      return data?.calling || {};
+    },
+
+    /** Change calling settings. Only the keys given are changed (call_hours as a whole). */
+    async updateCallSettings(calling = {}) {
+      const { data } = await api.post(`${base()}/settings`, { calling }, { headers: authHeaders(), timeout: 20000 });
+      return data;
+    },
+
+    /** One call action (connect, pre_accept, accept, reject, terminate). Not a message: no credit, no log. */
+    async callAction(body = {}) {
+      const { data } = await api.post(`${base()}/calls`, { messaging_product: 'whatsapp', ...body }, { headers: authHeaders(), timeout: 20000 });
+      return data;
+    },
+
+    /** Whether this customer has let the business call them, and what can be done now. */
+    async getCallPermission(phone) {
+      const { data } = await api.get(`${base()}/call_permissions`, {
+        headers: authHeaders(),
+        params: { user_wa_id: clean(phone) },
+        timeout: 15000,
+      });
+      return data || {};
+    },
+
+    /** Ask the customer for permission to call them (inside the 24-hour window). */
+    async sendCallPermissionRequest(phone, body = '') {
+      const interactive = { type: 'call_permission_request', action: { name: 'call_permission_request' } };
+      const text = String(body || '').trim();
+      if (text) interactive.body = { text: text.slice(0, 1024) };
+      const { data } = await post({
+        messaging_product: 'whatsapp', recipient_type: 'individual', to: clean(phone), type: 'interactive', interactive,
+      });
+      return data;
+    },
+
     /**
      * Send an approved template.
      *
@@ -1040,6 +1084,8 @@ const SANDBOX_BLOCKED = [
   'setBusinessEncryptionKey', 'getBusinessEncryptionKey', 'deprecateFlow', 'deleteFlow',
   'sendProductList', 'sendProduct', 'batchUpsertCatalogProducts', 'getCatalogProducts',
   'listCatalogRetailerIds', 'deleteCatalogProducts', 'sendOrderDetails', 'sendOrderStatusUpdate',
+  // Calls belong to the business's own number.
+  'getCallSettings', 'updateCallSettings', 'callAction', 'getCallPermission', 'sendCallPermissionRequest',
 ];
 
 const credsFromBusiness = (b) => ({

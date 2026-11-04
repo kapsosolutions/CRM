@@ -75,7 +75,7 @@ export async function logInbound(phone, name, type, body, raw, metaMessageId, me
     emitMessage(doc);
     // The bell: one unread notification per chat, updated per message. A
     // payment outcome is reported by its own notification instead.
-    if (businessId && type !== 'payment') {
+    if (businessId && type !== 'payment' && type !== 'call_permission') {
       // Their first message to this business opens a new chat.
       Message.exists({ businessId, phone, direction: 'in', _id: { $ne: doc._id } })
         .then((before) => notifyChatMessage(businessId, { phone, name, type, body: doc.body, isNew: !before }))

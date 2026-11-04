@@ -22,6 +22,7 @@ import {
 import './ChannelStatusPage.css';
 import { COMING_SOON } from '../features';
 import { ComingSoonPanel, SoonPill } from './ComingSoon';
+import { CallingSettings } from './CallingSettings';
 
 // The "Soon" corner badge on the Instagram / Messenger tabs (features.ts).
 const SOON_BADGE = { background: '#fef3c7', color: '#92400e' };
@@ -49,7 +50,7 @@ interface Props {
 }
 
 type ChannelTab = 'whatsapp' | 'instagram' | 'messenger';
-type SubItem = 'connect' | 'limit' | 'approval' | 'display_name' | 'phone_number' | 'quality_rating';
+type SubItem = 'connect' | 'limit' | 'approval' | 'display_name' | 'phone_number' | 'quality_rating' | 'calling';
 
 // Meta's current tier path (same order as backend services/messagingTier.js
 // TIER_TRACK). Legacy TIER_50 / TIER_1K numbers get their own slot.
@@ -684,7 +685,7 @@ export function ChannelStatusPage({
   const pending = (label = 'Loading…') => ({ label: loadingFirst ? label : '—', tone: 'grey' as Tone });
 
   // Header badge for each sub-item, from the same live values.
-  const subBadge: Record<Exclude<SubItem, 'connect' | 'limit'>, { label: string; tone: Tone }> = {
+  const subBadge: Record<Exclude<SubItem, 'connect' | 'limit' | 'calling'>, { label: string; tone: Tone }> = {
     quality_rating: quality || pending(),
     phone_number: num?.status ? { label: humanize(num.status), tone: numberTone } : pending(),
     approval: reviewStatus ? { label: humanize(reviewStatus), tone: reviewTone(reviewStatus) } : pending(),
@@ -972,6 +973,25 @@ export function ChannelStatusPage({
                     </div>
                   </button>
                 </div>
+
+                {/* Features: voice calls on the number (video and screen sharing: Soon). */}
+                <div className="cs-section">
+                  <div className="cs-section-label">Features</div>
+                  <button
+                    type="button"
+                    className={`cs-item-btn ${selectedSubItem === 'calling' ? 'active' : ''}`}
+                    onClick={() => setSelectedSubItem('calling')}
+                    data-testid="cs-item-calling"
+                  >
+                    <div className={`cs-item-check ${isConnected ? 'completed' : 'pending'}`}>
+                      <span className="material-icons" style={{ fontSize: 13 }}>call</span>
+                    </div>
+                    <div className="cs-item-info">
+                      <span className="cs-item-title">Calling</span>
+                      <span className="cs-item-desc">Voice calls on WhatsApp · video <SoonPill /></span>
+                    </div>
+                  </button>
+                </div>
               </div>
             ) : activeTab === 'instagram' ? (
               <div className="cs-sidebar-body">
@@ -1048,6 +1068,8 @@ export function ChannelStatusPage({
                     ? 'WhatsApp Display Name'
                     : selectedSubItem === 'phone_number'
                     ? 'Phone Number Status'
+                    : selectedSubItem === 'calling'
+                    ? 'WhatsApp Calling'
                     : 'Quality Rating'
                   : activeTab === 'instagram'
                   ? 'Instagram Direct'
@@ -1061,7 +1083,7 @@ export function ChannelStatusPage({
                   <span className={`cs-badge-status ${BADGE_CLASS[connectBadge.tone]}`} data-testid="cs-connect-badge">
                     {connectBadge.label}
                   </span>
-                ) : selectedSubItem === 'limit' ? (
+                ) : selectedSubItem === 'limit' || selectedSubItem === 'calling' ? (
                   null
                 ) : (
                   <span className={`cs-badge-status ${BADGE_CLASS[subBadge[selectedSubItem].tone]}`}>
@@ -1276,6 +1298,8 @@ export function ChannelStatusPage({
                     </div>
                   </div>
                 </div>
+              ) : selectedSubItem === 'calling' ? (
+                <CallingSettings api={api} limit={limit} />
               ) : selectedSubItem === 'limit' ? (
               /* Messaging Limit (Matching user screenshot: 5 horizontal segments with elevated Current card) */
               <div className="cs-two-col-layout">

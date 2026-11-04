@@ -23,6 +23,7 @@ import { startCampaignRunner } from './services/campaignRunner.js';
 import webhookRouter, { sandboxWebhookRouter } from './routes/webhook.js';
 import sandboxRouter from './routes/sandbox.js';
 import channelRouter from './routes/channel.js';
+import callsRouter from './routes/calls.js';
 import campaignsRouter from './routes/campaigns.js';
 import notificationsRouter from './routes/notifications.js';
 import pushRouter from './routes/push.js';
@@ -243,6 +244,7 @@ app.use('/api/onboarding', onboardingRouter);
 app.use('/api/settings', requireFeature('payment-config', { only: (req) => req.path === '/' }), settingsRouter);
 app.use('/api/sandbox', sandboxRouter); // shared "try it" number panel
 app.use('/api/channel', channelRouter); // Channel Status: live number status from Meta
+app.use('/api/calls', callsRouter); // WhatsApp voice calls: settings, answer, call, permission
 // Cancelling or deleting a campaign stays possible after a downgrade.
 app.use('/api/campaigns', requireFeature('campaigns', { only: (req) => req.method !== 'DELETE' && !/\/cancel$/.test(req.path) }), campaignsRouter); // Campaigns: server-side sends and real stats
 app.use('/api/notifications', notificationsRouter); // header bell + notification drawer

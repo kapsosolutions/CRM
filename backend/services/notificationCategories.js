@@ -7,6 +7,8 @@
 
 const BY_TYPE = {
   message: 'message',
+  // A missed WhatsApp call nudges like a new message.
+  call_missed: 'message',
   chat_new: 'chatNew',
   order_new: 'order',
   payment_received: 'payment',

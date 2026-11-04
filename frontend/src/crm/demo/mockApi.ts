@@ -9,6 +9,7 @@ import { CrmSocket, type StatusUpdate, type ReactionUpdate, type TypingUpdate } 
 import type { CrmConfig } from '../config';
 import type { AppNotification, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, Order, OrderStatus, Journey, Registration, RegistrationStatus, BusinessSettings, PaymentSettings, SandboxInfo, ChannelStatus, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, WhatsAppVertical, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, CampaignStats, CampaignRecipientResult, BillingSummary } from '../types';
 import type { MetaChannelsInfo, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
+import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
 import { demoChats, demoMessages, demoTemplates } from './mockData';
@@ -59,6 +60,14 @@ class DemoBus {
   emitServiceQuota(q: ServiceQuota) {
     this.quotaCbs.forEach((cb) => cb(q));
   }
+  private callCbs = new Set<(e: CallEvent) => void>();
+  onCall(cb: (e: CallEvent) => void) {
+    this.callCbs.add(cb);
+    return () => this.callCbs.delete(cb);
+  }
+  emitCall(e: CallEvent) {
+    this.callCbs.forEach((cb) => cb(e));
+  }
 }
 
 const bus = new DemoBus();
@@ -100,6 +109,136 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     (window as unknown as DemoQuotaWindow).__demoServiceUsed = used;
     bus.emitServiceQuota(demoServiceQuota());
   };
+}
+
+// ---- Demo: WhatsApp voice calls ----
+// The "customer" is a real RTCPeerConnection in this page playing a tone, so
+// the CRM's own call code (offer/answer, ICE, audio) runs exactly as it does
+// against Meta. Dev hooks: __demoIncomingCall(phone?, name?),
+// __demoCallPermission(phone, 'no_permission'|'temporary'|'permanent'),
+// __demoCallNoAnswer = true, __demoCallPeers() (connection states).
+type DemoCallWindow = {
+  __demoIncomingCall?: (phone?: string, name?: string) => Promise<string>;
+  __demoCallPermission?: (phone: string, status: CallPermission['status']) => void;
+  __demoCallNoAnswer?: boolean;
+  __demoCallsOff?: boolean;
+  __demoCallPeers?: () => { id: string; state: string; ice: string }[];
+};
+interface DemoCall {
+  call: LiveCall;
+  pc: RTCPeerConnection;
+  tone: { stop(): void } | null;
+  answeredAt: number | null;
+  rowId: string;
+}
+const demoCalls = new Map<string, DemoCall>();
+const demoPermissions = new Map<string, CallPermission['status']>();
+let demoCallSettings: CallSettings = {
+  enabled: true, configured: true, showCallButton: true, callbackPermission: true,
+  callHours: { enabled: false, timezone: 'Asia/Kolkata', weekly: [], holidays: [] },
+  restrictions: [], sip: false,
+};
+
+/** A tone as the customer's voice. */
+function demoVoice(): { stream: MediaStream; stop(): void } | null {
+  try {
+    const Ctx = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+    const ac = new Ctx();
+    const osc = ac.createOscillator();
+    const gain = ac.createGain();
+    gain.gain.value = 0.03;
+    osc.frequency.value = 330;
+    const dest = ac.createMediaStreamDestination();
+    osc.connect(gain).connect(dest);
+    osc.start();
+    return { stream: dest.stream, stop: () => { try { osc.stop(); void ac.close(); } catch { /* closed */ } } };
+  } catch {
+    return null;
+  }
+}
+
+async function demoIceDone(pc: RTCPeerConnection): Promise<void> {
+  if (pc.iceGatheringState === 'complete') return;
+  await new Promise<void>((resolve) => {
+    const t = setTimeout(resolve, 3000);
+    pc.addEventListener('icegatheringstatechange', () => {
+      if (pc.iceGatheringState === 'complete') {
+        clearTimeout(t);
+        resolve();
+      }
+    });
+  });
+}
+
+function demoCallLabel(direction: 'in' | 'out', state: CallState, secs = 0): string {
+  const mm = `${Math.floor(secs / 60)}:${String(Math.floor(secs % 60)).padStart(2, '0')}`;
+  if (state === 'ringing') return direction === 'in' ? 'Incoming voice call' : 'Calling…';
+  if (state === 'answered') return 'Voice call in progress';
+  if (state === 'ended') return `${direction === 'in' ? 'Incoming' : 'Outgoing'} voice call · ${mm}`;
+  if (state === 'missed') return 'Missed voice call';
+  if (state === 'declined') return direction === 'in' ? 'Declined voice call' : 'Call declined';
+  if (state === 'no_answer') return 'Outgoing voice call · No answer';
+  return 'Voice call';
+}
+
+/** Write (or update) the call's chat row and push it, like the server does. */
+function demoCallRow(dc: DemoCall, state: CallState, secs?: number) {
+  const { call } = dc;
+  const list = (messages[call.phone] ||= []);
+  let row = list.find((m) => m._id === dc.rowId);
+  const body = demoCallLabel(call.direction, state, secs);
+  const raw = { call: { id: call.id, direction: call.direction, state, ...(secs !== undefined ? { duration: secs } : {}) } };
+  if (!row) {
+    row = { _id: dc.rowId, phone: call.phone, direction: call.direction, type: 'call', body, status: call.direction === 'in' ? 'received' : 'sent', metaMessageId: call.id, createdAt: new Date().toISOString(), raw };
+    list.push(row);
+  } else {
+    Object.assign(row, { body, raw });
+  }
+  bumpChat(call.phone, `📞 ${body}`, call.direction === 'in' && state === 'missed');
+  bus.emitMessage({ ...row });
+}
+
+function demoEndCall(id: string, state?: CallState) {
+  const dc = demoCalls.get(id);
+  if (!dc) return;
+  const secs = dc.answeredAt ? Math.round((Date.now() - dc.answeredAt) / 1000) : 0;
+  const final: CallState = state || (dc.answeredAt ? 'ended' : dc.call.direction === 'in' ? 'missed' : 'no_answer');
+  dc.call = { ...dc.call, state: final };
+  dc.tone?.stop();
+  try { dc.pc.close(); } catch { /* closed */ }
+  demoCalls.delete(id);
+  demoCallRow(dc, final, secs);
+  bus.emitCall({ kind: 'ended', call: dc.call, duration: secs });
+}
+
+async function demoIncoming(phone?: string, name?: string): Promise<string> {
+  const chat = chats.find((c) => !phone || c.phone === phone) || chats[0];
+  const p = phone || chat?.phone || '919800000001';
+  const pc = new RTCPeerConnection({ iceServers: [] });
+  const voice = demoVoice();
+  if (voice) for (const t of voice.stream.getTracks()) pc.addTrack(t, voice.stream);
+  else pc.addTransceiver('audio', { direction: 'sendrecv' });
+  await pc.setLocalDescription(await pc.createOffer());
+  await demoIceDone(pc);
+  const id = `wacid.demo${nextId()}`;
+  const call: LiveCall = {
+    id, phone: p, name: name || chat?.name || '', direction: 'in', state: 'ringing', at: new Date().toISOString(),
+    answeredAt: null, answeredBy: null, messageId: null, offerSdp: pc.localDescription?.sdp || '',
+  };
+  const dc: DemoCall = { call, pc, tone: voice, answeredAt: null, rowId: nextId() };
+  demoCalls.set(id, dc);
+  bus.emitCall({ kind: 'incoming', call });
+  demoCallRow(dc, 'ringing');
+  // Meta gives up after about a minute.
+  setTimeout(() => { if (demoCalls.get(id) && !demoCalls.get(id)!.answeredAt) demoEndCall(id, 'missed'); }, 60000);
+  return id;
+}
+
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  const w = window as unknown as DemoCallWindow;
+  w.__demoIncomingCall = demoIncoming;
+  w.__demoCallPermission = (phone, status) => demoPermissions.set(phone, status);
+  w.__demoCallPeers = () => [...demoCalls.values()].map((d) => ({ id: d.call.id, state: d.pc.connectionState, ice: d.pc.iceConnectionState }));
 }
 
 // Mutable copies of the seed data.
@@ -436,6 +575,126 @@ export class MockCrmApi extends CrmApi {
 
   override startPlanCheckout(): Promise<never> {
     return Promise.reject(new Error('Payments are switched off in the demo. Sign up to choose a plan.'));
+  }
+
+  // ---------- WhatsApp voice calls (demo; see demoIncoming above) ----------
+  override getCallSettings(): Promise<{ success: boolean; connected: boolean; settings?: CallSettings }> {
+    const off = import.meta.env.DEV && (window as unknown as DemoCallWindow).__demoCallsOff;
+    return delay({ success: true, connected: true, settings: { ...demoCallSettings, ...(off ? { enabled: false } : {}) } });
+  }
+
+  override saveCallSettings(body: CallSettingsUpdate): Promise<{ success: boolean; connected: boolean; settings: CallSettings }> {
+    if (body.callHours?.enabled && !body.callHours.weekly.length) {
+      return Promise.reject(Object.assign(new Error('Add at least one day with call hours, or turn call hours off.'), { status: 400 }));
+    }
+    demoCallSettings = { ...demoCallSettings, ...body, callHours: body.callHours || demoCallSettings.callHours, configured: true };
+    if (import.meta.env.DEV && body.enabled !== undefined) (window as unknown as DemoCallWindow).__demoCallsOff = !body.enabled;
+    return delay({ success: true, connected: true, settings: { ...demoCallSettings } }, 400);
+  }
+
+  override getCallConfig(): Promise<{ success: boolean; iceServers: RTCIceServer[]; connected: boolean }> {
+    // Both ends are in this page: no STUN needed.
+    return delay({ success: true, iceServers: [], connected: true }, 50);
+  }
+
+  override getRingingCalls(): Promise<{ success: boolean; calls: LiveCall[] }> {
+    return delay({ success: true, calls: [...demoCalls.values()].filter((d) => d.call.direction === 'in' && !d.answeredAt).map((d) => d.call) }, 50);
+  }
+
+  override async acceptCall(id: string, sdp: string, tabId: string): Promise<{ success: boolean; call: LiveCall }> {
+    const dc = demoCalls.get(id);
+    if (!dc) throw Object.assign(new Error('This call has ended.'), { status: 404 });
+    await dc.pc.setRemoteDescription({ type: 'answer', sdp });
+    dc.answeredAt = Date.now();
+    dc.call = { ...dc.call, state: 'answered', answeredAt: new Date().toISOString(), answeredBy: tabId, offerSdp: undefined };
+    bus.emitCall({ kind: 'answered', call: dc.call });
+    demoCallRow(dc, 'answered');
+    return delay({ success: true, call: dc.call }, 150);
+  }
+
+  override rejectCall(id: string): Promise<{ success: boolean }> {
+    const dc = demoCalls.get(id);
+    if (dc) {
+      bus.emitCall({ kind: 'status', status: 'rejected', call: { ...dc.call, state: 'declined' } });
+      demoEndCall(id, 'declined');
+    }
+    return delay({ success: true }, 80);
+  }
+
+  override endCall(id: string): Promise<{ success: boolean }> {
+    setTimeout(() => demoEndCall(id), 200);
+    return delay({ success: true }, 80);
+  }
+
+  override async startCall(phone: string, sdp: string, tabId: string, name = ''): Promise<{ success: boolean; call: LiveCall }> {
+    if ((demoPermissions.get(phone) || 'temporary') === 'no_permission') {
+      throw Object.assign(new Error('This customer hasn’t allowed calls from you yet. Ask for permission first.'), { status: 409, data: { code: 138006 } });
+    }
+    const pc = new RTCPeerConnection({ iceServers: [] });
+    const voice = demoVoice();
+    if (voice) for (const t of voice.stream.getTracks()) pc.addTrack(t, voice.stream);
+    await pc.setRemoteDescription({ type: 'offer', sdp });
+    await pc.setLocalDescription(await pc.createAnswer());
+    await demoIceDone(pc);
+    const id = `wacid.demo${nextId()}`;
+    const chat = chats.find((c) => c.phone === phone);
+    const call: LiveCall = {
+      id, phone, name: name || chat?.name || '', direction: 'out', state: 'ringing', at: new Date().toISOString(),
+      answeredAt: null, answeredBy: tabId, messageId: null,
+    };
+    const dc: DemoCall = { call, pc, tone: voice, answeredAt: null, rowId: nextId() };
+    demoCalls.set(id, dc);
+    demoCallRow(dc, 'ringing');
+    // Like Meta: the answer, then ringing, then the customer picks up.
+    const answer = pc.localDescription?.sdp || '';
+    setTimeout(() => bus.emitCall({ kind: 'answer', call, sdp: answer }), 150);
+    setTimeout(() => demoCalls.has(id) && bus.emitCall({ kind: 'status', status: 'ringing', call }), 500);
+    const noAnswer = import.meta.env.DEV && (window as unknown as DemoCallWindow).__demoCallNoAnswer;
+    setTimeout(() => {
+      const d = demoCalls.get(id);
+      if (!d) return;
+      if (noAnswer) {
+        demoEndCall(id, 'no_answer');
+        return;
+      }
+      d.answeredAt = Date.now();
+      d.call = { ...d.call, state: 'answered', answeredAt: new Date().toISOString() };
+      bus.emitCall({ kind: 'status', status: 'accepted', call: d.call });
+      demoCallRow(d, 'answered');
+    }, noAnswer ? 2500 : 1600);
+    return delay({ success: true, call }, 60);
+  }
+
+  override getCallPermission(phone: string): Promise<CallPermission> {
+    const status = demoPermissions.get(phone) || 'temporary';
+    return delay({
+      success: true, status, expiresAt: status === 'temporary' ? new Date(Date.now() + 5 * 864e5).toISOString() : null,
+      canCall: status !== 'no_permission', canAsk: true, askAgainAt: null, callAgainAt: null,
+    }, 120);
+  }
+
+  override requestCallPermission(phone: string, body = ''): Promise<{ success: boolean; id: string }> {
+    const msg: ChatMessage = {
+      _id: nextId(), phone, direction: 'out', type: 'interactive', body: body || 'Can we call you on WhatsApp?',
+      status: 'sent', metaMessageId: nextId(), createdAt: new Date().toISOString(),
+      raw: { outbound: { type: 'interactive', body: body || 'Can we call you on WhatsApp?', buttons: [{ text: 'Allow calls', kind: 'call_permission' }] } },
+    };
+    (messages[phone] ||= []).push(msg);
+    bumpChat(phone, msg.body, false);
+    bus.emitMessage(msg);
+    // The customer allows it a moment later.
+    setTimeout(() => {
+      demoPermissions.set(phone, 'temporary');
+      const reply: ChatMessage = {
+        _id: nextId(), phone, direction: 'in', type: 'call_permission', body: 'Allowed you to call them for 7 days',
+        status: 'received', createdAt: new Date().toISOString(),
+        raw: { callPermission: { response: 'accept', permanent: false, expiresAt: new Date(Date.now() + 7 * 864e5).toISOString(), source: 'user_action' } },
+      };
+      (messages[phone] ||= []).push(reply);
+      bus.emitMessage(reply);
+      bus.emitCall({ kind: 'permission', phone, permission: reply.raw!.callPermission! });
+    }, 1500);
+    return delay({ success: true, id: msg.metaMessageId! }, 200);
   }
 
   override getChannelStatus(): Promise<ChannelStatus> {
@@ -1231,6 +1490,12 @@ export class MockCrmSocket extends CrmSocket {
   }
   override onServiceQuota(cb: (q: ServiceQuota) => void): () => void {
     return bus.onServiceQuota(cb);
+  }
+  override onCall(cb: (e: CallEvent) => void): () => void {
+    return bus.onCall(cb);
+  }
+  override onConnect(): () => void {
+    return () => {};
   }
   override disconnect(): void {
     /* no-op in demo */

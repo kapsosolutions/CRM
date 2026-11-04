@@ -846,6 +846,54 @@
   display: block;
 }
 
+/* WhatsApp voice call (CallCenter) and video call (Soon) in the chat header. */
+.th-call-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+  margin-right: 14px;
+}
+.th-call {
+  position: relative;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #000000;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--wa-radius-full);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.th-call .material-icons {
+  font-size: 21px;
+}
+.th-call:hover:not(:disabled) {
+  color: #16a34a;
+  background: rgba(34, 197, 94, 0.1);
+}
+.th-call.live {
+  color: #16a34a;
+}
+.th-call:disabled {
+  cursor: not-allowed;
+}
+.th-call.soon {
+  color: #9ca3af;
+}
+.th-call.soon .soon-pill {
+  position: absolute;
+  top: -6px;
+  right: -10px;
+  font-size: 8px;
+  padding: 1px 4px;
+  pointer-events: none;
+}
+
 /* ---- Delete confirmation modal ---- */
 .modal-backdrop {
   position: absolute;
@@ -21236,4 +21284,85 @@ label.k-label,
 }
 @keyframes msgs-older-spin {
   to { transform: rotate(360deg); }
+}
+
+/* A voicemail left on a missed WhatsApp call. */
+.audio-wrap.voicemail {
+  flex-wrap: wrap;
+}
+.vm-label {
+  flex-basis: 100%;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #15803d;
+  padding: 2px 0 2px 4px;
+}
+.vm-label .material-icons {
+  font-size: 16px;
+}
+
+/* ---- WhatsApp call rows and call permission answers (MessageItem) ---- */
+.call-row {
+  display: flex;
+  justify-content: center;
+  margin: 6px 0;
+}
+.call-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  max-width: min(420px, 90%);
+  padding: 8px 14px 8px 10px;
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.12);
+  color: #111827;
+  font-size: 13px;
+}
+.call-chip .call-ico {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #dcfce7;
+  color: #15803d;
+  flex-shrink: 0;
+}
+.call-chip .call-ico .material-icons {
+  font-size: 17px;
+}
+.call-chip.missed .call-ico,
+.call-chip.failed .call-ico,
+.call-chip.declined .call-ico,
+.call-chip.no_answer .call-ico {
+  background: #fee2e2;
+  color: #dc2626;
+}
+.call-chip.missed .call-title {
+  color: #dc2626;
+}
+.call-chip .call-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+.call-chip .call-title {
+  font-weight: 600;
+}
+.call-chip .call-sub {
+  font-size: 11.5px;
+  color: #667781;
+}
+.call-chip.perm .call-ico {
+  background: #e0f2fe;
+  color: #0369a1;
+}
+.call-chip.perm.no .call-ico {
+  background: #f1f5f9;
+  color: #64748b;
 }

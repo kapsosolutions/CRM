@@ -86,7 +86,16 @@ export function roomSize(businessId) {
   return io.sockets?.adapter?.rooms?.get(roomFor(businessId))?.size || 0;
 }
 
+/**
+ * A WhatsApp call changed: a customer is calling, an agent answered, the
+ * customer picked up, it ended. Every open CRM tab of the tenant hears it,
+ * so the one that answers can tell the others to stop ringing.
+ */
+export function emitCall(businessId, payload) {
+  return send('crm:call', businessId, payload);
+}
+
 export default {
   setIO, roomFor, emitMessage, emitStatus, emitReaction, emitNotification, emitNotificationCount,
-  emitSandboxContacts, emitServiceQuota, roomSize,
+  emitSandboxContacts, emitServiceQuota, emitCall, roomSize,
 };

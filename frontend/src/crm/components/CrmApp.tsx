@@ -33,6 +33,8 @@ import { Lightbox, type ViewMedia } from './Lightbox';
 import { AttachmentPreview } from './AttachmentPreview';
 import { ConnectWhatsAppOnboarding } from './ConnectWhatsAppOnboarding';
 import { uiScale } from '../uiScale';
+import { useCalls } from './CallCenter';
+import { SoonPill } from './ComingSoon';
 import './CrmApp.css';
 
 const WINDOW_MS = 24 * 60 * 60 * 1000;
@@ -128,6 +130,8 @@ export function CrmApp({
 
   // The plans dialog, for a chat outside the plan (Free: after its first 10 contacts).
   const { openPlans } = usePlan();
+  // WhatsApp voice calls (the shell's CallProvider; absent outside the shell).
+  const calls = useCalls();
 
   const [chats, setChats] = useState<Chat[]>([]);
   const [chatsLoading, setChatsLoading] = useState(true);
@@ -507,6 +511,10 @@ export function CrmApp({
       if (isUpdate) {
         // Keep the ticks we already have: the re-push may carry an older status.
         setMessages((list) => list.map((x) => (x._id === m._id ? withEarlyStatus(m, x) : x)));
+        // A call row moves on (ringing → missed / 2:14): the chat list line follows.
+        if (m.type === 'call') {
+          setChats((list) => list.map((c) => (c.phone === m.phone ? { ...c, lastMessageBody: previewOf(m) } : c)));
+        }
         return;
       }
       if (m.phone === activePhoneRef.current) {
@@ -1167,6 +1175,34 @@ export function CrmApp({
               </div>
 
               <SessionTimer expiresAt={windowExpiresAt} metaChat={metaChat} />
+
+              {/* WhatsApp voice call; video isn't in Meta's Calling API yet (Soon). */}
+              {!metaChat && calls?.available && activePhone && (
+                <div className="th-call-group">
+                  <button
+                    type="button"
+                    className={`th-call${calls.activePhone === activePhone ? ' live' : ''}`}
+                    onClick={() => calls.startCall(activePhone, activeChat?.name || activeName)}
+                    disabled={calls.busy}
+                    title={calls.busy ? (calls.activePhone === activePhone ? 'On a call with them' : 'You’re on another call') : 'WhatsApp voice call'}
+                    aria-label="Voice call"
+                    data-testid="th-call"
+                  >
+                    <span className="material-icons">call</span>
+                  </button>
+                  <button
+                    type="button"
+                    className="th-call soon"
+                    disabled
+                    title="Video calls aren’t in WhatsApp’s Calling API yet"
+                    aria-label="Video call (coming soon)"
+                    data-testid="th-video"
+                  >
+                    <span className="material-icons">videocam</span>
+                    <SoonPill />
+                  </button>
+                </div>
+              )}
 
               {/* Bot / Manual for this chat: on Messenger / Instagram it switches that
                   channel's journey (Automation) on or off for this customer. */}

@@ -6,13 +6,14 @@
 //   crm:notification / crm:notification-count — header bell + drawer
 //   crm:sandbox   — test-inbox contact counter (shared number)
 //   crm:service-quota — this month's free service messages (profile sidebar)
+//   crm:call      — WhatsApp voice calls (ringing, answered, ended…)
 //
 // The connection authenticates itself with the same bearer token the HTTP
 // client uses. The server reads it during the handshake and puts the socket in
 // that tenant's room; without it the socket connects but receives nothing.
 // -----------------------------------------------------------------------------
 import { io, type Socket } from 'socket.io-client';
-import type { AppNotification, ChatMessage, MessageError, ServiceQuota } from './types';
+import type { AppNotification, CallEvent, ChatMessage, MessageError, ServiceQuota } from './types';
 
 export interface StatusUpdate {
   metaMessageId: string;
@@ -132,6 +133,13 @@ export class CrmSocket {
     const s = this.connect();
     s.on('crm:service-quota', cb);
     return () => s.off('crm:service-quota', cb);
+  }
+
+  /** A WhatsApp call changed (ringing, answered, picked up, ended, permission). */
+  onCall(cb: (e: CallEvent) => void): () => void {
+    const s = this.connect();
+    s.on('crm:call', cb);
+    return () => s.off('crm:call', cb);
   }
 
   /** Called on every (re)connect, so missed events can be caught up. */

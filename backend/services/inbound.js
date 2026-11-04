@@ -10,6 +10,7 @@ import {
 import { buildSubmissionSummary, summaryToText } from './flowSubmission.js';
 import { priceCart, cartToText, cartBubble } from './cart.js';
 import { replyToFromContext } from './reactions.js';
+import { emitCall } from './eventBus.js';
 
 // Per chat and second: the last time handed out, so messages sent in the same
 // second keep the order they reached us in.
@@ -75,6 +76,23 @@ export async function processInboundMessage(message, names, ctx) {
     return;
   }
 
+  // The customer allowed (or declined) calls from the business. Shown in the
+  // chat, and the open chat's call button follows it; it isn't something to
+  // auto-reply to, so automation never sees it.
+  if (msg.type === 'call_permission') {
+    // The automatic "call back for 7 days" after every customer call would
+    // bury the call itself in the chat list, so only their own choices are
+    // written to the chat.
+    const automaticYes = msg.callPermission.source === 'automatic' && msg.callPermission.response === 'accept';
+    if (!automaticYes) {
+      await logInbound(msg.phone, msg.name, 'call_permission', msg.logBody, { ...message, callPermission: msg.callPermission }, message.id, null, { ...ctx, at }).catch(() => {});
+    }
+    if (ctx.tenantId) {
+      emitCall(ctx.tenantId, { kind: 'permission', phone: msg.phone, permission: msg.callPermission });
+    }
+    return;
+  }
+
   // Resolve a flow submission into labelled rows before logging it, so
   // the chat shows the questions and the chosen wording rather than
   // component names and option ids.
@@ -104,9 +122,11 @@ export async function processInboundMessage(message, names, ctx) {
     ? await replyToFromContext(message.context, { businessId: ctx.tenantId || null, phone: msg.phone, name: msg.name })
     : null;
 
-  logInbound(msg.phone, msg.name, msg.type, msg.logBody, message, message.id, msg.media, {
+  logInbound(msg.phone, msg.name, msg.type, msg.logBody, msg.voicemail ? { ...message, voicemail: true } : message, message.id, msg.media, {
     ...ctx, form: msg.form, order: msg.orderInfo, replyTo, at,
   }).catch(() => {});
+  // A voicemail isn't a question for the bot.
+  if (msg.voicemail) return;
   // Delivered on `standby`: another Meta app on the same number holds the
   // chat, so it's the one answering. The CRM shows the message, but our
   // automation stays quiet (its reply would be refused, or answer twice).
@@ -154,6 +174,25 @@ export function parseIncoming(message) {
         out.type = 'payment';
         out.payment = it.payment || {};
         out.logBody = '💳 Payment update';
+      } else if (it.type === 'call_permission_reply') {
+        // The customer answered "Allow calls?" (or allowed it from our
+        // profile, or by calling us with callback permission on).
+        const r = it.call_permission_reply || {};
+        const yes = String(r.response || '').toLowerCase() === 'accept';
+        out.type = 'call_permission';
+        out.callPermission = {
+          response: yes ? 'accept' : 'reject',
+          permanent: !!r.is_permanent,
+          expiresAt: r.expiration_timestamp ? new Date(Number(r.expiration_timestamp) * 1000).toISOString() : null,
+          source: r.response_source || 'user_action',
+        };
+        out.logBody = !yes
+          ? (r.response_source === 'automatic' ? 'Call permission removed after unanswered calls' : 'Declined calls from you')
+          : r.is_permanent
+            ? 'Allowed you to call them anytime'
+            : r.response_source === 'automatic'
+              ? 'Allowed you to call back for 7 days'
+              : 'Allowed you to call them for 7 days';
       } else if (it.type === 'nfm_reply') {
         // A native Flow was completed — response_json holds the typed answers.
         // The readable version is resolved by buildSubmissionSummary once the
@@ -194,6 +233,11 @@ export function parseIncoming(message) {
       out.type = 'audio';
       out.media = { id: message.audio?.id, mime: message.audio?.mime_type, caption: '' };
       out.logBody = '🎵 Audio';
+      // A voicemail left on a missed call carries the call's id (wacid.…).
+      if (String(message.id || '').startsWith('wacid.')) {
+        out.voicemail = true;
+        out.logBody = '🎙️ Voicemail';
+      }
       break;
     case 'document':
       out.type = 'document';
@@ -255,7 +299,7 @@ export function parseIncoming(message) {
   // listed here explicitly or it gets dropped as "nothing to see" — the same
   // way location messages used to be.
   const hasContent = out.text || out.selectedId || out.media || out.formData
-    || out.cart || out.location || out.payment;
+    || out.cart || out.location || out.payment || out.callPermission;
   return hasContent ? out : null;
 }
 

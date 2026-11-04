@@ -11,6 +11,7 @@ import { hasFeature, tierFor, TIER_NAMES } from '../plans';
 import { PlanLockedPage } from './PlanLocked';
 import { WalletButton } from './WalletButton';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
+import { CallProvider } from './CallCenter';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, type CrmView, SettingsRailSvg, ProfileRailSvg } from './NavRail';
 import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
@@ -464,7 +465,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   const [chatRequest, setChatRequest] = useState<{ phone: string; n: number } | null>(null);
   const [channelStatusTab, setChannelStatusTab] = useState<'whatsapp' | 'instagram' | 'messenger'>('whatsapp');
   const [channelStatusSubItem, setChannelStatusSubItem] = useState<
-    'connect' | 'limit' | 'approval' | 'display_name' | 'phone_number' | 'quality_rating'
+    'connect' | 'limit' | 'approval' | 'display_name' | 'phone_number' | 'quality_rating' | 'calling'
   >('connect');
   const [templateInitialMode, setTemplateInitialMode] = useState<'list' | 'create'>('list');
   // 'templates:<tab>' while Templates is open, and "Start a campaign" from the Template Library.
@@ -590,6 +591,17 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   function openChatFor(phone: string) {
     setChatRequest((r) => ({ phone, n: (r?.n ?? 0) + 1 }));
     navigate('chats');
+  }
+  /** Channel Status → WhatsApp → Calling. */
+  function openCallingSettings() {
+    setChannelStatusTab('whatsapp');
+    setChannelStatusSubItem('calling');
+    try {
+      window.dispatchEvent(new CustomEvent('crm_set_channel_subitem', { detail: 'calling' }));
+    } catch {
+      /* ignore */
+    }
+    navigate('channel-status');
   }
   const cfg = useMemo<CrmConfig>(() => ({ ...defaultConfig, ...config }), [config]);
   const api = useMemo(() => (demo ? new MockCrmApi(cfg) : new CrmApi(cfg)), [cfg, demo]);
@@ -946,6 +958,14 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   return (
     <PlanContext.Provider value={planCtx}>
+    <CallProvider
+      api={api}
+      socket={demo ? demoSocket : notificationSocket}
+      enabled={demo || hasOwnNumber}
+      demo={demo}
+      onOpenChat={openChatFor}
+      onOpenSettings={openCallingSettings}
+    >
     <div className="crm-shell-root">
       <PlanTopBar
         plan={planState}
@@ -1202,6 +1222,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         socket={demo ? demoSocket : notificationSocket}
       />
     </div>
+    </CallProvider>
     </PlanContext.Provider>
   );
 }

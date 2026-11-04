@@ -9,6 +9,7 @@ import { getClientForBusiness } from '../services/metaCloud.js';
 import { handleSandboxValue, isSandboxNumber } from '../services/sandbox.js';
 import { notifyTemplateStatus } from '../services/notifications.js';
 import { logEcho, recordThreadControl, clearThreadControl } from '../services/otherApps.js';
+import { handleCallsValue, forgetCallSettings } from '../services/calling.js';
 
 // mergeParams so the :tenantId from the mount path is available here.
 const router = express.Router({ mergeParams: true });
@@ -208,6 +209,32 @@ router.post('/', async (req, res) => {
         if (change.field === 'message_template_status_update') {
           applyTemplateStatus(entry.id, change.value, urlBiz)
             .catch((e) => logger.error('template status update failed', { error: e.message }));
+          continue;
+        }
+        // WhatsApp voice calls: a customer calling, our call's answer, ringing /
+        // picked up / declined, and the end of a call (services/calling.js).
+        if (change.field === 'calls') {
+          const cv = change.value || {};
+          // The shared test number has no calling.
+          if (isSandboxNumber(cv?.metadata?.phone_number_id)) continue;
+          const cbiz = await tenantForChange(cv, urlBiz);
+          if (!cbiz) {
+            logger.warn('calls webhook could not be attributed to a tenant, dropped', {
+              phoneNumberId: cv?.metadata?.phone_number_id || '(none)',
+            });
+            continue;
+          }
+          handleCallsValue(cv, cbiz).catch((e) => logger.error('calls webhook failed', { error: e.message }));
+          continue;
+        }
+        // Calling settings changed at Meta (WhatsApp Manager, or our own save).
+        if (change.field === 'account_settings_update') {
+          const pnId = change.value?.phone_number_settings?.phone_number_id;
+          if (pnId) {
+            Business.findOne({ phoneNumberId: String(pnId) })
+              .then((b) => b && forgetCallSettings(b._id))
+              .catch(() => {});
+          }
           continue;
         }
         // Another app on this number took or passed the chat (thread control).

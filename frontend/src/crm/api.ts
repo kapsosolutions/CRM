@@ -6,6 +6,7 @@
 // -----------------------------------------------------------------------------
 import type { CrmConfig } from './config';
 import type { MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
+import type { CallPermission, CallSettings, CallSettingsUpdate, LiveCall } from './types';
 import type {
   CommentActivity, CommentRule, CommentRuleInput, CommentRuleWrite, SocialMedia, SocialOverview, SocialPost, SocialPostInput, SocialRecentPost, SocialTarget,
 } from './types';
@@ -286,6 +287,65 @@ export class CrmApi {
 
   getChannelStatus(refresh = false): Promise<ChannelStatus> {
     return this.request(`/api/channel/status${refresh ? '?refresh=1' : ''}`, { headers: this.authHeaders() });
+  }
+
+  // ---------- WhatsApp voice calls (backend routes/calls.js) ----------
+  getCallSettings(refresh = false): Promise<{ success: boolean; connected: boolean; settings?: CallSettings }> {
+    return this.request(`/api/calls/settings${refresh ? '?refresh=1' : ''}`, { headers: this.authHeaders() });
+  }
+
+  saveCallSettings(body: CallSettingsUpdate): Promise<{ success: boolean; connected: boolean; settings: CallSettings }> {
+    return this.request('/api/calls/settings', {
+      method: 'PUT',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
+  }
+
+  /** ICE servers for the browser's call connection. */
+  getCallConfig(): Promise<{ success: boolean; iceServers: RTCIceServer[]; connected: boolean }> {
+    return this.request('/api/calls/config', { headers: this.authHeaders() });
+  }
+
+  /** Calls ringing right now (a tab opened after the ring began). */
+  getRingingCalls(): Promise<{ success: boolean; calls: LiveCall[] }> {
+    return this.request('/api/calls/ringing', { headers: this.authHeaders() });
+  }
+
+  acceptCall(id: string, sdp: string, tabId: string): Promise<{ success: boolean; call: LiveCall }> {
+    return this.request(`/api/calls/${encodeURIComponent(id)}/accept`, {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ sdp, tabId }),
+    });
+  }
+
+  rejectCall(id: string): Promise<{ success: boolean }> {
+    return this.request(`/api/calls/${encodeURIComponent(id)}/reject`, { method: 'POST', headers: this.authHeaders() });
+  }
+
+  endCall(id: string): Promise<{ success: boolean }> {
+    return this.request(`/api/calls/${encodeURIComponent(id)}/end`, { method: 'POST', headers: this.authHeaders() });
+  }
+
+  startCall(phone: string, sdp: string, tabId: string, name = ''): Promise<{ success: boolean; call: LiveCall }> {
+    return this.request('/api/calls', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ phone, sdp, tabId, name }),
+    });
+  }
+
+  getCallPermission(phone: string): Promise<CallPermission> {
+    return this.request(`/api/calls/permission?phone=${encodeURIComponent(phone)}`, { headers: this.authHeaders() });
+  }
+
+  requestCallPermission(phone: string, body = ''): Promise<{ success: boolean; id: string }> {
+    return this.request('/api/calls/permission', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ phone, body }),
+    });
   }
 
   /** Meta's free service messages this month (1,000 per number), from Meta's pricing analytics. */
