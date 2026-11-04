@@ -630,33 +630,6 @@
   flex-shrink: 0;
 }
 
-/* Countdown Timer Box */
-.timer-box {
-  --timer-color: #22ce6d;
-  display: inline-flex;
-  justify-content: center;
-  align-items: center;
-  padding: 4px 12px;
-  height: 30px;
-  background: transparent !important;
-  border: 2px solid var(--timer-color);
-  border-radius: 20px;
-  box-shadow: 0 0 12px color-mix(in srgb, var(--timer-color) 25%, transparent);
-  transition: border-color 1.5s ease, box-shadow 1.5s ease;
-  flex-shrink: 0;
-  user-select: none;
-}
-
-.timer-box .timer {
-  color: var(--timer-color);
-  font-size: 13px;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  letter-spacing: 1.5px;
-  transition: color 1.5s ease;
-  line-height: 1;
-}
-
 /* Bot / Manual toggle switch */
 .bot-toggle-group {
   display: inline-flex;
@@ -889,14 +862,6 @@
   .thread-head {
     gap: 6px;
     padding: 0 8px;
-  }
-  .timer-box {
-    padding: 2px 8px;
-    height: 26px;
-  }
-  .timer-box .timer {
-    font-size: 11.5px;
-    letter-spacing: 0.5px;
   }
   .th-call-group {
     gap: 0;

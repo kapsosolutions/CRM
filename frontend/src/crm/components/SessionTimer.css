@@ -1,0 +1,109 @@
+/* Chat header: the 24-hour reply-window chip (SessionTimer.tsx).
+   Light theme; dark copies are generated at build time. */
+
+.sw {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 12px 0 9px;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  background: #f0fdf4;
+  color: #15803d;
+  flex-shrink: 0;
+  user-select: none;
+  cursor: default;
+  transition: background 0.6s ease, border-color 0.6s ease, color 0.6s ease;
+}
+
+.sw-ring {
+  display: block;
+  flex-shrink: 0;
+}
+.sw-ring circle {
+  fill: none;
+  stroke-width: 2.5;
+}
+.sw-track {
+  stroke: #dcfce7;
+}
+.sw-arc {
+  stroke: #16a34a;
+  stroke-linecap: round;
+  transition: stroke-dashoffset 1s linear, stroke 0.6s ease;
+}
+
+.sw-text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.sw-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #667781;
+}
+.sw-time {
+  font-size: 13.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Under 4 hours */
+.sw-warn {
+  border-color: #fde68a;
+  background: #fffbeb;
+  color: #b45309;
+}
+.sw-warn .sw-track { stroke: #fef3c7; }
+.sw-warn .sw-arc { stroke: #f59e0b; }
+
+/* Last hour: counts mm:ss, the ring breathes. */
+.sw-low {
+  border-color: #fecaca;
+  background: #fef2f2;
+  color: #dc2626;
+}
+.sw-low .sw-track { stroke: #fee2e2; }
+.sw-low .sw-arc {
+  stroke: #ef4444;
+  animation: sw-breathe 1.6s ease-in-out infinite;
+}
+@keyframes sw-breathe {
+  50% { opacity: 0.45; }
+}
+
+/* Closed: templates only */
+.sw-closed {
+  border-color: #e2e8f0;
+  background: #f8fafc;
+  color: #64748b;
+}
+.sw-lock {
+  font-size: 18px;
+  color: #94a3b8;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sw-low .sw-arc { animation: none; }
+}
+
+/* Phone: one line, no caption. */
+@media (max-width: 560px) {
+  .sw {
+    height: 30px;
+    gap: 6px;
+    padding: 0 9px 0 7px;
+    border-radius: 10px;
+  }
+  .sw-label {
+    display: none;
+  }
+  .sw-time {
+    font-size: 12.5px;
+  }
+}
