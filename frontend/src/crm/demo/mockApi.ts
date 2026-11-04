@@ -8,7 +8,7 @@ import { CrmApi } from '../api';
 import { CrmSocket, type StatusUpdate, type ReactionUpdate, type TypingUpdate } from '../socket';
 import type { CrmConfig } from '../config';
 import type { AppNotification, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, Order, OrderStatus, Journey, Registration, RegistrationStatus, BusinessSettings, PaymentSettings, SandboxInfo, ChannelStatus, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, WhatsAppVertical, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, CampaignStats, CampaignRecipientResult, BillingSummary } from '../types';
-import type { MetaChannelsInfo, MuteFor, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
+import type { MessagingLimitUsage, MetaChannelsInfo, MuteFor, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
 import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall, EventInput, PollInput } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
@@ -60,6 +60,14 @@ class DemoBus {
   emitServiceQuota(q: ServiceQuota) {
     this.quotaCbs.forEach((cb) => cb(q));
   }
+  private limitCbs = new Set<(q: MessagingLimitUsage) => void>();
+  onMessagingLimit(cb: (q: MessagingLimitUsage) => void) {
+    this.limitCbs.add(cb);
+    return () => this.limitCbs.delete(cb);
+  }
+  emitMessagingLimit(q: MessagingLimitUsage) {
+    this.limitCbs.forEach((cb) => cb(q));
+  }
   private callCbs = new Set<(e: CallEvent) => void>();
   onCall(cb: (e: CallEvent) => void) {
     this.callCbs.add(cb);
@@ -108,6 +116,39 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     }
     (window as unknown as DemoQuotaWindow).__demoServiceUsed = used;
     bus.emitServiceQuota(demoServiceQuota());
+  };
+}
+
+// Demo: Meta's daily messaging limit (TIER_250 so the bar moves visibly).
+// A template to a customer outside their 24 hours uses a slot, like the server.
+type DemoLimitWindow = { __demoLimitUsed?: number; __demoLimitPush?: (used?: number) => void };
+const demoLimitPhones = new Set<string>(Array.from({ length: 42 }, (_, i) => `demo-${i}`));
+function demoLimitUsed(): number {
+  const w = window as unknown as DemoLimitWindow;
+  return import.meta.env.DEV && w.__demoLimitUsed !== undefined ? w.__demoLimitUsed : demoLimitPhones.size;
+}
+function demoMessagingLimit(): MessagingLimitUsage {
+  const used = demoLimitUsed();
+  return {
+    success: true, connected: true,
+    limit: { tier: 'TIER_250', limit: 250, label: '250', unlimited: false },
+    used24h: used, messages24h: used + 15,
+    nextFreeAt: new Date(Date.now() + 5 * 3600e3).toISOString(),
+    metaError: '', stale: false, fetchedAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+  };
+}
+function noteDemoTemplate(phone: string, windowOpen: boolean): void {
+  if (windowOpen || demoLimitPhones.has(phone)) return;
+  demoLimitPhones.add(phone);
+  const w = window as unknown as DemoLimitWindow;
+  if (import.meta.env.DEV && w.__demoLimitUsed !== undefined) w.__demoLimitUsed += 1;
+  setTimeout(() => bus.emitMessagingLimit(demoMessagingLimit()), 300);
+}
+if (import.meta.env.DEV && typeof window !== 'undefined') {
+  // Dev-only test hook: push a figure as if a template had just gone out.
+  (window as unknown as DemoLimitWindow).__demoLimitPush = (used?: number) => {
+    if (used !== undefined) (window as unknown as DemoLimitWindow).__demoLimitUsed = used;
+    bus.emitMessagingLimit(demoMessagingLimit());
   };
 }
 
@@ -830,6 +871,10 @@ export class MockCrmApi extends CrmApi {
 
   // Demo: a business part-way through this month's 1,000 free service messages.
   // Dev-only test hook: try other counts (e.g. __demoServiceUsed = 1040).
+  override getMessagingLimit(): Promise<MessagingLimitUsage> {
+    return delay(demoMessagingLimit());
+  }
+
   override getServiceQuota(): Promise<ServiceQuota> {
     return delay(demoServiceQuota());
   }
@@ -964,11 +1009,12 @@ export class MockCrmApi extends CrmApi {
       const date = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
       return { date, active: i >= 3 };
     });
-    const usage = { used24h: 42, messages24h: 57 };
+    const lim = demoMessagingLimit();
+    const usage = { used24h: lim.used24h, messages24h: lim.messages24h };
     return delay({
       success: true,
       connected: true,
-      limit: { tier: 'TIER_10K', limit: 10000, label: '10,000', unlimited: false, ...usage },
+      limit: { ...lim.limit!, ...usage },
       usage,
       quality: 'GREEN',
       metaError: '',
@@ -1229,8 +1275,11 @@ export class MockCrmApi extends CrmApi {
       },
     };
     (messages[phone] ||= []).push(msg);
+    const chat = chats.find((x) => x.phone === phone);
+    const open = !!chat?.lastInboundAt && Date.now() - new Date(chat.lastInboundAt).getTime() < 24 * 3600e3;
     bumpChat(phone, body, false);
     bus.emitMessage(msg);
+    noteDemoTemplate(phone, open);
     setTimeout(() => bus.emitStatus({ metaMessageId: msg.metaMessageId!, status: 'delivered' }), 700);
     return delay({ success: true }, 150);
   }
@@ -1618,6 +1667,9 @@ export class MockCrmSocket extends CrmSocket {
   }
   override onServiceQuota(cb: (q: ServiceQuota) => void): () => void {
     return bus.onServiceQuota(cb);
+  }
+  override onMessagingLimit(cb: (q: MessagingLimitUsage) => void): () => void {
+    return bus.onMessagingLimit(cb);
   }
   override onCall(cb: (e: CallEvent) => void): () => void {
     return bus.onCall(cb);

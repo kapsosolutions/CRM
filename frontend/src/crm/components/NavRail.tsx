@@ -244,10 +244,12 @@ interface SidebarProps extends Props {
   theme?: 'light' | 'dark';
   /** The logo goes back to Chats. */
   onHome?: () => void;
+  /** Pinned under the menu (the daily messaging limit). */
+  footer?: ReactNode;
 }
 
 export function NavRail({
-  view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome,
+  view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome, footer,
 }: SidebarProps) {
   const shown = (key: CrmView) => !allowed || allowed.includes(key);
   const byKey = new Map(ITEMS.map((it) => [it.key, it]));
@@ -314,6 +316,7 @@ export function NavRail({
           );
         })}
       </div>
+      {footer && <div className="crm-side-foot">{footer}</div>}
     </nav>
   );
 }

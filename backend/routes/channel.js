@@ -5,6 +5,7 @@ import express from 'express';
 import { requireBusiness } from '../middleware/auth.js';
 import { getNumberStatus } from '../services/metaAccount.js';
 import { getServiceQuota } from '../services/serviceQuota.js';
+import { getMessagingLimit } from '../services/messagingLimit.js';
 import { activateNumber, ActivationError } from '../services/numberActivation.js';
 import { otherSubscribedApps, clearThreadControl } from '../services/otherApps.js';
 import logger from '../services/logger.js';
@@ -35,6 +36,19 @@ router.get('/service-quota', async (req, res) => {
   const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
   const data = await getServiceQuota(req.business, { refresh });
   res.json({ success: true, ...data });
+});
+
+// Meta's daily messaging limit and how much of it the last 24 hours used, for
+// the sidebar bar. ?refresh=1 asks Meta for the tier again (throttled).
+router.get('/messaging-limit', async (req, res) => {
+  try {
+    const refresh = req.query.refresh === '1' || req.query.refresh === 'true';
+    const data = await getMessagingLimit(req.business, { refresh });
+    res.json({ success: true, ...data });
+  } catch (err) {
+    logger.warn('messaging limit read failed', { business: req.business?.name, error: err.message });
+    res.status(500).json({ success: false, message: 'Couldn’t read the messaging limit right now.' });
+  }
 });
 
 // "I've fixed it": hide the thread-control notice (it comes back if it happens again).

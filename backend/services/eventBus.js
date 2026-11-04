@@ -80,6 +80,11 @@ export function emitServiceQuota(businessId, payload) {
   return send('crm:service-quota', businessId, payload);
 }
 
+/** Meta's daily messaging limit and its use (services/messagingLimit.js). */
+export function emitMessagingLimit(businessId, payload) {
+  return send('crm:messaging-limit', businessId, payload);
+}
+
 /** How many sockets sit in a tenant's room (0 = nobody has the CRM open). */
 export function roomSize(businessId) {
   if (!io || !businessId) return 0;
@@ -97,5 +102,5 @@ export function emitCall(businessId, payload) {
 
 export default {
   setIO, roomFor, emitMessage, emitStatus, emitReaction, emitNotification, emitNotificationCount,
-  emitSandboxContacts, emitServiceQuota, emitCall, roomSize,
+  emitSandboxContacts, emitServiceQuota, emitMessagingLimit, emitCall, roomSize,
 };

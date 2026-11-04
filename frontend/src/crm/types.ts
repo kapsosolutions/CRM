@@ -1416,6 +1416,30 @@ export interface MessagingLimit {
 }
 
 /**
+ * Meta's daily messaging limit and its use (GET /api/channel/messaging-limit,
+ * and pushed live as `crm:messaging-limit`). `used24h`: unique customers sent
+ * a template outside their 24-hour window in the last 24 hours, which is what
+ * the limit counts; replies inside a chat don't.
+ */
+export interface MessagingLimitUsage {
+  success?: boolean;
+  connected: boolean;
+  limit: MessagingLimit | null;
+  used24h: number;
+  messages24h: number;
+  /** When the first counted customer leaves the 24 hours (a slot frees up). */
+  nextFreeAt: string | null;
+  metaError?: string;
+  stale?: boolean;
+  fetchedAt?: string | null;
+  updatedAt?: string;
+  /** On a push: whose figures these are. */
+  businessId?: string;
+  /** The CRM couldn't read it. */
+  error?: string;
+}
+
+/**
  * Live state of the business's own WhatsApp number (GET /api/channel/status).
  * `connected:false` for a business without its own number (Meta not asked).
  */

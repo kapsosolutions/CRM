@@ -18,6 +18,7 @@ import { recordOutboundPreview } from './conversationState.js';
 import { reserveCredit, refundCredit } from './credits.js';
 import { planOf, assertContact } from './planGate.js';
 import { decryptToken } from './tokenCrypto.js';
+import { noteLimitActivity } from './messagingLimit.js';
 import crypto from 'crypto';
 
 const agent = new https.Agent({ keepAlive: true, maxSockets: 25, timeout: 60000 });
@@ -196,6 +197,8 @@ async function logOutbound(payload, resData, businessId = '', extra = null) {
       await Message.updateOne({ _id: doc._id, status: { $in: statusesBelow(early.status) } }, { $set: set });
     }
     emitMessage(doc);
+    // A template can use up Meta's daily limit: the sidebar bar follows.
+    if (d.type === 'template' && businessId && !rest.sandbox) noteLimitActivity(businessId);
   } catch (err) {
     logger.warn('logOutbound failed', { error: err.message });
   }

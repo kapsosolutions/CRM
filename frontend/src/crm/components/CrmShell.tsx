@@ -12,6 +12,7 @@ import { PlanLockedPage } from './PlanLocked';
 import { WalletButton } from './WalletButton';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { CallProvider } from './CallCenter';
+import { MessagingLimitProvider, SidebarMessagingLimit } from './MessagingLimit';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, type CrmView, SettingsRailSvg, ProfileRailSvg } from './NavRail';
 import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
@@ -966,6 +967,12 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
       onOpenChat={openChatFor}
       onOpenSettings={openCallingSettings}
     >
+    <MessagingLimitProvider
+      api={api}
+      socket={demo ? demoSocket : notificationSocket}
+      enabled={demo || hasOwnNumber}
+      businessId={business?._id}
+    >
     <div className="crm-shell-root">
       <PlanTopBar
         plan={planState}
@@ -993,6 +1000,14 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
             setDrawerOpen(false);
             navigate('chats');
           }}
+          footer={(
+            <SidebarMessagingLimit
+              onOpen={() => {
+                setDrawerOpen(false);
+                navigate('campaigns');
+              }}
+            />
+          )}
         />
         <div className="crm-drawer-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
         <div className="crm-frame-main">
@@ -1222,6 +1237,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         socket={demo ? demoSocket : notificationSocket}
       />
     </div>
+    </MessagingLimitProvider>
     </CallProvider>
     </PlanContext.Provider>
   );

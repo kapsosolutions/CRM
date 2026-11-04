@@ -18,6 +18,7 @@ import { TemplateViewSvg, TemplateSearchSvg } from './TemplateIcons';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { isAuthTemplate } from '../authTemplate';
 import { Pager, usePaged } from './Pager';
+import { useMessagingLimit } from './MessagingLimit';
 
 const NO_RECIPIENTS: CampaignDetail['recipients'] = [];
 
@@ -503,10 +504,14 @@ export function CampaignOverview({
   }, [api, channelTab, isMeta]);
   const metaConn = isMeta && metaConns ? metaConns[channelTab as 'messenger' | 'instagram'] : null;
 
-  // KPI cards.
-  const limit = overview?.limit || null;
-  const used24h = overview?.usage?.used24h ?? 0;
-  const messages24h = overview?.usage?.messages24h ?? 0;
+  // KPI cards. The daily limit comes from the shared live figure (the
+  // sidebar's), which the server pushes as each template goes out; the
+  // overview's own answer stands in until that has loaded.
+  const liveLimit = useMessagingLimit().data;
+  const liveOk = !!liveLimit?.connected && !liveLimit.error && liveLimit.used24h !== undefined;
+  const limit = (liveOk && liveLimit!.limit) || overview?.limit || null;
+  const used24h = liveOk ? liveLimit!.used24h : overview?.usage?.used24h ?? 0;
+  const messages24h = liveOk ? liveLimit!.messages24h : overview?.usage?.messages24h ?? 0;
   const limitPct = limit?.unlimited ? 0 : limit?.limit ? Math.min(100, (used24h / limit.limit) * 100) : 0;
   const quality = overview?.quality ? QUALITY[overview.quality] || { label: overview.quality, tone: 'unknown', color: '#9ca3af' } : null;
   const streak = overview?.streak;
@@ -1025,8 +1030,9 @@ export function CampaignOverview({
                     <span
                       className="co-info-icon"
                       title={
-                        'How many unique customers your number can send template messages to in a rolling 24 hours (Meta\'s tier for your number). '
-                        + `In the last 24 hours you sent ${messages24h.toLocaleString('en-US')} template message${messages24h === 1 ? '' : 's'} to ${used24h.toLocaleString('en-US')} unique contact${used24h === 1 ? '' : 's'}.`
+                        'How many different customers your number can send a template to, outside their 24-hour chat window, in any 24 hours (Meta\'s tier for your number). '
+                        + 'Campaigns, templates sent from a chat, journeys and automatic templates all count; replies inside a chat don\'t. '
+                        + `In the last 24 hours that was ${messages24h.toLocaleString('en-US')} template message${messages24h === 1 ? '' : 's'} to ${used24h.toLocaleString('en-US')} customer${used24h === 1 ? '' : 's'}. It updates live.`
                       }
                     >
                       <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">

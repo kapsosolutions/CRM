@@ -102,9 +102,27 @@
 .cm-ico.bot { color: #107c3f; }
 .cm-ico.manual { color: #d97706; }
 
-/* Manual (switch) Bot, as it was in the header. */
+/* Manual (switch) Bot, as it was in the header, a size smaller in the menu. */
 .cm-auto-group {
-  gap: 10px;
+  gap: 8px;
+}
+.cm-auto .switch {
+  --switch-width: 36px;
+  --switch-height: 20px;
+  --circle-diameter: 15px;
+  --icon-cross-size: 5px;
+  --icon-checkmark-size: 8px;
+}
+.cm-auto .switch .checkmark {
+  width: 8px;
+  height: 8px;
+}
+.cm-auto .switch .cross {
+  width: 5px;
+  height: 5px;
+}
+.cm-auto .bot-toggle-label {
+  font-size: 13px;
 }
 
 .cm-sep {

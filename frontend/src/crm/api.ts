@@ -5,7 +5,7 @@
 // written to) localStorage under config.tokenKey.
 // -----------------------------------------------------------------------------
 import type { CrmConfig } from './config';
-import type { MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
+import type { MessagingLimitUsage, MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
 import type { CallPermission, CallSettings, CallSettingsUpdate, LiveCall, PollInput, EventInput, MuteFor } from './types';
 import type {
   CommentActivity, CommentRule, CommentRuleInput, CommentRuleWrite, SocialMedia, SocialOverview, SocialPost, SocialPostInput, SocialRecentPost, SocialTarget,
@@ -374,6 +374,11 @@ export class CrmApi {
       headers: this.authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ phone, body }),
     });
+  }
+
+  /** Meta's daily messaging limit and the last 24 hours' use of it. */
+  getMessagingLimit(refresh = false): Promise<MessagingLimitUsage> {
+    return this.request(`/api/channel/messaging-limit${refresh ? '?refresh=1' : ''}`, { headers: this.authHeaders() });
   }
 
   /** Meta's free service messages this month (1,000 per number), from Meta's pricing analytics. */

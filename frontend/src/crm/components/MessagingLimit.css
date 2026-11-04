@@ -1,0 +1,150 @@
+/* The sidebar's daily messaging limit (MessagingLimit.tsx). Same look as the
+   profile drawer's "Free service messages" card. Light theme; dark copies are
+   generated at build time. */
+
+.crm-side-foot {
+  flex-shrink: 0;
+  padding: 10px 10px 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.side-limit {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  width: 100%;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #111827;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.side-limit:hover {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+.side-limit:focus-visible {
+  outline: none;
+  box-shadow: var(--wa-focus-ring);
+}
+.side-limit.full {
+  border-color: #fca5a5;
+}
+
+.side-limit-wide {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+.side-limit-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.side-limit-ico {
+  display: inline-flex;
+  color: #24d06e;
+  flex-shrink: 0;
+}
+.side-limit.warn .side-limit-ico { color: #f59e0b; }
+.side-limit.full .side-limit-ico { color: #ef4444; }
+.side-limit-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.side-limit-bar {
+  display: block;
+  height: 6px;
+  border-radius: 999px;
+  background: #e5e7eb;
+  overflow: hidden;
+}
+.side-limit-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #24d06e;
+  transition: width 0.3s ease;
+}
+.side-limit.warn .side-limit-fill { background: #f59e0b; }
+.side-limit.full .side-limit-fill { background: #ef4444; }
+
+.side-limit-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+.side-limit-stat {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.side-limit-sub {
+  font-size: 11px;
+  color: #6b7280;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.side-limit.full .side-limit-sub { color: #dc2626; }
+
+/* Collapsed sidebar: a ring with the percentage. */
+.side-limit-ring {
+  display: none;
+  --p: 0;
+  --c: #24d06e;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(var(--c) calc(var(--p) * 1%), #e5e7eb 0);
+}
+.side-limit.warn .side-limit-ring { --c: #f59e0b; }
+.side-limit.full .side-limit-ring { --c: #ef4444; }
+.side-limit-ring > span {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: #ffffff;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9.5px;
+  font-weight: 700;
+  color: #111827;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Collapsed only on wide screens; the phone drawer always shows the full bar. */
+@media (min-width: 1025px) {
+  .crm-sidebar.collapsed .crm-side-foot {
+    padding: 8px 0 10px;
+  }
+  .crm-sidebar.collapsed .side-limit {
+    align-items: center;
+    padding: 6px 0;
+    border-color: transparent;
+    background: transparent;
+  }
+  .crm-sidebar.collapsed .side-limit-wide {
+    display: none;
+  }
+  .crm-sidebar.collapsed .side-limit-ring {
+    display: inline-flex;
+  }
+}

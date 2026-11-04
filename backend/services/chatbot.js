@@ -24,6 +24,7 @@ import { addressFor, mapImageFor } from './geocode.js';
 import { statusesBelow, parkStatus, takeParkedStatus, statusError } from './messageStatus.js';
 import { notifyChatMessage } from './notifications.js';
 import { noteServiceDelivered } from './serviceQuota.js';
+import { noteLimitActivity } from './messagingLimit.js';
 
 // Log an inbound message to the CRM chat log. For media messages we download
 // the bytes from Meta, host them on Cloudinary, and store the URL so the CRM
@@ -236,6 +237,8 @@ export async function handleStatus(status, ctx = {}) {
       takeParkedStatus(id);
     }
     emitStatus({ metaMessageId: id, status: st, ...(error ? { error } : {}) }, ctx.tenantId);
+    // A failed template no longer counts against the daily limit.
+    if (st === 'failed' && ctx.tenantId && !ctx.sandbox) noteLimitActivity(ctx.tenantId);
   } catch (err) {
     logger.debug('handleStatus error', { error: err.message });
   }

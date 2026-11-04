@@ -253,15 +253,39 @@ export async function dripProgress(businessId, campaign) {
  * template (`used24h`) and how many template messages that was (`messages24h`).
  * Failed sends don't count.
  */
+//
+// Meta's limit is on unique customers reached OUTSIDE their 24-hour customer
+// service window. So only templates count, and only those sent to someone who
+// hadn't written (or called) in the 24 hours before: replies in a chat, and
+// templates to a customer who just wrote, don't use it up. Messenger /
+// Instagram and the shared test number aren't this number's limit either.
+// `nextFreeAt`: when the first counted customer drops out of the 24 hours.
 export async function limitUsage(businessId) {
   const { rows } = await query(
-    `SELECT count(DISTINCT phone)::int AS used, count(*)::int AS total
-       FROM ${M}
-      WHERE business_id = $1 AND direction = 'out' AND type = 'template'
-        AND status <> 'failed' AND created_at > now() - interval '24 hours'`,
+    `WITH counted AS (
+       SELECT m.phone, m.created_at
+         FROM ${M} m
+        WHERE m.business_id = $1 AND m.direction = 'out' AND m.type = 'template'
+          AND m.status <> 'failed' AND m.created_at > now() - interval '24 hours'
+          AND coalesce(m.channel, '') = '' AND coalesce(m.raw->>'sandbox', '') <> 'true'
+          AND NOT EXISTS (
+            SELECT 1 FROM ${M} i
+             WHERE i.business_id = m.business_id AND i.phone = m.phone AND i.direction = 'in'
+               AND i.created_at <= m.created_at AND i.created_at > m.created_at - interval '24 hours'
+          )
+     ), per AS (
+       SELECT phone, max(created_at) AS last_at, count(*) AS n FROM counted GROUP BY phone
+     )
+     SELECT count(*)::int AS used, coalesce(sum(n), 0)::int AS total, min(last_at) AS first_out FROM per`,
     [String(businessId)],
   );
-  return { used24h: rows[0]?.used || 0, messages24h: rows[0]?.total || 0 };
+  const r = rows[0] || {};
+  const firstOut = r.first_out ? new Date(r.first_out).getTime() + DAY_MS : 0;
+  return {
+    used24h: r.used || 0,
+    messages24h: r.total || 0,
+    nextFreeAt: firstOut ? new Date(firstOut).toISOString() : null,
+  };
 }
 
 /**

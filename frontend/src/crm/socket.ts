@@ -6,6 +6,7 @@
 //   crm:notification / crm:notification-count — header bell + drawer
 //   crm:sandbox   — test-inbox contact counter (shared number)
 //   crm:service-quota — this month's free service messages (profile sidebar)
+//   crm:messaging-limit — Meta's daily messaging limit and its use (sidebar, Campaigns)
 //   crm:call      — WhatsApp voice calls (ringing, answered, ended…)
 //
 // The connection authenticates itself with the same bearer token the HTTP
@@ -13,7 +14,7 @@
 // that tenant's room; without it the socket connects but receives nothing.
 // -----------------------------------------------------------------------------
 import { io, type Socket } from 'socket.io-client';
-import type { AppNotification, CallEvent, ChatMessage, MessageError, ServiceQuota } from './types';
+import type { AppNotification, CallEvent, ChatMessage, MessageError, MessagingLimitUsage, ServiceQuota } from './types';
 
 export interface StatusUpdate {
   metaMessageId: string;
@@ -133,6 +134,13 @@ export class CrmSocket {
     const s = this.connect();
     s.on('crm:service-quota', cb);
     return () => s.off('crm:service-quota', cb);
+  }
+
+  /** A template went out (or failed): the daily messaging limit's use changed. */
+  onMessagingLimit(cb: (q: MessagingLimitUsage) => void): () => void {
+    const s = this.connect();
+    s.on('crm:messaging-limit', cb);
+    return () => s.off('crm:messaging-limit', cb);
   }
 
   /** A WhatsApp call changed (ringing, answered, picked up, ended, permission). */
