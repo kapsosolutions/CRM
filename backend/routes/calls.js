@@ -20,9 +20,15 @@ import {
   callPermission, requestCallPermission, iceServers, callError, CallError,
 } from '../services/calling.js';
 import { isWhatsAppConnected } from '../services/sandbox.js';
+import { isBlocked, BLOCKED_MESSAGE } from '../services/chatFlags.js';
 import logger from '../services/logger.js';
 
 const router = express.Router();
+
+/** No calls (or call requests) to a contact the business blocked. */
+async function refuseBlocked(biz, phone) {
+  if (await isBlocked(biz._id, phone)) throw new CallError(BLOCKED_MESSAGE, { status: 409, code: 'CONTACT_BLOCKED' });
+}
 router.use(requireBusiness);
 
 /** Our own refusals keep their status; whatever Meta said is a bad gateway. */
@@ -76,6 +82,7 @@ router.get('/permission', async (req, res) => {
 router.post('/permission', async (req, res) => {
   const b = req.body || {};
   try {
+    await refuseBlocked(req.business, b.phone);
     const data = await requestCallPermission(req.business, b.phone, typeof b.body === 'string' ? b.body : '');
     return res.json({ success: true, ...data });
   } catch (err) {
@@ -86,6 +93,7 @@ router.post('/permission', async (req, res) => {
 router.post('/', async (req, res) => {
   const b = req.body || {};
   try {
+    await refuseBlocked(req.business, b.phone);
     const call = await startCall(req.business, { phone: b.phone, sdp: b.sdp, tabId: b.tabId, name: b.name });
     return res.json({ success: true, call });
   } catch (err) {

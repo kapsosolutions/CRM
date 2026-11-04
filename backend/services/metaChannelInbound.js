@@ -165,6 +165,9 @@ async function onInbound(row, channel, ev, items) {
   if (mid && (await Message.exists({ businessId, metaMessageId: mid, direction: 'in' }))) return false;
 
   const convo = await Conversation.findOne({ businessId, phone: psid }).lean();
+  // Blocked in the CRM (Messenger / Instagram have no block API): ignored,
+  // not filed, no alert, no journey.
+  if (convo?.blocked) return false;
   const profile = await lookupProfile(row, channel, psid, convo);
   const name = profile?.name || convo?.name || '';
   const handle = profile?.handle || convo?.handle || '';

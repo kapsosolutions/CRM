@@ -1,8 +1,13 @@
-// The ⋮ button at the right of the chat header and its menu: the chat's
-// Manual / Bot switch and "Delete chat". Styled like the composer's + menu,
-// but drops down from the top right.
-import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent } from 'react';
+// The ⋮ button at the right of the chat header and its menu, laid out like
+// WhatsApp's: the chat's Manual / Bot switch; Mute notifications (8 hours,
+// 1 week, Always), Add to favourites, Close chat; Block, Clear chat, Delete
+// chat. Styled like the composer's + menu, dropping down from the top right.
+import { useCallback, useEffect, useRef, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react';
+import type { MuteFor } from '../types';
 import './ChatHeaderMenu.css';
+
+/** Which action is on its way to the server (its row shows it). */
+export type ChatMenuBusy = 'mute' | 'favourite' | 'block' | 'clear' | 'delete' | null;
 
 type Props = {
   /** Bot replies are off for this chat (Manual). */
@@ -10,27 +15,95 @@ type Props = {
   /** The Manual / Bot change is on its way to the server. */
   pausing: boolean;
   onTogglePause: () => void;
-  deleting: boolean;
+  mutedUntil?: string | null;
+  onMute: (until: MuteFor | null) => void;
+  favourite: boolean;
+  onToggleFavourite: () => void;
+  onCloseChat: () => void;
+  blocked: boolean;
+  onToggleBlock: () => void;
+  /** Clear chat: messages go, the contact stays. */
+  onClear: () => void;
+  /** Delete chat: messages and the contact. */
   onDelete: () => void;
+  busy?: ChatMenuBusy;
 };
 
-export default function ChatHeaderMenu({ paused, pausing, onTogglePause, deleting, onDelete }: Props) {
+const MUTE_OPTIONS: { key: MuteFor; label: string }[] = [
+  { key: '8h', label: '8 hours' },
+  { key: '1w', label: '1 week' },
+  { key: 'always', label: 'Always' },
+];
+
+/** "Muted always" / "Muted until 9:30 pm" / "Muted until Thu 12 Nov, 9:30 pm". */
+export function mutedLabel(until: string | null | undefined, now = Date.now()): string {
+  const t = until ? new Date(until).getTime() : 0;
+  if (!(t > now)) return '';
+  if (new Date(t).getUTCFullYear() >= 9999) return 'Muted always';
+  const d = new Date(t);
+  const time = d.toLocaleTimeString('en-IN', { hour: 'numeric', minute: '2-digit', hour12: true });
+  const sameDay = d.toDateString() === new Date(now).toDateString();
+  if (sameDay) return `Muted until ${time}`;
+  const day = d.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' });
+  return `Muted until ${day}, ${time}`;
+}
+
+export const isMutedNow = (until: string | null | undefined, now = Date.now()) =>
+  !!until && new Date(until).getTime() > now;
+
+function Ico({ children, fill = 'none' }: { children: ReactNode; fill?: string }) {
+  return (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill={fill} stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {children}
+    </svg>
+  );
+}
+const BELL = 'M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9M13.7 21a2 2 0 0 1-3.4 0';
+const HEART = 'M12 20.3s-7.6-4.6-9.3-9.4C1.5 7.4 3.9 4.2 7.3 4.2c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.4 0 5.8 3.2 4.6 6.7-1.7 4.8-9.3 9.4-9.3 9.4z';
+const IconBellOff = () => <Ico><path d={BELL} /><path d="M3 3l18 18" /></Ico>;
+const IconBell = () => <Ico><path d={BELL} /></Ico>;
+const IconHeart = ({ on }: { on: boolean }) => <Ico fill={on ? 'currentColor' : 'none'}><path d={HEART} /></Ico>;
+const IconClose = () => <Ico><circle cx="12" cy="12" r="9" /><path d="M9 9l6 6M15 9l-6 6" /></Ico>;
+const IconBlock = () => <Ico><circle cx="12" cy="12" r="9" /><path d="M5.6 5.6l12.8 12.8" /></Ico>;
+const IconClear = () => <Ico><circle cx="12" cy="12" r="9" /><path d="M8 12h8" /></Ico>;
+const IconTrash = () => (
+  <Ico>
+    <path d="M4 6.5h16M9.5 6.5V4.5h5v2M6 6.5l.9 12.1c.07.9.8 1.6 1.7 1.6h6.8c.9 0 1.63-.7 1.7-1.6L18 6.5M10 10.5v6M14 10.5v6" />
+  </Ico>
+);
+
+export default function ChatHeaderMenu({
+  paused, pausing, onTogglePause, mutedUntil, onMute, favourite, onToggleFavourite, onCloseChat,
+  blocked, onToggleBlock, onClear, onDelete, busy = null,
+}: Props) {
   const [open, setOpen] = useState(false);
+  const [sub, setSub] = useState(false);
+  const subRef = useRef(false);
+  subRef.current = sub;
   const btnRef = useRef<HTMLButtonElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const muteRowRef = useRef<HTMLButtonElement>(null);
+  const subTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const muted = isMutedNow(mutedUntil);
 
   const close = useCallback((refocus = false) => {
     setOpen(false);
+    setSub(false);
     if (refocus) btnRef.current?.focus();
+  }, []);
+  const closeSub = useCallback((refocus = false) => {
+    setSub(false);
+    if (refocus) muteRowRef.current?.focus();
   }, []);
 
   useEffect(() => {
     if (!open) return undefined;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
-        e.stopPropagation();
-        close(true);
-      }
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      // The Mute submenu closes first, then the menu.
+      if (subRef.current) closeSub(true);
+      else close(true);
     };
     const onDown = (e: PointerEvent) => {
       const t = e.target as Node;
@@ -39,12 +112,15 @@ export default function ChatHeaderMenu({ paused, pausing, onTogglePause, deletin
     };
     window.addEventListener('keydown', onKey);
     window.addEventListener('pointerdown', onDown);
-    menuRef.current?.querySelector<HTMLElement>('.cm-item')?.focus();
+    menuRef.current?.querySelector<HTMLElement>('[data-cm-main]')?.focus();
     return () => {
       window.removeEventListener('keydown', onKey);
       window.removeEventListener('pointerdown', onDown);
     };
-  }, [open, close]);
+  }, [open, close, closeSub]);
+  useEffect(() => () => {
+    if (subTimer.current) clearTimeout(subTimer.current);
+  }, []);
 
   // Manual / Bot labels pick that side; anywhere else on the row flips it.
   const setMode = (bot: boolean) => {
@@ -55,13 +131,30 @@ export default function ChatHeaderMenu({ paused, pausing, onTogglePause, deletin
     if (!pausing) onTogglePause();
   };
 
+  const openSub = (focusFirst: boolean) => {
+    if (subTimer.current) clearTimeout(subTimer.current);
+    setSub(true);
+    if (focusFirst) setTimeout(() => menuRef.current?.querySelector<HTMLElement>('.cm-sub-item')?.focus(), 0);
+  };
+  // Hover opens it (with a little grace to cross the gap); a tap toggles it.
+  const hoverSub = (on: boolean) => {
+    if (muted || !window.matchMedia?.('(hover: hover) and (min-width: 561px)').matches) return;
+    if (subTimer.current) clearTimeout(subTimer.current);
+    if (on) setSub(true);
+    else subTimer.current = setTimeout(() => setSub(false), 220);
+  };
+
+  const cycle = (e: ReactKeyboardEvent<HTMLElement>, selector: string) => {
+    e.preventDefault();
+    const all = [...(menuRef.current?.querySelectorAll<HTMLElement>(selector) || [])].filter((el) => !(el as HTMLButtonElement).disabled);
+    const at = all.indexOf(e.currentTarget);
+    all[(at + (e.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length]?.focus();
+  };
   // A real <button> already clicks on Enter / Space; the switch row (a div) doesn't.
   const onItemKey = (e: ReactKeyboardEvent<HTMLElement>, activate?: () => void) => {
     if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-      e.preventDefault();
-      const all = [...(menuRef.current?.querySelectorAll<HTMLElement>('.cm-item') || [])];
-      const at = all.indexOf(e.currentTarget);
-      all[(at + (e.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length]?.focus();
+      if (sub) setSub(false);
+      cycle(e, '[data-cm-main]');
     } else if (activate && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       activate();
@@ -69,6 +162,27 @@ export default function ChatHeaderMenu({ paused, pausing, onTogglePause, deletin
       close();
     }
   };
+  const onMuteKey = (e: ReactKeyboardEvent<HTMLElement>) => {
+    if (!muted && (e.key === 'ArrowLeft' || e.key === 'Enter' || e.key === ' ')) {
+      e.preventDefault();
+      openSub(true);
+      return;
+    }
+    onItemKey(e);
+  };
+  const onSubKey = (e: ReactKeyboardEvent<HTMLElement>) => {
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') cycle(e, '.cm-sub-item');
+    else if (e.key === 'ArrowRight') {
+      e.preventDefault();
+      closeSub(true);
+    } else if (e.key === 'Tab') close();
+  };
+
+  const act = (fn: () => void) => () => {
+    close();
+    fn();
+  };
+  const mutedText = mutedLabel(mutedUntil);
 
   return (
     <div className="th-more-anchor">
@@ -76,7 +190,7 @@ export default function ChatHeaderMenu({ paused, pausing, onTogglePause, deletin
         ref={btnRef}
         type="button"
         className={`th-more${open ? ' open' : ''}`}
-        onClick={() => setOpen((o) => !o)}
+        onClick={() => (open ? close() : setOpen(true))}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Chat options"
@@ -102,6 +216,7 @@ export default function ChatHeaderMenu({ paused, pausing, onTogglePause, deletin
             onKeyDown={(e) => onItemKey(e, flip)}
             title={!paused ? 'Bot is replying — switch to Manual' : 'Manual mode — switch to Bot'}
             data-testid="bot-toggle"
+            data-cm-main=""
           >
             <span className={`cm-ico ${paused ? 'manual' : 'bot'}`}>
               <span className="material-icons" aria-hidden="true">{paused ? 'support_agent' : 'smart_toy'}</span>
@@ -149,28 +264,134 @@ export default function ChatHeaderMenu({ paused, pausing, onTogglePause, deletin
 
           <div className="cm-sep" role="separator" />
 
+          {/* Mute: a flyout with 8 hours / 1 week / Always; when muted, one tap unmutes. */}
+          <div className="cm-has-sub" onMouseEnter={() => hoverSub(true)} onMouseLeave={() => hoverSub(false)}>
+            <button
+              ref={muteRowRef}
+              type="button"
+              role="menuitem"
+              tabIndex={-1}
+              className={`cm-item${sub ? ' sub-open' : ''}${muted ? ' cm-muted' : ''}`}
+              aria-haspopup={muted ? undefined : 'menu'}
+              aria-expanded={muted ? undefined : sub}
+              disabled={busy === 'mute'}
+              onClick={() => {
+                // A click only opens the options: with a mouse, hovering has
+                // usually opened them already, and a toggle would shut them.
+                if (muted) {
+                  close();
+                  onMute(null);
+                } else openSub(false);
+              }}
+              onKeyDown={onMuteKey}
+              data-testid="chat-menu-mute"
+              data-cm-main=""
+            >
+              <span className="cm-ico">{muted ? <IconBell /> : <IconBellOff />}</span>
+              <span className="cm-text">
+                <span>{muted ? 'Unmute notifications' : 'Mute notifications'}</span>
+                {muted && <span className="cm-caption" data-testid="chat-menu-muted-until">{mutedText}</span>}
+              </span>
+              {!muted && (
+                <svg className="cm-caret" width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M3.5 2l3 3-3 3" fill="currentColor" />
+                </svg>
+              )}
+            </button>
+            {sub && !muted && (
+              <div className="cm-sub" role="menu" aria-label="Mute for" data-testid="chat-menu-mute-options">
+                {MUTE_OPTIONS.map((o) => (
+                  <button
+                    key={o.key}
+                    type="button"
+                    role="menuitem"
+                    tabIndex={-1}
+                    className="cm-sub-item"
+                    onClick={act(() => onMute(o.key))}
+                    onKeyDown={onSubKey}
+                    data-testid={`chat-menu-mute-${o.key}`}
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button
             type="button"
             role="menuitem"
             tabIndex={-1}
-            className="cm-item cm-delete"
-            disabled={deleting}
-            onClick={() => {
-              close();
-              onDelete();
-            }}
+            className={`cm-item${favourite ? ' cm-fav-on' : ''}`}
+            disabled={busy === 'favourite'}
+            onClick={act(onToggleFavourite)}
+            onKeyDown={(e) => onItemKey(e)}
+            data-testid="chat-menu-favourite"
+            data-cm-main=""
+          >
+            <span className="cm-ico cm-fav"><IconHeart on={favourite} /></span>
+            {favourite ? 'Remove from favourites' : 'Add to favourites'}
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className="cm-item"
+            onClick={act(onCloseChat)}
+            onKeyDown={(e) => onItemKey(e)}
+            data-testid="chat-menu-close"
+            data-cm-main=""
+          >
+            <span className="cm-ico"><IconClose /></span>
+            Close chat
+          </button>
+
+          <div className="cm-sep" role="separator" />
+
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className={`cm-item ${blocked ? 'cm-unblock' : 'cm-danger'}`}
+            disabled={busy === 'block'}
+            onClick={act(onToggleBlock)}
+            onKeyDown={(e) => onItemKey(e)}
+            data-testid="chat-menu-block"
+            data-cm-main=""
+          >
+            <span className="cm-ico"><IconBlock /></span>
+            {busy === 'block' ? (blocked ? 'Unblocking…' : 'Blocking…') : blocked ? 'Unblock' : 'Block'}
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className="cm-item cm-danger"
+            disabled={busy === 'clear'}
+            onClick={act(onClear)}
+            onKeyDown={(e) => onItemKey(e)}
+            data-testid="chat-menu-clear"
+            data-cm-main=""
+          >
+            <span className="cm-ico"><IconClear /></span>
+            {busy === 'clear' ? 'Clearing…' : 'Clear chat'}
+          </button>
+
+          <button
+            type="button"
+            role="menuitem"
+            tabIndex={-1}
+            className="cm-item cm-danger cm-delete"
+            disabled={busy === 'delete'}
+            onClick={act(onDelete)}
             onKeyDown={(e) => onItemKey(e)}
             data-testid="chat-menu-delete"
+            data-cm-main=""
           >
-            <span className="cm-ico">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                <path d="M3.5 5.5H16.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                <path d="M8 5.5V3.5H12V5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M5 5.5L5.8 16C5.86 16.84 6.56 17.5 7.4 17.5H12.6C13.44 17.5 14.14 16.84 14.2 16L15 5.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                <path d="M8 8.5V14.5M12 8.5V14.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-              </svg>
-            </span>
-            {deleting ? 'Deleting…' : 'Delete chat'}
+            <span className="cm-ico"><IconTrash /></span>
+            {busy === 'delete' ? 'Deleting…' : 'Delete chat'}
           </button>
         </div>
       )}

@@ -9,25 +9,29 @@ import { CountryFlag } from './CountryFlag';
 import { COMING_SOON } from '../features';
 import { SoonPill } from './ComingSoon';
 import { usePlan } from '../PlanContext';
+import { isMutedNow, mutedLabel } from './ChatHeaderMenu';
 import './PlanLocked.css';
 
-// Channel tabs above the list: All, WhatsApp, Instagram, Messenger.
-type ChannelTab = 'all' | 'whatsapp' | 'instagram' | 'messenger';
+// Tabs above the list: All, ♥ Favourites (from the chat's ⋮ menu), then
+// WhatsApp, Instagram, Messenger.
+type ChannelTab = 'all' | 'favourites' | 'whatsapp' | 'instagram' | 'messenger';
 const TAB_KEY = 'crm_chats_channel_tab';
 const CHANNEL_TABS: { key: ChannelTab; label: string; icon?: string }[] = [
   { key: 'all', label: 'All' },
+  { key: 'favourites', label: 'Favourites' },
   { key: 'whatsapp', label: 'WhatsApp', icon: '/whatsapp.svg' },
   { key: 'instagram', label: 'Instagram', icon: '/channel-instagram.svg' },
   { key: 'messenger', label: 'Messenger', icon: '/channel-messenger.svg' },
 ];
 const EMPTY_TEXT: Record<ChannelTab, string> = {
   all: 'No chats found',
+  favourites: 'No favourite chats yet',
   whatsapp: 'No WhatsApp chats yet',
   instagram: 'No Instagram chats yet',
   messenger: 'No Messenger chats yet',
 };
 /** '' and 'whatsapp' are WhatsApp; 'facebook' is Messenger. */
-const tabOf = (c: Chat): Exclude<ChannelTab, 'all'> =>
+const tabOf = (c: Chat): Exclude<ChannelTab, 'all' | 'favourites'> =>
   c.channel === 'instagram' ? 'instagram' : c.channel === 'messenger' || c.channel === 'facebook' ? 'messenger' : 'whatsapp';
 
 interface Props {
@@ -559,18 +563,24 @@ export function ChatList({
 
   // Unread conversations per tab (the badge on each tab).
   const unreadByTab = useMemo(() => {
-    const out: Record<ChannelTab, number> = { all: 0, whatsapp: 0, instagram: 0, messenger: 0 };
+    const out: Record<ChannelTab, number> = { all: 0, favourites: 0, whatsapp: 0, instagram: 0, messenger: 0 };
     for (const c of chats) {
-      if (c.unread > 0) {
+      // Muted chats keep their own grey count, not the tabs'.
+      if (c.unread > 0 && !isMutedNow(c.mutedUntil)) {
         out.all += 1;
         out[tabOf(c)] += 1;
+        if (c.favourite) out.favourites += 1;
       }
     }
     return out;
   }, [chats]);
 
   const filtered = useMemo(() => {
-    const inTab = tab === 'all' ? chats : chats.filter((c) => tabOf(c) === tab);
+    const inTab = tab === 'all'
+      ? chats
+      : tab === 'favourites'
+        ? chats.filter((c) => c.favourite)
+        : chats.filter((c) => tabOf(c) === tab);
     const q = query.trim().toLowerCase();
     if (!q) return inTab;
     const digits = q.replace(/\D/g, '');
@@ -690,13 +700,21 @@ export function ChatList({
               type="button"
               role="tab"
               aria-selected={tab === t.key}
-              className={`chats-tab${tab === t.key ? ' active' : ''}`}
+              className={`chats-tab${tab === t.key ? ' active' : ''}${t.key === 'favourites' ? ' chats-tab-fav' : ''}`}
               onClick={() => pickTab(t.key)}
-              title={t.key === 'all' ? 'All chats' : `${t.label} chats`}
+              title={t.key === 'all' ? 'All chats' : t.key === 'favourites' ? 'Favourite chats' : `${t.label} chats`}
+              aria-label={t.key === 'favourites' ? 'Favourites' : undefined}
               data-testid={`chats-tab-${t.key}`}
             >
               {t.icon && <img src={t.icon} alt="" className="chats-tab-icon" />}
-              <span className="chats-tab-text">{t.label}</span>
+              {/* Favourites is just its heart: the row is already tight. */}
+              {t.key === 'favourites' ? (
+                <svg className="chats-tab-heart" width="15" height="15" viewBox="0 0 24 24" aria-hidden="true">
+                  <path d="M12 20.3s-7.6-4.6-9.3-9.4C1.5 7.4 3.9 4.2 7.3 4.2c2 0 3.6 1.1 4.7 2.8 1.1-1.7 2.7-2.8 4.7-2.8 3.4 0 5.8 3.2 4.6 6.7-1.7 4.8-9.3 9.4-9.3 9.4z" />
+                </svg>
+              ) : (
+                <span className="chats-tab-text">{t.label}</span>
+              )}
               {(t.key === 'instagram' || t.key === 'messenger') && COMING_SOON[t.key] && unreadByTab[t.key] === 0 && (
                 <span className="material-icons soon-tab-lock" aria-label="Coming soon" data-testid={`chats-tab-soon-${t.key}`}>lock</span>
               )}
@@ -784,8 +802,15 @@ export function ChatList({
                         <span className="ci-pv-label">{pv.label || 'No messages yet'}</span>
                       </span>
                     )}
+                    {/* Blocked / muted marks, then the unread count (grey while muted). */}
+                    {c.blocked && (
+                      <span className="material-icons ci-flag ci-blocked" title="Blocked" aria-label="Blocked" data-testid="ci-blocked">block</span>
+                    )}
+                    {isMutedNow(c.mutedUntil) && (
+                      <span className="material-icons ci-flag ci-muted" title={mutedLabel(c.mutedUntil)} aria-label="Muted" data-testid="ci-muted">notifications_off</span>
+                    )}
                     {c.unread > 0 && (
-                      <span className="badge" aria-label={`${c.unread} unread`}>{c.unread > 99 ? '99+' : c.unread}</span>
+                      <span className={`badge${isMutedNow(c.mutedUntil) ? ' muted' : ''}`} aria-label={`${c.unread} unread`}>{c.unread > 99 ? '99+' : c.unread}</span>
                     )}
                   </div>
                 </div>

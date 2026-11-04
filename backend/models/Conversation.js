@@ -35,6 +35,19 @@ const ConversationSchema = new Schema(
     // Instagram handle of the sender, when Meta shares it.
     handle: { type: String, default: '' },
     profileCheckedAt: { type: Date },
+    // Chat ⋮ menu. Muted: no sound, pop-up or push for this chat's messages
+    // until then (9999-12-31 = Always); unread counts still go up.
+    mutedUntil: { type: Date, default: null },
+    // Shown under the chat list's Favourites filter.
+    favourite: { type: Boolean, default: false },
+    // Blocked: their messages and calls are ignored and nothing is sent to
+    // them. `blockedAtMeta`: also blocked on WhatsApp itself (Block Users API).
+    blocked: { type: Boolean, default: false },
+    blockedAt: { type: Date },
+    blockedAtMeta: { type: Boolean, default: false },
+    // "Delete chat" on a blocked contact: the row stays, out of the chat list,
+    // so the block keeps holding. Adding the contact again clears it.
+    hiddenAt: { type: Date, default: null },
   },
   { timestamps: true },
 );

@@ -55,7 +55,8 @@ const digits = (p) => String(p || '').replace(/\D/g, '');
 export async function contactAllowance(businessId, state) {
   const limit = state?.limits?.contacts ?? null;
   if (!limit) return { limit: null, used: 0, allowed: null };
-  const rows = await Conversation.find({ businessId })
+  // A deleted (blocked) contact's hidden row isn't a contact any more.
+  const rows = await Conversation.find({ businessId, hiddenAt: null })
     .select('phone channel createdAt')
     .sort({ createdAt: 1, _id: 1 })
     .limit(limit + 500)

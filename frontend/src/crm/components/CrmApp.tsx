@@ -12,7 +12,7 @@ import { CrmApi } from '../api';
 import { CrmSocket } from '../socket';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { defaultConfig, type CrmConfig } from '../config';
-import type { Chat, ChatMessage, SandboxContacts, TemplateItem, WaFlowDef, PollInput, EventInput } from '../types';
+import type { Chat, ChatMessage, SandboxContacts, TemplateItem, WaFlowDef, PollInput, EventInput, MuteFor } from '../types';
 import { authBodyWithCode, isAuthTemplate } from '../authTemplate';
 import { notify, previewOf, laterStatus, dayKey, dayLabel, chatDisplayName, isMetaChannelChat } from '../utils';
 import { loadPrefs, playSound, wants } from '../notifyPrefs';
@@ -34,7 +34,7 @@ import { AttachmentPreview } from './AttachmentPreview';
 import { ConnectWhatsAppOnboarding } from './ConnectWhatsAppOnboarding';
 import { uiScale } from '../uiScale';
 import { useCalls } from './CallCenter';
-import ChatHeaderMenu from './ChatHeaderMenu';
+import ChatHeaderMenu, { isMutedNow, mutedLabel, type ChatMenuBusy } from './ChatHeaderMenu';
 import { SoonPill } from './ComingSoon';
 import './CrmApp.css';
 
@@ -148,7 +148,8 @@ export function CrmApp({
   const [paused, setPaused] = useState(false);
   const [pausing, setPausing] = useState(false);
 
-  const [deleting, setDeleting] = useState(false);
+  // The ⋮ menu's action in flight (Mute, Favourite, Block, Clear, Delete).
+  const [menuBusy, setMenuBusy] = useState<ChatMenuBusy>(null);
   const confirm = useConfirm();
 
   const [reactingId, setReactingId] = useState<string | null>(null);
@@ -606,10 +607,11 @@ export function CrmApp({
         // Sound and desktop nudge come with the message's notification
         // (CrmShell, per Settings → Manage Notifications). The demo has no
         // notifications, so it alerts here.
-        if (demo) {
+        // A muted chat stays quiet (the server skips its notification too).
+        const known = chatsRef.current.find((c) => c.phone === m.phone);
+        if (demo && !isMutedNow(known?.mutedUntil)) {
           const prefs = loadPrefs();
           if (wants(prefs, 'message', 'sound')) playSound(prefs.soundType);
-          const known = chatsRef.current.find((c) => c.phone === m.phone);
           const sender = known
             ? chatDisplayName(known)
             : m.name || (m.channel === 'messenger' ? 'Messenger user' : m.channel === 'instagram' ? 'Instagram user' : `+${m.phone}`);
@@ -753,7 +755,8 @@ export function CrmApp({
   }, [demo, needsConnect, api, socket]);
 
   // The Chats icon's badge: how many conversations have something unread.
-  const unreadChats = chats.filter((c) => c.unread > 0).length;
+  // Muted chats keep their own (grey) count but don't add to this one.
+  const unreadChats = chats.filter((c) => c.unread > 0 && !isMutedNow(c.mutedUntil)).length;
   useEffect(() => {
     onUnreadChange?.(unreadChats);
   }, [unreadChats, onUnreadChange]);
@@ -908,21 +911,112 @@ export function CrmApp({
       });
   }
 
+  const patchChat = (phone: string, patch: Partial<Chat>) =>
+    setChats((list) => list.map((c) => (c.phone === phone ? { ...c, ...patch } : c)));
+
+  /** ⋮ → Mute notifications (8 hours / 1 week / Always), or Unmute (null). */
+  function muteChat(until: MuteFor | null) {
+    const phone = activePhone;
+    if (!phone) return;
+    setMenuBusy('mute');
+    api
+      .muteChat(phone, until)
+      .then((res) => {
+        patchChat(phone, { mutedUntil: res.mutedUntil });
+        if (until) toast('success', 'Chat muted', `${mutedLabel(res.mutedUntil)}. Messages still arrive, without sound, pop-ups or push.`);
+        else toast('success', 'Chat unmuted', 'You’ll be alerted to new messages from this chat again.');
+      })
+      .catch((e: Error) => toast('error', 'Failed', e.message || 'Could not change notifications for this chat.'))
+      .finally(() => setMenuBusy(null));
+  }
+
+  function toggleFavourite() {
+    const phone = activePhone;
+    if (!phone) return;
+    const next = !activeChat?.favourite;
+    setMenuBusy('favourite');
+    api
+      .setFavourite(phone, next)
+      .then((res) => {
+        patchChat(phone, { favourite: res.favourite });
+        toast('success', res.favourite ? 'Added to favourites' : 'Removed from favourites',
+          res.favourite ? 'Find it under the ♥ filter above your chats.' : '');
+      })
+      .catch((e: Error) => toast('error', 'Failed', e.message || 'Could not update favourites.'))
+      .finally(() => setMenuBusy(null));
+  }
+
+  async function toggleBlock() {
+    const phone = activePhone;
+    if (!phone) return;
+    const name = activeName;
+    const wasBlocked = !!activeChat?.blocked;
+    if (!wasBlocked) {
+      const ok = await confirm({
+        title: `Block ${name}?`,
+        message: metaChat
+          ? 'Their messages will be ignored: not saved, no alerts and no bot replies. You won’t be able to message them until you unblock them.'
+          : 'Blocked contacts can’t message or call you, and you can’t message them. Anything they send is ignored: not saved, no alerts, no bot replies.',
+        confirmLabel: 'Block',
+      });
+      if (!ok) return;
+    }
+    setMenuBusy('block');
+    api
+      .setBlocked(phone, !wasBlocked)
+      .then((res) => {
+        patchChat(phone, { blocked: res.blocked, blockedAtMeta: res.blocked && res.atMeta });
+        if (!res.blocked) toast('success', 'Contact unblocked', `You can message ${name} again.`);
+        else if (res.atMeta) toast('success', 'Contact blocked', `${name} can’t message or call you on WhatsApp.`);
+        else if (res.note) toast('success', 'Blocked in the CRM', `${res.note} Their messages and calls will be ignored here.`);
+        else toast('success', 'Contact blocked', 'Their messages will be ignored here.');
+      })
+      .catch((e: Error) => toast('error', wasBlocked ? 'Unblock failed' : 'Block failed', e.message || 'Please try again.'))
+      .finally(() => setMenuBusy(null));
+  }
+
+  /** ⋮ → Delete chat: the messages and the contact go; the thread closes. */
+  async function deleteChatAndContact() {
+    const phone = activePhone;
+    if (!phone) return;
+    const name = activeName;
+    const blockedNow = !!activeChat?.blocked;
+    const ok = await confirm({
+      title: 'Delete this chat?',
+      message: `This deletes the chat with ${name} and removes them from your contacts, with every message, photo, video and file. It can’t be undone.${blockedNow ? ' They stay blocked.' : ''}`,
+      confirmLabel: 'Delete chat',
+    });
+    if (!ok) return;
+    setMenuBusy('delete');
+    api
+      .deleteContact(phone)
+      .then(() => {
+        closeActiveChat();
+        setMessages([]);
+        setHasOlder(false);
+        setChats((list) => list.filter((c) => c.phone !== phone));
+        toast('success', 'Chat deleted', `${name} was removed from your contacts.`);
+      })
+      .catch((e: Error) => toast('error', 'Delete failed', e.message || 'Could not delete the chat.'))
+      .finally(() => setMenuBusy(null));
+  }
+
+  /** ⋮ → Clear chat: every message and file goes; the contact stays. */
   async function deleteChat() {
     const phone = activePhone;
     if (!phone) return;
     const name = activeName;
     const ok = await confirm({
-      title: 'Delete this chat?',
-      message: `This permanently deletes all messages in this chat with ${name}, including shared photos, videos, and files. The contact will remain in your contacts list.`,
-      confirmLabel: 'Delete chat',
+      title: 'Clear this chat?',
+      message: `All messages in this chat with ${name}, including photos, videos and files, are deleted for good. ${name} stays in your contacts.`,
+      confirmLabel: 'Clear chat',
     });
     if (!ok) return;
-    setDeleting(true);
+    setMenuBusy('clear');
     api
       .deleteChat(phone)
       .then(() => {
-        setDeleting(false);
+        setMenuBusy(null);
         setChats((list) =>
           list.map((c) =>
             c.phone === phone
@@ -940,11 +1034,11 @@ export function CrmApp({
         );
         setMessages([]);
         setHasOlder(false);
-        toast('success', 'Chat deleted', `Messages with ${name} were deleted. Contact remains in your contacts.`);
+        toast('success', 'Chat cleared', `Messages with ${name} were deleted. ${name} stays in your contacts.`);
       })
       .catch((e: Error) => {
-        setDeleting(false);
-        toast('error', 'Delete failed', e.message || 'Could not delete the chat.');
+        setMenuBusy(null);
+        toast('error', 'Clear failed', e.message || 'Could not clear the chat.');
       });
   }
 
@@ -1248,8 +1342,8 @@ export function CrmApp({
                     type="button"
                     className={`th-call${calls.activePhone === activePhone ? ' live' : ''}`}
                     onClick={() => calls.startCall(activePhone, activeChat?.name || activeName)}
-                    disabled={calls.busy}
-                    title={calls.busy ? (calls.activePhone === activePhone ? 'On a call with them' : 'You’re on another call') : 'WhatsApp voice call'}
+                    disabled={calls.busy || !!activeChat?.blocked}
+                    title={activeChat?.blocked ? 'Unblock this contact to call them' : calls.busy ? (calls.activePhone === activePhone ? 'On a call with them' : 'You’re on another call') : 'WhatsApp voice call'}
                     aria-label="Voice call"
                     data-testid="th-call"
                   >
@@ -1270,14 +1364,23 @@ export function CrmApp({
               )}
 
               {/* ⋮ menu: Bot / Manual for this chat (on Messenger / Instagram it switches
-                  that channel's journey on or off for this customer) and Delete chat. */}
+                  that channel's journey on or off for this customer), Mute, Favourites,
+                  Close, Block, Clear chat, Delete chat. */}
               <ChatHeaderMenu
                 key={activePhone}
                 paused={paused}
                 pausing={pausing}
                 onTogglePause={togglePause}
-                deleting={deleting}
-                onDelete={deleteChat}
+                mutedUntil={activeChat?.mutedUntil}
+                onMute={muteChat}
+                favourite={!!activeChat?.favourite}
+                onToggleFavourite={toggleFavourite}
+                onCloseChat={closeActiveChat}
+                blocked={!!activeChat?.blocked}
+                onToggleBlock={toggleBlock}
+                onClear={deleteChat}
+                onDelete={deleteChatAndContact}
+                busy={menuBusy}
               />
             </header>
 
@@ -1359,7 +1462,27 @@ export function CrmApp({
               )}
             </div>
 
-            {activeChat?.locked ? (
+            {activeChat?.blocked ? (
+              // Blocked from the ⋮ menu: nothing goes out (the server refuses too).
+              <div className="chat-blocked-bar" data-testid="chat-blocked">
+                <span className="material-icons" aria-hidden="true">block</span>
+                <div>
+                  <strong>You blocked this contact</strong>
+                  {!metaChat && activeChat.blockedAtMeta
+                    ? 'They can’t message or call you on WhatsApp.'
+                    : 'Their messages and calls are ignored.'}
+                </div>
+                <button
+                  type="button"
+                  className="cb-btn"
+                  onClick={toggleBlock}
+                  disabled={menuBusy === 'block'}
+                  data-testid="chat-unblock"
+                >
+                  {menuBusy === 'block' ? 'Unblocking…' : 'Unblock'}
+                </button>
+              </div>
+            ) : activeChat?.locked ? (
               // Outside the plan (Free: after its first 10 contacts). Messages
               // from them are kept; replying needs an upgrade (the server refuses too).
               <div className="plan-chat-locked" data-testid="chat-plan-locked">

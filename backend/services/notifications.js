@@ -15,6 +15,7 @@ import Notification from '../models/Notification.js';
 import { emitNotification, emitNotificationCount } from './eventBus.js';
 import { categoryOf } from './notificationCategories.js';
 import { sendPush } from './webPush.js';
+import { isMuted } from './chatFlags.js';
 import logger from './logger.js';
 
 const TITLE_MAX = 200;
@@ -147,9 +148,12 @@ const MEDIA_LABEL = {
  * A customer wrote in: one unread row per chat, updated per message.
  * `isNew`: their first message ever to this business (a new chat).
  */
-export function notifyChatMessage(businessId, { phone, name, type, body, isNew = false }) {
+export async function notifyChatMessage(businessId, { phone, name, type, body, isNew = false }) {
   const p = digits(phone);
-  if (!p) return Promise.resolve(null);
+  if (!p) return null;
+  // Muted from the chat's ⋮ menu: no bell row, sound, pop-up or push. The
+  // message itself and its unread count still arrive.
+  if (!isNew && (await isMuted(businessId, p))) return null;
   const who = String(name || '').trim() || `+${p}`;
   const preview = String(body || '').trim() || MEDIA_LABEL[type] || 'New message';
   return notify(businessId, {

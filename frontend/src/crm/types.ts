@@ -24,7 +24,17 @@ export interface Chat {
   avatarUrl?: string;
   /** Instagram handle of the sender, when Meta shares it. */
   handle?: string;
+  /** Chat ⋮ menu → Mute: no alerts until then (year 9999 = Always). */
+  mutedUntil?: string | null;
+  /** Chat ⋮ menu → Add to favourites (the chat list's Favourites filter). */
+  favourite?: boolean;
+  /** Blocked: nothing in or out. `blockedAtMeta`: also blocked on WhatsApp itself. */
+  blocked?: boolean;
+  blockedAtMeta?: boolean;
 }
+
+/** How long Mute notifications lasts. */
+export type MuteFor = '8h' | '1w' | 'always';
 
 /** Messenger / Instagram (Channel Status → Connect). */
 export type MetaChannel = 'messenger' | 'instagram';

@@ -6,7 +6,7 @@
 // -----------------------------------------------------------------------------
 import type { CrmConfig } from './config';
 import type { MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
-import type { CallPermission, CallSettings, CallSettingsUpdate, LiveCall, PollInput, EventInput } from './types';
+import type { CallPermission, CallSettings, CallSettingsUpdate, LiveCall, PollInput, EventInput, MuteFor } from './types';
 import type {
   CommentActivity, CommentRule, CommentRuleInput, CommentRuleWrite, SocialMedia, SocialOverview, SocialPost, SocialPostInput, SocialRecentPost, SocialTarget,
 } from './types';
@@ -969,10 +969,45 @@ export class CrmApi {
     return this.request(`/api/crm/messages/${phone}${qs ? `?${qs}` : ''}`, { headers: this.authHeaders() });
   }
 
+  /** Clear chat: its messages and files go, the contact stays. */
   deleteChat(phone: string): Promise<{ success: boolean }> {
     return this.request(`/api/crm/chats/${phone}`, {
       method: 'DELETE',
       headers: this.authHeaders(),
+    });
+  }
+
+  /** Delete chat: the messages and the contact. */
+  deleteContact(phone: string): Promise<{ success: boolean; keptBlocked?: boolean }> {
+    return this.request(`/api/crm/contacts/${phone}`, {
+      method: 'DELETE',
+      headers: this.authHeaders(),
+    });
+  }
+
+  /** Mute for 8 hours, a week or always; `null` unmutes. */
+  muteChat(phone: string, until: MuteFor | null): Promise<{ success: boolean; mutedUntil: string | null }> {
+    return this.request('/api/crm/mute', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ phone, until }),
+    });
+  }
+
+  setFavourite(phone: string, favourite: boolean): Promise<{ success: boolean; favourite: boolean }> {
+    return this.request('/api/crm/favourite', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ phone, favourite }),
+    });
+  }
+
+  /** `atMeta`: blocked on WhatsApp itself too; `note`: why it wasn't. */
+  setBlocked(phone: string, blocked: boolean): Promise<{ success: boolean; blocked: boolean; atMeta: boolean; note?: string }> {
+    return this.request('/api/crm/block', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ phone, blocked }),
     });
   }
 

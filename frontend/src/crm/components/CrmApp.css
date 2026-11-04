@@ -531,6 +531,47 @@
   font-size: 11px;
   padding: 0 6px;
 }
+/* Muted (⋮ menu): the count stays, in grey, with a bell-off beside it. */
+.badge.muted {
+  background: #aebac1;
+  color: #ffffff;
+}
+.ci-bottom .ci-preview {
+  margin-right: auto;
+}
+.ci-flag {
+  font-size: 16px;
+  color: #8696a0;
+  flex-shrink: 0;
+  margin-right: -4px;
+}
+.ci-flag.ci-blocked {
+  color: #ea0038;
+}
+
+/* ♥ Favourites tab: just the heart. "All" keeps its word; the channel names
+   give way instead. */
+.chats-tab[data-testid='chats-tab-all'] {
+  flex: 0 0 auto;
+  padding: 6px 8px;
+}
+.chats-tab.chats-tab-fav {
+  flex: 0 0 auto;
+  padding: 6px 9px;
+}
+.chats-tab-heart {
+  display: block;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+.chats-tab-fav.active {
+  color: #e11d48;
+}
+.chats-tab-fav.active .chats-tab-heart {
+  fill: currentColor;
+}
 
 /* ---- Thread ---- */
 .thread {

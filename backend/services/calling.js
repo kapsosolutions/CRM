@@ -29,6 +29,7 @@ import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
 import { getClientForBusiness } from './metaCloud.js';
 import { isWhatsAppConnected } from './sandbox.js';
+import { isBlocked } from './chatFlags.js';
 import { emitCall, emitMessage } from './eventBus.js';
 import { notify } from './notifications.js';
 import logger from './logger.js';
@@ -427,6 +428,13 @@ async function onCallEvent(call, biz, names) {
     const phone = digits(call.from);
     if (!phone || sdpType !== 'offer' || !call.session?.sdp) return;
     if (live.has(id)) return; // Meta retried
+    // Blocked in the CRM only (WhatsApp itself would never have put it
+    // through): turn it down at once; nobody's tab rings, nothing is filed.
+    if (await isBlocked(businessId, phone)) {
+      logger.info('call from a blocked contact rejected', { business: biz.name, call: id });
+      await getClientForBusiness(biz).callAction({ call_id: id, action: 'reject' }).catch(() => {});
+      return;
+    }
     const c = {
       id, businessId, phone, name: names[phone] || '', direction: 'in', state: 'ringing', at: Date.now(), offerSdp: call.session.sdp,
     };

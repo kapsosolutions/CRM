@@ -225,7 +225,8 @@ function dateFilter(sel, now) {
  * stops at the first usable contact (the request's "is there anyone?").
  */
 async function scanContacts(businessId, sel, { now = Date.now(), keep = true, firstOnly = false, countOther = true } = {}) {
-  const base = { businessId: String(businessId), ...dateFilter(sel, now) };
+  // Blocked contacts stay out of ad audiences.
+  const base = { businessId: String(businessId), blocked: { $ne: true }, ...dateFilter(sel, now) };
   const filter = { ...base, channel: { $nin: OTHER_CHANNELS } };
   const max = maxContacts();
   const seen = new Set();

@@ -766,6 +766,30 @@ export function createMetaClient(creds = {}) {
       return data;
     },
 
+    /**
+     * Block Users API: they can't message or call the number, and it can't
+     * message them. Only for users who wrote in the last 24 hours. Not a
+     * message: no credit, no log. Throws on any failed user.
+     */
+    async blockUsers(phones = []) {
+      const { data } = await api.post(`${base()}/block_users`, {
+        messaging_product: 'whatsapp',
+        block_users: phones.map((p) => ({ user: `+${clean(p)}` })),
+      }, { headers: authHeaders(), timeout: 20000 });
+      if (data?.block_users?.failed_users?.length) throw Object.assign(new Error('Failed to block'), { response: { data } });
+      return data;
+    },
+
+    async unblockUsers(phones = []) {
+      const { data } = await api.delete(`${base()}/block_users`, {
+        headers: authHeaders(),
+        timeout: 20000,
+        data: { messaging_product: 'whatsapp', block_users: phones.map((p) => ({ user: `+${clean(p)}` })) },
+      });
+      if (data?.block_users?.failed_users?.length) throw Object.assign(new Error('Failed to unblock'), { response: { data } });
+      return data;
+    },
+
     /** Whether this customer has let the business call them, and what can be done now. */
     async getCallPermission(phone) {
       const { data } = await api.get(`${base()}/call_permissions`, {
@@ -1087,6 +1111,8 @@ const SANDBOX_BLOCKED = [
   'listCatalogRetailerIds', 'deleteCatalogProducts', 'sendOrderDetails', 'sendOrderStatusUpdate',
   // Calls belong to the business's own number.
   'getCallSettings', 'updateCallSettings', 'callAction', 'getCallPermission', 'sendCallPermissionRequest',
+  // A block on the shared number would block that customer for every tenant.
+  'blockUsers', 'unblockUsers',
 ];
 
 const credsFromBusiness = (b) => ({

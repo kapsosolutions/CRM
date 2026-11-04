@@ -8,7 +8,7 @@ import { CrmApi } from '../api';
 import { CrmSocket, type StatusUpdate, type ReactionUpdate, type TypingUpdate } from '../socket';
 import type { CrmConfig } from '../config';
 import type { AppNotification, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, Order, OrderStatus, Journey, Registration, RegistrationStatus, BusinessSettings, PaymentSettings, SandboxInfo, ChannelStatus, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, WhatsAppVertical, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, CampaignStats, CampaignRecipientResult, BillingSummary } from '../types';
-import type { MetaChannelsInfo, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
+import type { MetaChannelsInfo, MuteFor, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
 import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall, EventInput, PollInput } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
@@ -1134,6 +1134,51 @@ export class MockCrmApi extends CrmApi {
     }
     messages[phone] = [];
     return delay({ success: true });
+  }
+
+  override deleteContact(phone: string): Promise<{ success: boolean; keptBlocked?: boolean }> {
+    const i = chats.findIndex((x) => x.phone === phone);
+    const keptBlocked = i >= 0 && !!chats[i].blocked;
+    if (i >= 0) chats.splice(i, 1);
+    delete messages[phone];
+    return delay({ success: true, keptBlocked });
+  }
+
+  override muteChat(phone: string, until: MuteFor | null): Promise<{ success: boolean; mutedUntil: string | null }> {
+    const c = chats.find((x) => x.phone === phone);
+    const ms = { '8h': 8 * 3600e3, '1w': 7 * 24 * 3600e3 } as const;
+    const mutedUntil = until === null ? null : until === 'always' ? '9999-12-31T00:00:00.000Z' : new Date(Date.now() + ms[until]).toISOString();
+    if (c) c.mutedUntil = mutedUntil;
+    return delay({ success: true, mutedUntil });
+  }
+
+  override setFavourite(phone: string, favourite: boolean): Promise<{ success: boolean; favourite: boolean }> {
+    const c = chats.find((x) => x.phone === phone);
+    if (c) c.favourite = favourite;
+    return delay({ success: true, favourite });
+  }
+
+  /** Like the server: WhatsApp blocks at Meta only within 24h of their last message. */
+  override setBlocked(phone: string, blocked: boolean): Promise<{ success: boolean; blocked: boolean; atMeta: boolean; note?: string }> {
+    const c = chats.find((x) => x.phone === phone);
+    if (!c) return Promise.reject(Object.assign(new Error('Chat not found'), { status: 404 }));
+    const wa = !c.channel || c.channel === 'whatsapp';
+    if (!blocked) {
+      const atMeta = !!c.blockedAtMeta;
+      c.blocked = false;
+      c.blockedAtMeta = false;
+      return delay({ success: true, blocked: false, atMeta });
+    }
+    const recent = !!c.lastInboundAt && Date.now() - new Date(c.lastInboundAt).getTime() < 24 * 3600e3;
+    const atMeta = wa && recent;
+    c.blocked = true;
+    c.blockedAtMeta = atMeta;
+    return delay({
+      success: true,
+      blocked: true,
+      atMeta,
+      ...(wa && !recent ? { note: 'WhatsApp only lets you block someone who messaged you in the last 24 hours.' } : {}),
+    });
   }
 
   override reactToMessage(_phone: string, messageId: string, emoji: string): Promise<{ success: boolean }> {

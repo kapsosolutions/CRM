@@ -12,6 +12,7 @@ import { priceCart, cartToText, cartBubble } from './cart.js';
 import { replyToFromContext } from './reactions.js';
 import { emitCall } from './eventBus.js';
 import { parsePollReply, recordPollVote } from './chatExtras.js';
+import { isBlocked } from './chatFlags.js';
 
 // Per chat and second: the last time handed out, so messages sent in the same
 // second keep the order they reached us in.
@@ -52,6 +53,13 @@ export function inboundTime(message, tenantId, now = Date.now()) {
  * @param {object} ctx { meta, tenantId, tenantName, sandbox? }
  */
 export async function processInboundMessage(message, names, ctx) {
+  // A contact the business blocked: ignored entirely (not filed, no alert, no
+  // bot). Once WhatsApp itself blocks them nothing arrives anyway; this covers
+  // a block the CRM alone holds (WhatsApp allows one only within 24 hours).
+  if (message?.from && (await isBlocked(ctx?.tenantId, message.from))) {
+    logger.info('message from a blocked contact ignored', { business: ctx?.tenantName, type: message.type });
+    return;
+  }
   // Emoji reactions arrive as their own message type — handle + skip.
   if (message.type === 'reaction') {
     handleReaction(message.reaction, ctx).catch((e) =>

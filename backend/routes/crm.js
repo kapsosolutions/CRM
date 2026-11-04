@@ -30,6 +30,8 @@ import {
   authSendOptions,
 } from '../services/authTemplate.js';
 import { browseLibrary, useLibraryTemplate, LibraryError } from '../services/templateLibrary.js';
+import { assertNotBlocked, MUTE_FOREVER } from '../services/chatFlags.js';
+import { clearChatHistory, deleteChatAndContact, setContactBlocked } from '../services/chatActions.js';
 import logger from '../services/logger.js';
 
 // Mirrors the Order status enum — a template can be triggered by any of them.
@@ -66,7 +68,9 @@ const client = (req) => getClientForBusiness(req.business);
 // (services/metaChannels.js); everything else is WhatsApp as before.
 // A Messenger / Instagram reply needs that channel in the plan (after a
 // downgrade, its chats stay readable but can't be answered).
+// A blocked contact gets nothing (409 CONTACT_BLOCKED, passed through by sendFailure).
 const chatClient = async (req, phone) => {
+  await assertNotBlocked(req.business._id, phone);
   const ch = await channelClientForChat(req.business, phone);
   if (ch) {
     const channel = await chatChannel(req.business, phone);
@@ -126,64 +130,87 @@ router.post('/pause', async (req, res) => {
   }
 });
 
-// ---------------- Delete a whole chat (messages + conversation + media) ----------------
+// ---------------- Chat ⋮ menu: mute, favourite, block ----------------
+const cleanPhone = (v) => String(v || '').replace(/\D/g, '');
+const MUTE_FOR = { '8h': 8 * 3600 * 1000, '1w': 7 * 24 * 3600 * 1000 };
+
+/** { phone, until: '8h' | '1w' | 'always' | null } — null unmutes. */
+router.post('/mute', async (req, res) => {
+  try {
+    const { phone, until } = req.body || {};
+    const clean = cleanPhone(phone);
+    if (!clean) return res.status(400).json({ success: false, message: 'phone required' });
+    if (until != null && until !== 'always' && !MUTE_FOR[until]) {
+      return res.status(400).json({ success: false, message: 'until must be 8h, 1w, always or null' });
+    }
+    const mutedUntil = until == null ? null : until === 'always' ? MUTE_FOREVER : new Date(Date.now() + MUTE_FOR[until]);
+    const convo = await Conversation.findOneAndUpdate({ ...owner(req), phone: clean }, { $set: { mutedUntil } }, { new: true });
+    if (!convo) return res.status(404).json({ success: false, message: 'Chat not found' });
+    res.json({ success: true, mutedUntil: convo.mutedUntil || null });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+router.post('/favourite', async (req, res) => {
+  try {
+    const { phone, favourite } = req.body || {};
+    const clean = cleanPhone(phone);
+    if (!clean) return res.status(400).json({ success: false, message: 'phone required' });
+    const convo = await Conversation.findOneAndUpdate({ ...owner(req), phone: clean }, { $set: { favourite: !!favourite } }, { new: true });
+    if (!convo) return res.status(404).json({ success: false, message: 'Chat not found' });
+    res.json({ success: true, favourite: !!convo.favourite });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+/** { phone, blocked } → { blocked, atMeta, note? } (note: why WhatsApp itself didn't block). */
+router.post('/block', async (req, res) => {
+  try {
+    const { phone, blocked } = req.body || {};
+    const clean = cleanPhone(phone);
+    if (!clean) return res.status(400).json({ success: false, message: 'phone required' });
+    const out = await setContactBlocked(req.business, clean, !!blocked);
+    logger.info(blocked ? 'contact blocked' : 'contact unblocked', { business: req.business.name, atMeta: out.atMeta });
+    res.json({ success: true, ...out });
+  } catch (err) {
+    res.status(err.status || 500).json({ success: false, message: err.message, code: err.code || undefined });
+  }
+});
+
+// ---------------- Clear chat: messages + media go, the contact stays ----------------
 router.delete('/chats/:phone', async (req, res) => {
   try {
-    const phone = req.params.phone.replace(/\D/g, '');
+    const phone = cleanPhone(req.params.phone);
     if (!phone) return res.status(400).json({ success: false, message: 'phone required' });
-
-    const messages = await Message.find({ ...owner(req), phone }).lean();
-
-    // Collect every stored asset this chat owns. A deep scan catches all media
-    // shapes, but we keep only files from the chat buckets: a message can also
-    // reference a TEMPLATE's header image, or a journey / flow block's picture,
-    // which belong to those and must survive the chat being deleted. The
-    // documents bucket is the PDFs generated for this customer (order
-    // confirmations, cancellation slips): made for one chat, used by nothing
-    // else (the Orders page renders its PDF afresh).
-    const owned = (url) => {
-      const key = storage.keyFromUrl(url);
-      return !!key && (key.includes('/inbound/') || key.includes('/outbound/') || key.includes('/documents/'));
-    };
-    const urls = new Set();
-    for (const m of messages) {
-      for (const url of storage.collectCdnUrls(m.raw)) {
-        if (owned(url)) urls.add(url);
-      }
-    }
-    const deletedMedia = await storage.deleteMany([...urls]);
-
-    await Message.deleteMany({ ...owner(req), phone });
-    // Preserve the contact in the contacts list, only resetting conversation history
-    await Conversation.updateOne(
-      { ...owner(req), phone },
-      {
-        $set: {
-          lastMessageBody: '',
-          lastMessageAt: null,
-          lastInboundAt: null,
-          lastOutboundAt: null,
-          unread: 0,
-        },
-        $unset: {
-          lastMessageMedia: '',
-          lastMessageId: '',
-          lastMessageType: '',
-        },
-      }
-    );
-
-    logger.info('chat messages deleted (contact preserved)', { phone, messages: messages.length, media: deletedMedia });
-    res.json({ success: true, deletedMessages: messages.length, deletedMedia });
+    const out = await clearChatHistory(req.business._id, phone);
+    logger.info('chat cleared (contact kept)', { messages: out.deletedMessages, media: out.deletedMedia });
+    res.json({ success: true, ...out });
   } catch (err) {
-    logger.error('crm delete chat failed', { error: err.message });
+    logger.error('crm clear chat failed', { error: err.message });
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// ---------------- Delete chat: messages, media and the contact ----------------
+router.delete('/contacts/:phone', async (req, res) => {
+  try {
+    const phone = cleanPhone(req.params.phone);
+    if (!phone) return res.status(400).json({ success: false, message: 'phone required' });
+    const out = await deleteChatAndContact(req.business._id, phone);
+    logger.info('chat and contact deleted', { messages: out.deletedMessages, media: out.deletedMedia, keptBlocked: out.keptBlocked });
+    res.json({ success: true, ...out });
+  } catch (err) {
+    logger.error('crm delete contact failed', { error: err.message });
     res.status(500).json({ success: false, message: err.message });
   }
 });
 
 // ---------------- Conversations (chat list) ----------------
 router.get('/chats', async (req, res) => {
-  const chats = await Conversation.find(owner(req)).sort({ lastMessageAt: -1, updatedAt: -1, _id: -1 }).limit(200).lean();
+  // A deleted blocked contact's row (hiddenAt) isn't a chat any more.
+  const chats = await Conversation.find({ ...owner(req), hiddenAt: null }).sort({ lastMessageAt: -1, updatedAt: -1, _id: -1 }).limit(200).lean();
   const now = Date.now();
   // A plan with a contact limit (Free): contacts after the first N, and
   // Messenger / Instagram chats the plan doesn't include, are shown locked.
@@ -245,7 +272,8 @@ router.post('/chats', async (req, res) => {
           lastMessageAt: now,
           lastMessageBody: '',
         },
-        ...(cleanName ? { $set: { name: cleanName } } : {}),
+        // Adding a deleted (blocked) contact again brings their chat back.
+        $set: { hiddenAt: null, ...(cleanName ? { name: cleanName } : {}) },
       },
       { upsert: true, new: true, setDefaultsOnInsert: false }
     ).lean();
@@ -375,6 +403,7 @@ router.post('/send-flow', async (req, res) => {
       return res.status(400).json({ success: false, message: `Publish "${flow.name}" before sending it.` });
     }
     const clean = String(phone).replace(/\D/g, '');
+    await assertNotBlocked(req.business._id, clean);
     if (await isSandboxChat(req.business, clean)) return sandboxRefusal(res);
     await sendFlowToChat(client(req), clean, flow);
     await touchOutbound(clean, `📋 ${flow.name}`, req.business._id, { markRead: true });
@@ -450,6 +479,7 @@ router.post('/send-template', async (req, res) => {
       return res.status(400).json({ success: false, message: 'phone and templateName required' });
     }
     const clean = String(phone).replace(/\D/g, '');
+    await assertNotBlocked(req.business._id, clean);
     const otherChannel = await chatChannel(req.business, clean);
     if (otherChannel) return channelRefusal(res, otherChannel);
     if (!isWhatsAppConnected(req.business) && sandboxConfig().configured) {

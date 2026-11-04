@@ -71,6 +71,8 @@ export async function audienceFor(businessId, channel, { activeDays = 0 } = {}) 
     businessId: String(businessId),
     channel,
     lastInboundAt: days ? { $gte: new Date(Date.now() - days * DAY_MS) } : { $ne: null },
+    // Blocked contacts never get a campaign.
+    blocked: { $ne: true },
   };
   const rows = await Conversation.find(filter).select('phone name handle lastInboundAt').sort({ lastInboundAt: -1 })
     .limit(MAX_RECIPIENTS + 1).lean();
@@ -311,8 +313,10 @@ export async function runMetaRecipients(c, recipients, { id, lease, save, isLost
     // eslint-disable-next-line no-await-in-loop
     const convo = await Conversation.findOne({ businessId: String(c.businessId), phone: r.phone }).lean();
     let via = '';
-    if (!convo || convo.channel !== channel) {
+    if (!convo || convo.channel !== channel || convo.hiddenAt) {
       Object.assign(r, { state: 'failed', error: { code: null, title: '', message: 'This contact is no longer in your chats.', details: '' } });
+    } else if (convo.blocked) {
+      Object.assign(r, { state: 'skipped', error: { code: null, title: '', message: 'You blocked this contact.', details: '' } });
     } else {
       const open = windowIsOpen(convo);
       if (content.mode === 'utility') via = 'utility';

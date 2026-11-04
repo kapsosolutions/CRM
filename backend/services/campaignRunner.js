@@ -30,6 +30,7 @@ import { touchOutbound } from './conversationState.js';
 import { campaignStats } from './campaignStats.js';
 import { notify } from './notifications.js';
 import { META_CAMPAIGN_CHANNELS, runMetaRecipients } from './metaCampaigns.js';
+import { isBlocked } from './chatFlags.js';
 import { planState, hasFeature } from './plans.js';
 import logger from './logger.js';
 
@@ -382,6 +383,10 @@ async function deliver(ctx, r, step) {
       ? `The template "${s.templateName}" is ${tpl.status}. Only approved templates can be sent.`
       : `The template "${s.templateName}" no longer exists.`;
     return { state: 'failed', error: { code: null, title: '', message, details: '' } };
+  }
+  // Blocked from the chat's ⋮ menu: nothing goes to them.
+  if (await isBlocked(c.businessId, r.phone)) {
+    return { state: 'skipped', error: { code: 'CONTACT_BLOCKED', title: '', message: 'You blocked this contact.', details: '' } };
   }
   // The same template to the same number from another campaign just now:
   // almost always a campaign started twice. Not sent again.
