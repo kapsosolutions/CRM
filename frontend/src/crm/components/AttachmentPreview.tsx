@@ -58,6 +58,7 @@ interface Box {
   w: number;
   h: number;
 }
+type CropStep = { kind: 'box'; box: Box } | { kind: 'file' };
 
 const MIN = 24;
 const HISTORY = 60;
@@ -67,6 +68,8 @@ const COLORS = ['#3b3b3b', '#9ca3af', '#ffffff', '#22d3ee', '#65d630', '#c084fc'
 const BRUSHES = [3, 6, 11, 18];
 const TEXT_PX = 30;
 const PREVIEW_MAX = 1600; // the live canvas never needs more pixels than this
+const RAIL = 84; // room kept on each side for the thumbnail strip / rotate buttons
+const MEDIA_MAX_W = 760;
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(v, hi));
 const newItem = (f: File): Item => ({ file: f, original: f, caption: '', ops: [], past: [], future: [] });
 
@@ -118,6 +121,50 @@ function Thumb({ file }: { file: File }) {
   if (file.type.startsWith('video/')) return <span className="material-icons">movie</span>;
   if (file.type.startsWith('audio/')) return <span className="material-icons">audiotrack</span>;
   return <span className="material-icons">description</span>;
+}
+
+/** The 8 preset colours plus a rainbow swatch that opens the system colour picker. */
+function Swatches({
+  value,
+  onPick,
+  onCustom,
+  onCustomOpen,
+  keepFocus,
+}: {
+  value: string;
+  onPick: (c: string) => void;
+  onCustom: (c: string) => void;
+  onCustomOpen?: () => void;
+  keepFocus?: boolean; // don't take focus from the text being typed
+}) {
+  const custom = !COLORS.includes(value.toLowerCase());
+  return (
+    <div className="att-swatches">
+      {COLORS.map((c) => (
+        <button
+          key={c}
+          type="button"
+          className={`att-swatch${value === c ? ' on' : ''}`}
+          style={{ background: c }}
+          onMouseDown={keepFocus ? (e) => e.preventDefault() : undefined}
+          onClick={() => onPick(c)}
+          aria-label={`Colour ${c}`}
+          data-testid="att-color"
+        />
+      ))}
+      <label className={`att-swatch att-swatch-custom${custom ? ' on' : ''}`} title="Pick any colour">
+        {custom && <span className="att-swatch-dot" style={{ background: value }} />}
+        <input
+          type="color"
+          value={/^#[0-9a-f]{6}$/i.test(value) ? value.toLowerCase() : '#000000'}
+          onClick={onCustomOpen}
+          onChange={(e) => onCustom(e.target.value)}
+          aria-label="Pick any colour"
+          data-testid="att-color-custom"
+        />
+      </label>
+    </div>
+  );
 }
 
 /** "Aa" — the text tool. */
@@ -175,7 +222,34 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
   const k = dims.nw ? dims.cw / dims.nw : 1; // CSS px per image px
 
   const [box, setBox] = useState<Box | null>(null);
+  const boxRef = useRef<Box | null>(null);
+  useEffect(() => {
+    boxRef.current = box;
+  }, [box]);
   const drag = useRef<{ mode: Handle | 'move'; startX: number; startY: number; box: Box } | null>(null);
+  // Undo / redo while cropping: moves of the crop box, plus rotations and
+  // Reset (those are file changes, undone through the main history).
+  const [cropPast, setCropPast] = useState<CropStep[]>([]);
+  const [cropFuture, setCropFuture] = useState<CropStep[]>([]);
+  const pickerMarked = useRef(false); // one undo step per custom-colour pick
+
+  // The stage's inner size: the photo is fitted inside it (CSS px).
+  const stageRef = useRef<HTMLDivElement>(null);
+  const [fit, setFit] = useState<{ w: number; h: number } | null>(null);
+  useEffect(() => {
+    const el = stageRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    const read = () => {
+      const cs = getComputedStyle(el);
+      const w = el.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      const h = el.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
+      setFit((f) => (f && f.w === w && f.h === h ? f : { w, h }));
+    };
+    read();
+    const ro = new ResizeObserver(read);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   // ---------- history ----------
   const updateActive = useCallback(
@@ -293,7 +367,11 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
     setSelText(null);
     const m = mode === next ? 'none' : next;
     setMode(m);
-    if (m === 'crop') setBox(fullBox());
+    if (m === 'crop') {
+      setBox(fullBox());
+      setCropPast([]);
+      setCropFuture([]);
+    }
     if (m === 'text' && !ops.some((o) => o.kind === 'text')) addText();
     if (m === 'blur') {
       const blurs = ops.filter((o) => o.kind === 'blur');
@@ -349,10 +427,10 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
       const key = e.key.toLowerCase();
       if (key === 'z' && !e.shiftKey) {
         e.preventDefault();
-        undo();
+        doUndo();
       } else if (key === 'y' || (key === 'z' && e.shiftKey)) {
         e.preventDefault();
-        redo();
+        doRedo();
       }
     };
     window.addEventListener('keydown', onKey);
@@ -560,6 +638,17 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
     if (id === newTextRef.current) patchOp(id, { color: c });
     else commitOps((o) => o.map((x) => (x.id === id ? { ...x, color: c } : x)));
   }
+  /** The colour picker sends a stream of colours while you drag: one undo step for the lot. */
+  function customTextColor(c: string) {
+    setTextColor(c);
+    const id = editText || selText;
+    if (!id || !ops.some((o) => o.id === id)) return;
+    if (id !== newTextRef.current && !pickerMarked.current) {
+      commit();
+      pickerMarked.current = true;
+    }
+    patchOp(id, { color: c });
+  }
   function pickBlurStyle(s: BlurStyle) {
     setBlurStyle(s);
     setStyleMenu(false);
@@ -600,11 +689,52 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
     if (!d || !img) return;
     // Mouse moves are screen px; the crop box is in the image's CSS px.
     const s = uiScale();
-    setBox(dragBox(d.box, d.mode, (e.clientX - d.startX) / s, (e.clientY - d.startY) / s, img.clientWidth, img.clientHeight, MIN));
+    const next = dragBox(d.box, d.mode, (e.clientX - d.startX) / s, (e.clientY - d.startY) / s, img.clientWidth, img.clientHeight, MIN);
+    boxRef.current = next;
+    setBox(next);
   }, []);
   const onUp = useCallback(() => {
+    const d = drag.current;
     drag.current = null;
+    const now = boxRef.current;
+    if (!d || !now) return;
+    const b = d.box;
+    if (now.x === b.x && now.y === b.y && now.w === b.w && now.h === b.h) return;
+    setCropPast((p) => [...p, { kind: 'box', box: b }]);
+    setCropFuture([]);
   }, []);
+
+  /** A rotation or Reset while cropping: earlier box moves no longer fit the new photo. */
+  const cropFileStep = () => {
+    setCropPast((p) => [...p.filter((s) => s.kind === 'file'), { kind: 'file' }]);
+    setCropFuture([]);
+  };
+  function cropUndo() {
+    const last = cropPast[cropPast.length - 1];
+    if (!last) return;
+    setCropPast((p) => p.slice(0, -1));
+    if (last.kind === 'box') {
+      if (box) setCropFuture((f) => [{ kind: 'box', box }, ...f]);
+      setBox(last.box);
+    } else {
+      setCropFuture((f) => [{ kind: 'file' }, ...f]);
+      undo();
+    }
+  }
+  function cropRedo() {
+    const next = cropFuture[0];
+    if (!next) return;
+    setCropFuture((f) => f.slice(1));
+    if (next.kind === 'box') {
+      if (box) setCropPast((p) => [...p, { kind: 'box', box }]);
+      setBox(next.box);
+    } else {
+      setCropPast((p) => [...p, { kind: 'file' }]);
+      redo();
+    }
+  }
+  const doUndo = () => (cropping ? cropUndo() : undo());
+  const doRedo = () => (cropping ? cropRedo() : redo());
   useEffect(() => {
     if (!cropping) return;
     window.addEventListener('pointermove', onMove);
@@ -629,13 +759,15 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
     ctx.rotate((dir * Math.PI) / 2);
     ctx.drawImage(src, -src.width / 2, -src.height / 2);
     patchActive(await canvasToFile(canvas, current.file));
+    cropFileStep();
   }
 
   function resetEdits() {
     if (!current || (current.file === current.original && !current.ops.length)) return;
     clearSelection();
     commit({ file: current.original, ops: [] });
-    setBox(null);
+    if (cropping) cropFileStep();
+    setBox(cropping ? fullBox() : null);
   }
 
   async function applyCrop() {
@@ -716,6 +848,11 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
   const isImage = kind === 'image';
   const editing = mode === 'draw' || mode === 'text' || mode === 'blur';
   const selectedBlur = ops.find((o) => o.id === selBlur) as BlurOp | undefined;
+  // Fit the photo inside the stage whatever its shape (tall photos used to
+  // spill over the toolbar and caption), leaving room for the side strip.
+  const mediaFit: React.CSSProperties | undefined = fit
+    ? { maxWidth: Math.max(120, Math.min(fit.w - 2 * RAIL, MEDIA_MAX_W)), maxHeight: Math.max(120, fit.h) }
+    : undefined;
   const tool = (m: Mode, label: string, icon: React.ReactNode) => (
     <button
       type="button"
@@ -736,13 +873,13 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
         <button className="att-close" onClick={() => setShowDiscard(true)} aria-label="Close">
           <span className="material-icons">close</span>
         </button>
-        {isImage && !cropping && (
+        {isImage && (
           <div className="att-tools">
             <button
               type="button"
               className="att-icon-btn"
-              onClick={undo}
-              disabled={!current.past.length}
+              onClick={doUndo}
+              disabled={cropping ? !cropPast.length : !current.past.length}
               title="Undo (Ctrl+Z)"
               aria-label="Undo"
               data-testid="att-undo"
@@ -752,8 +889,8 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
             <button
               type="button"
               className="att-icon-btn"
-              onClick={redo}
-              disabled={!current.future.length}
+              onClick={doRedo}
+              disabled={cropping ? !cropFuture.length : !current.future.length}
               title="Redo (Ctrl+Y)"
               aria-label="Redo"
               data-testid="att-redo"
@@ -814,10 +951,10 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
           ))}
       </header>
 
-      <div className="att-stage">
+      <div className="att-stage" ref={stageRef}>
         {isImage && (
           <div className={`att-crop-wrap mode-${mode}`}>
-            <img ref={imgRef} className="att-media" src={url} alt="" onLoad={onImgLoad} draggable={false} />
+            <img ref={imgRef} className="att-media" src={url} alt="" onLoad={onImgLoad} draggable={false} style={mediaFit} />
             <canvas ref={inkRef} className="att-ink" data-testid="att-ink" />
             {editing && <div className="att-layer" onPointerDown={onLayerDown} data-testid="att-layer" />}
             {ops.map((o) =>
@@ -889,7 +1026,7 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
             )}
           </div>
         )}
-        {kind === 'video' && <video className="att-media" src={url} controls />}
+        {kind === 'video' && <video className="att-media" src={url} controls style={mediaFit} />}
         {kind === 'audio' && (
           <div className="att-filecard">
             <span className="material-icons att-filecard-icon">audiotrack</span>
@@ -952,19 +1089,7 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
       {/* Tool options, WhatsApp-style, between the photo and the caption. */}
       {isImage && mode === 'draw' && (
         <div className="att-opts" data-testid="att-opts-draw">
-          <div className="att-swatches">
-            {COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`att-swatch${drawColor === c ? ' on' : ''}`}
-                style={{ background: c }}
-                onClick={() => setDrawColor(c)}
-                aria-label={`Colour ${c}`}
-                data-testid="att-color"
-              />
-            ))}
-          </div>
+          <Swatches value={drawColor} onPick={setDrawColor} onCustom={setDrawColor} />
           <span className="att-opts-sep" />
           <div className="att-brushes">
             {BRUSHES.map((b, i) => (
@@ -984,20 +1109,16 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
       )}
       {isImage && mode === 'text' && (
         <div className="att-opts" data-testid="att-opts-text">
-          <div className="att-swatches">
-            {COLORS.map((c) => (
-              <button
-                key={c}
-                type="button"
-                className={`att-swatch${textColor === c ? ' on' : ''}`}
-                style={{ background: c }}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pickTextColor(c)}
-                aria-label={`Colour ${c}`}
-                data-testid="att-color"
-              />
-            ))}
-          </div>
+          <Swatches
+            // the selected text's own colour (follows undo), else the colour for new text
+            value={(ops.find((o) => o.id === (editText || selText) && o.kind === 'text') as TextOp | undefined)?.color ?? textColor}
+            onPick={pickTextColor}
+            onCustom={customTextColor}
+            onCustomOpen={() => {
+              pickerMarked.current = false;
+            }}
+            keepFocus
+          />
           <span className="att-opts-sep" />
           <button type="button" className="att-icon-btn" onMouseDown={(e) => e.preventDefault()} onClick={() => addText()} title="Add another text" aria-label="Add another text" data-testid="att-text-add">
             <span className="material-icons">add</span>

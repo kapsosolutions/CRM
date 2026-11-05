@@ -2402,6 +2402,34 @@ button.rx-row:hover {
 .att-swatch.on {
   box-shadow: 0 0 0 2px var(--wa-primary);
 }
+/* the "any colour" swatch: a colour wheel; the picked colour shows in its middle */
+.att-swatch-custom {
+  position: relative;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: conic-gradient(#ef4444, #f59e0b, #eab308, #22c55e, #06b6d4, #3b82f6, #a855f7, #ec4899, #ef4444);
+  overflow: hidden;
+}
+.att-swatch-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid var(--wa-surface);
+  pointer-events: none;
+}
+.att-swatch-custom input[type='color'] {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: none;
+  opacity: 0;
+  cursor: pointer;
+}
 .att-brushes {
   display: flex;
   align-items: center;
