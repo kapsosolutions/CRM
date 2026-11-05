@@ -3354,27 +3354,35 @@ a.msg-btn {
   color: #e0557a;
 }
 
-/* ---- Template drawer ---- */
+/* ---- Template / Flows / Quick messages drawer ----
+   Same as the profile drawer (.crm-ps-*): the whole screen dims, and the
+   panel is 460px wide, full height, at the right edge. The dim is dark enough
+   that the dark theme keeps it as it is (the old 15% one turned white). */
 .drawer-backdrop {
-  position: absolute;
+  position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.15);
-  z-index: 8;
+  background: rgba(15, 23, 42, 0.45);
+  z-index: 1000;
+  animation: crmPsFadeIn 0.2s ease;
 }
 .tmpl-drawer {
-  position: absolute;
+  position: fixed;
   top: 0;
   right: 0;
   bottom: 0;
-  width: 380px;
-  max-width: 90%;
+  width: 460px;
+  max-width: 100vw;
   background: var(--wa-surface);
-  border-left: 1px solid var(--wa-hairline);
-  z-index: 9;
+  z-index: 1001;
   display: flex;
   flex-direction: column;
-  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
-  animation: slideInRight 0.2s ease;
+  box-shadow: -10px 0 35px rgba(0, 0, 0, 0.18);
+  animation: crmPsSlideIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  overscroll-behavior: contain;
+}
+.tmpl-drawer .drawer-body {
+  overflow-y: auto;
+  min-height: 0;
 }
 @keyframes slideInRight {
   from {
