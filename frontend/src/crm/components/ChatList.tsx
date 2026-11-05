@@ -10,6 +10,7 @@ import { COMING_SOON } from '../features';
 import { SoonPill } from './ComingSoon';
 import { usePlan } from '../PlanContext';
 import { isMutedNow, mutedLabel } from './ChatHeaderMenu';
+import { AppIcon } from './AppIcons';
 import './PlanLocked.css';
 
 // Tabs above the list: All, ♥ Favourites (from the chat's ⋮ menu), then
@@ -148,8 +149,12 @@ function parsePreview(body: string): { icon: string | null; label: string } {
     { re: /^📷\s*/, icon: 'image', fallback: 'Photo' },
     { re: /^🎥\s*/, icon: 'videocam', fallback: 'Video' },
     { re: /^🎤\s*/, icon: 'mic', fallback: 'Voice message' },
+    { re: /^🎙\uFE0F?\s*/u, icon: 'mic', fallback: 'Voicemail' },
     { re: /^🎵\s*/, icon: 'headphones', fallback: 'Audio' },
     { re: /^📄\s*/, icon: 'description', fallback: 'Document' },
+    { re: /^📊\s*/, icon: 'poll', fallback: 'Poll' },
+    { re: /^📅\s*/, icon: 'calendar_month', fallback: 'Event' },
+    { re: /^📞\s*/, icon: 'call', fallback: 'Voice call' },
     { re: /^📍\s*/, icon: 'location_on', fallback: 'Location' },
     { re: /^🧾\s*/, icon: 'receipt_long', fallback: 'Order' },
     // Markers left by automatic replies.
@@ -815,7 +820,7 @@ export function ChatList({
                       <span className="ci-preview typing-text">typing…</span>
                     ) : (
                       <span className="ci-preview">
-                        {pv.icon && <span className="material-icons ci-pv-icon">{pv.icon}</span>}
+                        {pv.icon && <AppIcon name={pv.icon} className="ci-pv-icon" />}
                         <span className="ci-pv-label">{pv.label || 'No messages yet'}</span>
                       </span>
                     )}

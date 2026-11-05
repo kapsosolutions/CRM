@@ -452,17 +452,39 @@ export function CameraDialog({ onClose, onShot, onFallback }: { onClose: () => v
     (async () => {
       try {
         if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('x'), { name: 'NotSupported' });
-        const s = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+        // Ask for 30 fps outright: without it Chrome may pick a webcam mode
+        // that does 720p at only 5–10 fps, which looks frozen.
+        const s = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } },
+          audio: false,
+        });
         if (!alive) {
           s.getTracks().forEach((t) => t.stop());
           return;
         }
         stream.current = s;
+        // Show the picture as soon as the camera delivers it (onPlaying
+        // below); fixing a slow camera mode can happen behind it.
         if (video.current) {
           video.current.srcObject = s;
-          await video.current.play().catch(() => {});
+          void video.current.play().catch(() => {});
         }
-        setReady(true);
+        // Still under 24 fps (many USB webcams can't do 720p at 30 uncompressed):
+        // step down to a size the camera can run smoothly.
+        const track = s.getVideoTracks()[0];
+        const startFps = track?.getSettings().frameRate || 0;
+        if (track && startFps && startFps < 24) {
+          for (const [w, h] of [[960, 540], [640, 480]]) {
+            if (!alive) break;
+            // eslint-disable-next-line no-await-in-loop
+            await track.applyConstraints({ width: { ideal: w }, height: { ideal: h }, frameRate: { ideal: 30 } }).catch(() => {});
+            if ((track.getSettings().frameRate || 0) >= 24) break;
+          }
+          // No faster at a smaller size (the camera just can't): keep the sharper picture.
+          if (alive && (track.getSettings().frameRate || 0) <= startFps) {
+            await track.applyConstraints({ width: { ideal: 1280 }, height: { ideal: 720 }, frameRate: { ideal: 30 } }).catch(() => {});
+          }
+        }
       } catch (e) {
         const n = (e as { name?: string }).name || '';
         setError(n === 'NotAllowedError' || n === 'SecurityError'
@@ -506,7 +528,15 @@ export function CameraDialog({ onClose, onShot, onFallback }: { onClose: () => v
           </div>
         ) : (
           <>
-            <video ref={video} playsInline muted className="ax-cam-video" data-testid="camera-video" />
+            <video
+              ref={video}
+              autoPlay
+              playsInline
+              muted
+              className="ax-cam-video"
+              onPlaying={() => setReady(true)}
+              data-testid="camera-video"
+            />
             {!ready && <div className="ax-cam-wait">Starting camera…</div>}
           </>
         )}

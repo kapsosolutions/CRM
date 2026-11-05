@@ -31,6 +31,7 @@ import { QuickMessagePicker } from './QuickMessagePicker';
 import { FlowDrawer } from './FlowDrawer';
 import { Lightbox, type ViewMedia } from './Lightbox';
 import { AttachmentPreview } from './AttachmentPreview';
+import { CallIcon, VideocamIcon } from './AppIcons';
 import { ConnectWhatsAppOnboarding, prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { uiScale } from '../uiScale';
 import { useCalls } from './CallCenter';
@@ -1359,7 +1360,7 @@ export function CrmApp({
                     aria-label="Voice call"
                     data-testid="th-call"
                   >
-                    <span className="material-icons">call</span>
+                    <CallIcon />
                   </button>
                   <button
                     type="button"
@@ -1369,7 +1370,7 @@ export function CrmApp({
                     aria-label="Video call (coming soon)"
                     data-testid="th-video"
                   >
-                    <span className="material-icons">videocam</span>
+                    <VideocamIcon />
                     <SoonPill />
                   </button>
                 </div>
