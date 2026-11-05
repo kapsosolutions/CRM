@@ -1005,9 +1005,10 @@ function FlowEditor({
   }
 
   /** A ready-made form's field as an ordinary component. */
-  function componentFromSpec(f: FieldSpec, name: string): FlowComponent {
+  function componentFromSpec(f: FieldSpec, name: string, preset?: string): FlowComponent {
+    const tag = preset ? { preset } : {};
     if (f.source === 'orders') {
-      return { ...defaultComponent('RadioButtonsGroup', 'orders'), name, label: f.label, required: !!f.required };
+      return { ...defaultComponent('RadioButtonsGroup', 'orders'), name, label: f.label, required: !!f.required, ...tag };
     }
     return {
       cid: newCid(),
@@ -1015,6 +1016,7 @@ function FlowEditor({
       name,
       label: f.label,
       required: !!f.required,
+      ...tag,
       ...(f.inputType ? { inputType: f.inputType } : {}),
       ...(f.helperText ? { helperText: f.helperText } : {}),
       ...(f.description ? { description: f.description } : {}),
@@ -1050,7 +1052,8 @@ function FlowEditor({
       if ((f.name === 'name' || f.name === 'whatsapp_number') && taken.has(f.name)) continue;
       const name = freeFieldName(f.name, taken);
       taken.add(name);
-      comps.push(componentFromSpec(f, name));
+      // Tagged with the form, so its answers are listed on that form's page.
+      comps.push(componentFromSpec(f, name, p.id));
     }
     setScreens((ss) =>
       ss.map((s, idx) => {

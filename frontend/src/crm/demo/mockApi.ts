@@ -12,7 +12,7 @@ import type { ApiKeyInfo, MessagingLimitUsage, MetaChannelsInfo, MuteFor, QuickM
 import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall, EventInput, PollInput } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
-import { demoChats, demoMessages, demoTemplates, DEMO_FORM } from './mockData';
+import { demoChats, demoMessages, demoTemplates, DEMO_FORM, DEMO_COURIER_FORMS } from './mockData';
 import { demoCategories, demoProducts, demoOffers } from './catalogData';
 import { demoFlows, demoJourneys } from './flowData';
 import { demoOrders } from './orderData';
@@ -317,6 +317,8 @@ const registrations: Registration[] = [
     category: '', memberName: '', fields: {}, rows: DEMO_FORM.rows,
     createdAt: new Date(Date.now() - 29 * 36e5).toISOString(),
   },
+  // A courier's ready-made forms, for the Forms pages (Pickup requests / Delivery issues).
+  ...DEMO_COURIER_FORMS,
 ];
 // Demo members (a hospital-style directory) so the Members page is explorable.
 const members: Member[] = [

@@ -15,7 +15,10 @@ import { CallProvider } from './CallCenter';
 import { MessagingLimitProvider, SidebarMessagingLimit } from './MessagingLimit';
 import { prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { defaultConfig, type CrmConfig } from '../config';
-import { NavRail, viewLabel, type CrmView, SettingsRailSvg, ProfileRailSvg } from './NavRail';
+import { NavRail, viewLabel, isFormView, type CrmView, type FormRailItem, SettingsRailSvg, ProfileRailSvg } from './NavRail';
+import { FormSubmissionsPage } from './FormSubmissionsPage';
+import { formPagesFor, formPageOf } from '../flowForms';
+import type { Registration, WaFlowDef } from '../types';
 import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
 import { useCrmScale } from '../uiScale';
 import { ProfileSidebarDrawer } from './ProfileSidebarDrawer';
@@ -687,10 +690,14 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   }), [planState, loadMe]);
 
   /** The plan feature a rail page needs (null = part of every plan). */
+  // A form page lists form submissions, which the plan opens with Orders
+  // (the same records as Orders → Form submissions; /api/registrations).
   const featureOf = (v: CrmView): PlanFeature | null =>
-    ['templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders', 'ads', 'create', 'payment-config'].includes(v)
-      ? (v as PlanFeature)
-      : null;
+    isFormView(v)
+      ? 'orders'
+      : ['templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders', 'ads', 'create', 'payment-config'].includes(v)
+        ? (v as PlanFeature)
+        : null;
   /** The page is outside the plan: show its upgrade screen instead. */
   const planLocked = (v: CrmView) => {
     const f = featureOf(v);
@@ -707,9 +714,47 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   const vertical = useMemo(() => verticalConfig(category, labels), [category, labels]);
 
-  // If the active view isn't available for this vertical, fall back to chats.
+  // ---- Form pages (sidebar → Forms): one per ready-made form ---------------
+  // The business's own forms are always there; any other form joins once it's
+  // in a flow or has answers. Read when the account is known, and again on
+  // leaving Automation (a form may have just been added to a flow).
+  const [formIndex, setFormIndex] = useState<{ flows: WaFlowDef[]; regs: Registration[] }>({ flows: [], regs: [] });
+  const ready = demo || !!businessId;
+  const loadFormIndex = useCallback(() => {
+    Promise.all([
+      api.listFlows().then((r) => r.data || []).catch(() => [] as WaFlowDef[]),
+      api.getRegistrations().then((r) => r.data || []).catch(() => [] as Registration[]),
+    ]).then(([flows, regs]) => setFormIndex({ flows, regs }));
+  }, [api]);
+  const formsAllowed = !!planState && hasFeature(planState, 'orders');
   useEffect(() => {
-    if (category && view !== 'profile' && view !== 'settings' && view !== 'channel-status' && view !== 'payment-config' && !vertical.showsPage(view)) {
+    if (ready && formsAllowed) loadFormIndex();
+  }, [ready, formsAllowed, loadFormIndex]);
+  const lastView = useRef(view);
+  useEffect(() => {
+    if (lastView.current === 'flows' && view !== 'flows' && ready && formsAllowed) loadFormIndex();
+    lastView.current = view;
+  }, [view, ready, formsAllowed, loadFormIndex]);
+  const formPages = useMemo(
+    () => (category ? formPagesFor(vertical, formIndex.flows, formIndex.regs) : []),
+    [category, vertical, formIndex],
+  );
+  const formRail = useMemo<FormRailItem[]>(
+    () => formPages.map((p) => ({ key: `form:${p.id}`, label: p.label, icon: p.icon })),
+    [formPages],
+  );
+  // Outside the plan, the form pages carry the same lock as Orders.
+  const railLocks = useMemo(() => {
+    if (!lockedRail.orders) return lockedRail;
+    const out = { ...lockedRail };
+    for (const f of formRail) out[f.key] = lockedRail.orders;
+    return out;
+  }, [lockedRail, formRail]);
+
+  // If the active view isn't available for this vertical, fall back to chats.
+  // A form page belongs to the business's forms rather than its type.
+  useEffect(() => {
+    if (category && view !== 'profile' && view !== 'settings' && view !== 'channel-status' && view !== 'payment-config' && !isFormView(view) && !vertical.showsPage(view)) {
       setView('chats');
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -950,7 +995,11 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     orders: vertical.ordersLabel,
     categories: vertical.categoryPlural,
     flows: 'Automation',
+    ...Object.fromEntries(formRail.map((f) => [f.key, f.label])),
   };
+  // The form page open now (also one not in the sidebar yet, e.g. from a link).
+  const openForm = isFormView(view) ? formPages.find((p) => `form:${p.id}` === view) || formPageOf(view.slice(5)) : null;
+  if (openForm) railLabels[view] = openForm.label;
 
   // Registered but WhatsApp not connected yet: every page is there, with a bar
   // on top to connect the number (Embedded Signup).
@@ -1003,8 +1052,9 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
           allowed={vertical.pages}
           badges={{ chats: unreadChats }}
           soon={{ ads: COMING_SOON.ads, create: COMING_SOON.create }}
-          locked={lockedRail}
+          locked={railLocks}
           labels={railLabels}
+          forms={formRail}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleSidebar}
           theme={theme}
@@ -1063,8 +1113,22 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
               />
             </div>
             {/* A page outside the business's plan: its upgrade screen (Ads / Create stay 'coming soon'). */}
-            {planLocked(view) && !(view === 'ads' && COMING_SOON.ads) && !(view === 'create' && COMING_SOON.create) && (view === 'payment-config' || show(view)) && (
+            {planLocked(view) && !(view === 'ads' && COMING_SOON.ads) && !(view === 'create' && COMING_SOON.create) && (view === 'payment-config' || isFormView(view) || show(view)) && (
               <PlanLockedPage feature={featureOf(view) as PlanFeature} />
+            )}
+            {openForm && !planLocked(view) && (
+              needsConnect ? (
+                <WhatsAppConnectRequired page="orders" api={api} business={business} onConnected={onConnected} />
+              ) : (
+                <FormSubmissionsPage
+                  key={openForm.id}
+                  api={api}
+                  page={openForm}
+                  onOpenChat={openChatFor}
+                  onOpenFlows={() => navigate('flows')}
+                  onChanged={loadFormIndex}
+                />
+              )
             )}
             {/* Every business has a profile, whatever its type. */}
             {(view === 'profile' || view === 'settings') && (

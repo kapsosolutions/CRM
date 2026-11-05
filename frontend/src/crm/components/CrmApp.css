@@ -12000,6 +12000,59 @@ button.pd-phone-chip:hover {
 .ord-row.reg-row-grid::before {
   width: 3px;
 }
+/* A form page's note on where its answers come from. */
+.form-page-src {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  flex-shrink: 0;
+  margin: 16px 20px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--wa-hairline);
+  border-radius: 10px;
+  background: var(--wa-surface);
+  font-size: 12.5px;
+  color: var(--wa-ink-muted);
+}
+.form-page-src .material-icons {
+  font-size: 17px;
+}
+.form-page-src b {
+  color: var(--wa-ink, inherit);
+  font-weight: 600;
+}
+.form-page-src-btn {
+  margin-left: auto;
+  border: 1px solid var(--wa-hairline);
+  background: transparent;
+  color: inherit;
+  border-radius: 999px;
+  padding: 4px 12px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+.form-page-src-btn:hover {
+  background: var(--wa-hairline);
+}
+.form-page .page-head h2 .ord-count {
+  margin-left: 8px;
+  vertical-align: middle;
+}
+/* Rows with a chat button next to delete (the form pages). */
+.ord-list.reg-chat .ord-row.reg-row-grid {
+  grid-template-columns: minmax(130px, 1fr) minmax(110px, 0.9fr) minmax(220px, 2.2fr) 170px minmax(120px, 0.9fr) 72px;
+}
+.ord-cell.reg-acts {
+  display: flex;
+  gap: 4px;
+  justify-content: flex-end;
+}
+.ord-cell.reg-acts .prod-act {
+  flex: 0 0 auto;
+  border: 0;
+}
 .ord-row.reg-new::before { background: #6366f1; }
 .ord-row.reg-contacted::before { background: #0096de; }
 .ord-row.reg-confirmed::before,
@@ -12009,6 +12062,9 @@ button.pd-phone-chip:hover {
 @media (max-width: 1100px) {
   .ord-row.reg-row-grid {
     grid-template-columns: minmax(120px, 1fr) minmax(200px, 2fr) 150px 32px;
+  }
+  .ord-list.reg-chat .ord-row.reg-row-grid {
+    grid-template-columns: minmax(120px, 1fr) minmax(200px, 2fr) 150px 68px;
   }
   .ord-cell.reg-flow,
   .reg-row-grid.head span:nth-child(2),

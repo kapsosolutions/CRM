@@ -5,7 +5,7 @@
 // both to everyone gave each business blocks that could only ever come back
 // empty. Hiding a block only removes its chip: a flow that already uses one
 // keeps working and stays editable.
-import type { FlowComponentType, FlowInputType } from './types';
+import type { FlowComponentType, FlowInputType, Registration, WaFlowDef } from './types';
 import type { VerticalConfig } from './verticals';
 
 /** Every chip in the Build palette. */
@@ -629,4 +629,164 @@ export function formsFor(v: VerticalConfig): { own: FormPreset[]; common: FormPr
 /** Every preset (tests check their labels against WhatsApp's limits). */
 export function allFormPresets(): FormPreset[] {
   return [...COMMON, ...Object.values(BY_VERTICAL).flat()];
+}
+
+// ---------------------------------------------------------------------------
+// Form pages: one sidebar page per ready-made form ("Pickup requests")
+// ---------------------------------------------------------------------------
+/** The page's name in the sidebar: what the business receives, in the plural. */
+const PAGE_LABEL: Record<string, string> = {
+  feedback: 'Feedback',
+  callback: 'Callback requests',
+  complaint: 'Complaints',
+  patient_registration: 'Patient registrations',
+  consultation_request: 'Consultation requests',
+  upload_reports: 'Patient reports',
+  service_preferences: 'Service preferences',
+  skin_allergy_check: 'Allergy checks',
+  membership_enquiry: 'Membership enquiries',
+  health_declaration: 'Health declarations',
+  free_trial: 'Free trials',
+  vehicle_service: 'Service requests',
+  accident_claim: 'Insurance claims',
+  client_intake: 'Client intakes',
+  document_collection: 'Client documents',
+  service_request: 'Service requests',
+  stay_enquiry: 'Stay enquiries',
+  pre_arrival: 'Pre-arrival check-ins',
+  space_enquiry: 'Space enquiries',
+  tenant_kyc: 'Tenant KYC',
+  event_enquiry: 'Event enquiries',
+  property_requirement: 'Property requirements',
+  site_visit: 'Site visits',
+  list_property: 'Property listings',
+  admission_enquiry: 'Admission enquiries',
+  demo_class: 'Demo classes',
+  admission_documents: 'Admission documents',
+  return_exchange: 'Returns & exchanges',
+  bulk_order: 'Bulk enquiries',
+  table_reservation: 'Table reservations',
+  party_catering: 'Catering enquiries',
+  prescription_upload: 'Prescriptions',
+  monthly_list: 'Monthly lists',
+  pickup_request: 'Pickup requests',
+  delivery_issue: 'Delivery issues',
+  loan_enquiry: 'Loan enquiries',
+  kyc_documents: 'KYC documents',
+  claim_intimation: 'Claims',
+  enquiry: 'Enquiries',
+};
+
+/** Submissions that came from no ready-made form (a form built by hand). */
+export const OTHER_FORMS = 'other';
+
+export interface FormPage {
+  /** Preset id, or OTHER_FORMS. */
+  id: string;
+  label: string;
+  icon: string;
+  /** The ready-made form (none for OTHER_FORMS). */
+  preset: FormPreset | null;
+}
+
+export function presetById(id: string): FormPreset | null {
+  return allFormPresets().find((p) => p.id === id) || null;
+}
+
+export function formPageOf(id: string): FormPage {
+  if (id === OTHER_FORMS) return { id, label: 'Other forms', icon: 'assignment', preset: null };
+  const p = presetById(id);
+  return { id, label: PAGE_LABEL[id] || (p ? `${p.title}s` : 'Form'), icon: p?.icon || 'assignment', preset: p };
+}
+
+// Every form asks for these, so they say nothing about which form it was.
+const SHARED_FIELDS = new Set(['name', 'whatsapp_number']);
+
+/** The answered field names of a submission (its stored answers and its resolved rows). */
+function answeredKeys(r: Pick<Registration, 'fields' | 'rows'>): Set<string> {
+  const keys = new Set<string>();
+  for (const k of Object.keys(r.fields || {})) if (!k.endsWith('_label')) keys.add(k);
+  for (const row of r.rows || []) keys.add(row.key);
+  for (const k of SHARED_FIELDS) keys.delete(k);
+  return keys;
+}
+
+/**
+ * Which ready-made form a submission came from, or null for a form built by hand.
+ *
+ * Fields added from the Forms menu carry the form's id (`preset`), so the flow
+ * that produced the submission says it directly: the form most of the answered
+ * fields belong to. A flow saved before fields were tagged, or one since
+ * deleted, falls back to the field names: at least two of the form's own
+ * fields (a field renamed to avoid a clash ends in _2, _3…) and half of them.
+ * Forms share some names (Complaint and Delivery issue both ask issue_type),
+ * so the closest form wins: most of its fields answered AND most of the
+ * answers its own (the F1 score of the two).
+ */
+export function presetOfSubmission(
+  r: Pick<Registration, 'flowId' | 'fields' | 'rows'>,
+  flows: Map<string, WaFlowDef>,
+): string | null {
+  const keys = answeredKeys(r);
+  if (!keys.size) return null;
+  const flow = r.flowId ? flows.get(r.flowId) : undefined;
+  if (flow) {
+    const votes = new Map<string, number>();
+    for (const s of flow.screens || []) {
+      for (const c of s.components || []) {
+        if (c.preset && c.name && !SHARED_FIELDS.has(c.name) && keys.has(c.name)) {
+          votes.set(c.preset, (votes.get(c.preset) || 0) + 1);
+        }
+      }
+    }
+    let best: string | null = null;
+    let most = 0;
+    for (const [id, n] of votes) if (n > most) [best, most] = [id, n];
+    if (best) return best;
+  }
+  const answered = (name: string) =>
+    keys.has(name) || [...keys].some((k) => k.startsWith(`${name}_`) && /^\d+$/.test(k.slice(name.length + 1)));
+  let best: string | null = null;
+  let score = 0;
+  for (const p of allFormPresets()) {
+    const own = p.fields.map((f) => f.name).filter((n) => !SHARED_FIELDS.has(n));
+    if (!own.length) continue;
+    const hits = own.filter(answered).length;
+    if (hits < Math.min(2, own.length) || hits / own.length < 0.5) continue;
+    const s = (2 * hits) / (own.length + keys.size);
+    if (s > score) {
+      best = p.id;
+      score = s;
+    }
+  }
+  return best;
+}
+
+/** The ready-made forms used anywhere in these flows. */
+export function presetsInFlows(flows: WaFlowDef[]): Set<string> {
+  const out = new Set<string>();
+  for (const f of flows) for (const s of f.screens || []) for (const c of s.components || []) if (c.preset) out.add(c.preset);
+  return out;
+}
+
+/**
+ * The form pages this business gets in the sidebar: its own ready-made forms
+ * always (a courier always has "Pickup requests" to look at), then any other
+ * form it has put in a flow or received answers from, then "Other forms" for
+ * answers from forms built by hand.
+ */
+export function formPagesFor(v: VerticalConfig, flows: WaFlowDef[], regs: Registration[]): FormPage[] {
+  const byId = new Map(flows.map((f) => [f._id, f]));
+  const used = presetsInFlows(flows);
+  let other = false;
+  for (const r of regs) {
+    const id = presetOfSubmission(r, byId);
+    if (id) used.add(id);
+    else other = true;
+  }
+  const ids = formsFor(v).own.map((p) => p.id);
+  for (const p of allFormPresets()) if (used.has(p.id) && !ids.includes(p.id)) ids.push(p.id);
+  const pages = ids.map(formPageOf);
+  if (other) pages.push(formPageOf(OTHER_FORMS));
+  return pages;
 }

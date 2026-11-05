@@ -2787,6 +2787,9 @@ export interface FlowComponent {
   endLabel?: string;
   // OptIn: optional "Read more" link opened from the agreement.
   linkUrl?: string;
+  // The ready-made form (flowForms.ts preset id) this field was added with, so
+  // its answers land on that form's page ("Pickup requests"). Not sent to Meta.
+  preset?: string;
   description?: string; // picker description
   // PhotoPicker: where photos come from
   photoSource?: 'camera' | 'gallery' | 'camera_gallery';

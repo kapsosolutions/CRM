@@ -1,5 +1,5 @@
 // In-memory demo dataset so the CRM can be explored with no backend.
-import type { Chat, ChatMessage, FormSubmission, TemplateItem } from '../types';
+import type { Chat, ChatMessage, FormSubmission, Registration, TemplateItem } from '../types';
 
 const now = Date.now();
 const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
@@ -78,6 +78,68 @@ export const demoChats: Chat[] = [
     windowOpen: false,
     windowMsLeft: 0,
     botPaused: false,
+  },
+];
+
+// A courier's ready-made forms as they arrive (no flow saved for them in the
+// demo, so the CRM tells them apart by their fields).
+export const DEMO_COURIER_FORMS: Registration[] = [
+  {
+    _id: 'reg_4', phone: '919900112233', name: 'Anil Reddy', businessName: '', email: '', date: '', status: 'new',
+    flowName: 'Courier desk', category: '', memberName: '',
+    fields: {
+      name: 'Anil Reddy', whatsapp_number: '+91 99001 12233', pickup_address: 'Flat 302, Lake View Apartments, Kondapur',
+      drop_address: 'Plot 14, Jubilee Hills Road 36', package_type: 'small_parcel', package_type_label: 'Small parcel',
+      weight_kg: '2.5', pickup_date: '2026-10-06',
+    },
+    rows: [
+      { key: 'name', label: 'Name', value: 'Anil Reddy', type: 'text' },
+      { key: 'whatsapp_number', label: 'WhatsApp number', value: '+91 99001 12233', type: 'phone' },
+      { key: 'pickup_address', label: 'Pickup address', value: 'Flat 302, Lake View Apartments, Kondapur', type: 'longtext' },
+      { key: 'drop_address', label: 'Drop address', value: 'Plot 14, Jubilee Hills Road 36', type: 'longtext' },
+      { key: 'package_type', label: 'Package type', value: 'Small parcel', type: 'choice' },
+      { key: 'weight_kg', label: 'Weight (kg)', value: '2.5', type: 'text' },
+      { key: 'pickup_date', label: 'Pickup date', value: '6 Oct 2026', type: 'date' },
+    ],
+    createdAt: iso(25 * MIN),
+  },
+  {
+    _id: 'reg_5', phone: '919845001122', name: 'Sneha Iyer', businessName: '', email: '', date: '', status: 'contacted',
+    flowName: 'Courier desk', category: '', memberName: '',
+    fields: {
+      name: 'Sneha Iyer', whatsapp_number: '+91 98450 01122', pickup_address: 'No. 8, 2nd Cross, Indiranagar',
+      drop_address: 'Office 5B, Cyber Towers, HITEC City', package_type: 'documents', package_type_label: 'Documents',
+      pickup_date: '2026-10-05',
+    },
+    rows: [
+      { key: 'name', label: 'Name', value: 'Sneha Iyer', type: 'text' },
+      { key: 'whatsapp_number', label: 'WhatsApp number', value: '+91 98450 01122', type: 'phone' },
+      { key: 'pickup_address', label: 'Pickup address', value: 'No. 8, 2nd Cross, Indiranagar', type: 'longtext' },
+      { key: 'drop_address', label: 'Drop address', value: 'Office 5B, Cyber Towers, HITEC City', type: 'longtext' },
+      { key: 'package_type', label: 'Package type', value: 'Documents', type: 'choice' },
+      { key: 'pickup_date', label: 'Pickup date', value: '5 Oct 2026', type: 'date' },
+    ],
+    createdAt: iso(5 * HOUR),
+  },
+  {
+    _id: 'reg_6', phone: '919700334455', name: 'Farhan Ali', businessName: '', email: '', date: '', status: 'new',
+    flowName: 'Courier desk', category: '', memberName: '',
+    fields: {
+      name: 'Farhan Ali', whatsapp_number: '+91 97003 34455', tracking_no: 'KP2026100412', issue_type: 'damaged_package',
+      issue_type_label: 'Damaged package', issue_details: 'The box was crushed on one side and the glass inside is cracked.',
+    },
+    rows: [
+      { key: 'name', label: 'Name', value: 'Farhan Ali', type: 'text' },
+      { key: 'whatsapp_number', label: 'WhatsApp number', value: '+91 97003 34455', type: 'phone' },
+      { key: 'tracking_no', label: 'Tracking number', value: 'KP2026100412', type: 'text' },
+      { key: 'issue_type', label: 'Issue', value: 'Damaged package', type: 'choice' },
+      { key: 'issue_details', label: 'What happened?', value: 'The box was crushed on one side and the glass inside is cracked.', type: 'longtext' },
+      {
+        key: 'issue_photo', label: 'Photo (optional)', value: '1 photo', type: 'photo',
+        files: [{ url: 'https://picsum.photos/id/250/600/400', name: 'box.jpg', mime: 'image/jpeg' }],
+      },
+    ],
+    createdAt: iso(2 * HOUR),
   },
 ];
 

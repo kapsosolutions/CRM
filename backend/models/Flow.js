@@ -46,6 +46,9 @@ const FlowComponentSchema = new Schema(
     endLabel: { type: String, default: '' },
     // OptIn (agreement tick box): an optional "Read more" link.
     linkUrl: { type: String, default: '' },
+    // The ready-made form this field came from (frontend flowForms.ts preset
+    // id), so the CRM files its answers under that form's page. Not sent to Meta.
+    preset: { type: String, default: '' },
     photoSource: { type: String, default: 'camera_gallery' }, // camera | gallery | camera_gallery
     maxFiles: { type: Number, default: 1 },
     // Where a selection list gets its rows: static options, or live data served

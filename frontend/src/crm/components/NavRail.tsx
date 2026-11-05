@@ -1,7 +1,19 @@
 // The CRM sidebar: grouped sections with labels (collapses to icons, and is a drawer on small screens).
 import type { ReactNode } from 'react';
 
-export type CrmView = 'chats' | 'templates' | 'campaigns' | 'flows' | 'catalog' | 'categories' | 'members' | 'offers' | 'orders' | 'ads' | 'create' | 'payment-config' | 'profile' | 'settings' | 'channel-status';
+export type CrmView = 'chats' | 'templates' | 'campaigns' | 'flows' | 'catalog' | 'categories' | 'members' | 'offers' | 'orders' | 'ads' | 'create' | 'payment-config' | 'profile' | 'settings' | 'channel-status'
+  // One ready-made form's submissions: 'form:pickup_request' (flowForms.ts).
+  | `form:${string}`;
+
+/** A form page's sidebar entry. */
+export interface FormRailItem {
+  key: `form:${string}`;
+  label: string;
+  /** Material icon ligature. */
+  icon: string;
+}
+
+export const isFormView = (v: CrmView): v is `form:${string}` => v.startsWith('form:');
 
 interface Props {
   view: CrmView;
@@ -16,6 +28,8 @@ interface Props {
   soon?: Partial<Record<CrmView, boolean>>;
   /** Items outside the business's plan, with the plan that unlocks them ("Basic"). */
   locked?: Partial<Record<CrmView, string>>;
+  /** The Forms section: one page per ready-made form ("Pickup requests"). */
+  forms?: FormRailItem[];
 }
 
 /* User-provided vector SVGs matching WATI style navigation */
@@ -159,17 +173,26 @@ export function LogoutSvg({ size = 20, className = '' }: { size?: number; classN
   );
 }
 
+/** A bank: pediment roof, four columns, a base. */
 export function PaymentConfigRailSvg() {
   return (
-    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path
-        d="M10 2.25C5.72 2.25 2.25 5.55 2.25 9.65C2.25 11.1 2.7 12.45 3.5 13.55L2.75 17.25L6.55 16.3C7.6 16.85 8.8 17.1 10 17.1C14.28 17.1 17.75 13.8 17.75 9.65C17.75 5.55 14.28 2.25 10 2.25Z"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <text x="10" y="13" textAnchor="middle" fontFamily="Arial, sans-serif" fontSize="10.5" fontWeight="600" fill="currentColor">₹</text>
+    <svg
+      width="20"
+      height="20"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      stroke="currentColor"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+      data-icon="bank"
+    >
+      <path d="M2.75 7.25L10 2.75L17.25 7.25H2.75Z" />
+      <path d="M4.75 9.75V14.25M8.25 9.75V14.25M11.75 9.75V14.25M15.25 9.75V14.25" />
+      <path d="M3.25 14.25H16.75M2.25 17.25H17.75" />
+      <circle cx="10" cy="5.4" r="0.6" fill="currentColor" strokeWidth="0.8" />
     </svg>
   );
 }
@@ -249,10 +272,15 @@ interface SidebarProps extends Props {
 }
 
 export function NavRail({
-  view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome, footer,
+  view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome, footer, forms = [],
 }: SidebarProps) {
-  const shown = (key: CrmView) => !allowed || allowed.includes(key);
-  const byKey = new Map(ITEMS.map((it) => [it.key, it]));
+  // Form pages come from the business's forms, not from its type's page list.
+  const shown = (key: CrmView) => isFormView(key) || !allowed || allowed.includes(key);
+  const byKey = new Map<CrmView, RailItem>([...ITEMS, ...forms].map((it) => [it.key, it]));
+  // The Forms section sits under Messaging, next to Automation where the forms are built.
+  const groups = forms.length
+    ? [...GROUPS.slice(0, 2), { label: 'Forms', keys: forms.map((f) => f.key) as CrmView[] }, ...GROUPS.slice(2)]
+    : GROUPS;
   return (
     <nav className={`nav-rail crm-sidebar${collapsed ? ' collapsed' : ''}`} aria-label="CRM sections">
       <div className="crm-side-brand">
@@ -273,7 +301,7 @@ export function NavRail({
         )}
       </div>
       <div className="nav-rail-top crm-side-menu">
-        {GROUPS.map((g) => {
+        {groups.map((g) => {
           const items = g.keys.filter(shown).map((k) => byKey.get(k)!).filter(Boolean);
           if (!items.length) return null;
           return (
@@ -296,6 +324,7 @@ export function NavRail({
                     aria-current={view === it.key ? 'page' : undefined}
                     data-soon={isSoon ? 'true' : undefined}
                     data-plan-locked={needs || undefined}
+                    data-view={it.key}
                   >
                     <span className="crm-side-icon">
                       {it.svg ? it.svg : <span className="material-icons">{it.icon}</span>}

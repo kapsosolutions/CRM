@@ -526,7 +526,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
 // screen. The field set is tenant-defined, so every answer is rendered
 // generically rather than against a fixed schema.
 // ---------------------------------------------------------------------------
-const REG_STATUS: KOption[] = [
+export const REG_STATUS: KOption[] = [
   { value: 'new', label: 'New' },
   { value: 'contacted', label: 'Contacted' },
   { value: 'confirmed', label: 'Confirmed' },
@@ -564,18 +564,27 @@ function answerRows(r: Registration): FormRow[] {
   );
 }
 
-function RegistrationsList({
+export function RegistrationsList({
   api,
   items,
   loading,
   onChanged,
   setItems,
+  empty,
+  onOpenChat,
+  pagerKey = 'form-submissions',
 }: {
   api: CrmApi;
   items: Registration[];
   loading: boolean;
   onChanged: () => void;
   setItems: (f: (list: Registration[]) => Registration[]) => void;
+  /** What to say when there's nothing to list (a form page names its form). */
+  empty?: { icon?: string; title: string; description: string };
+  /** A chat button on each row, to reply to the customer. */
+  onOpenChat?: (phone: string) => void;
+  /** Where the page size is remembered. */
+  pagerKey?: string;
 }) {
   const confirm = useConfirm();
   const notify = useNotify();
@@ -590,7 +599,7 @@ function RegistrationsList({
     () => (formFilter ? items.filter((r) => (r.flowName || 'Form') === formFilter) : items),
     [items, formFilter],
   );
-  const paged = usePaged(shown, formFilter, { key: 'form-submissions', noun: ['submission', 'submissions'] });
+  const paged = usePaged(shown, formFilter, { key: pagerKey, noun: ['submission', 'submissions'] });
   function changeStatus(r: Registration, status: RegistrationStatus) {
     setItems((list) => list.map((x) => (x._id === r._id ? { ...x, status } : x)));
     api.setRegistrationStatus(r._id, status).catch(onChanged);
@@ -618,10 +627,10 @@ function RegistrationsList({
       {loading && <BladeSpinner center={true} containerHeight={200} />}
       {!loading && items.length === 0 && (
         <CrmEmptyState
-          icon="assignment"
+          icon={empty?.icon || 'assignment'}
           iconTone="purple"
-          title="No form submissions yet"
-          description="Add a form to a WhatsApp flow (Automation → Flows → Build → Forms). When customers fill it in on WhatsApp, their answers land here."
+          title={empty?.title || 'No form submissions yet'}
+          description={empty?.description || 'Add a form to a WhatsApp flow (Automation → Flows → Build → Forms). When customers fill it in on WhatsApp, their answers land here.'}
         />
       )}
       {formNames.length > 1 && (
@@ -637,7 +646,7 @@ function RegistrationsList({
         </div>
       )}
       {items.length > 0 && (
-        <div className="ord-list reg-list">
+        <div className={`ord-list reg-list${onOpenChat ? ' reg-chat' : ''}`}>
           <div className="ord-row reg-row-grid head" aria-hidden="true">
             <span>Contact</span>
             <span>Form</span>
@@ -699,7 +708,12 @@ function RegistrationsList({
 
               <span className="ord-cell when">{fmtWhen(r.createdAt)}</span>
 
-              <span className="ord-cell status">
+              <span className="ord-cell status reg-acts">
+                {onOpenChat && r.phone && (
+                  <button className="prod-act" onClick={() => onOpenChat(r.phone || '')} title="Open the chat" data-testid="reg-open-chat">
+                    <span className="material-icons">chat</span>
+                  </button>
+                )}
                 <button className="prod-act danger" onClick={() => remove(r)} title="Delete">
                   <span className="material-icons">delete</span>
                 </button>
