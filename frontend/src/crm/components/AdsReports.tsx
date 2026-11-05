@@ -8,6 +8,7 @@
 // they match). Large reports run at Meta as async report runs; useAdsReport
 // polls /meta/reports/runs/:id until the report is ready. The column choice
 // is kept per business in this browser (localStorage).
+import { DownloadIcon } from './AppIcons';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type {
@@ -542,7 +543,7 @@ export function AdsReports({
         </label>
         <ColumnPicker prefs={cols.prefs} onSave={cols.save} testid="ads-rp-cols" />
         <button type="button" className="ads-btn" onClick={csv} disabled={downloading || !report} data-testid="ads-rp-csv" title="Download this report as a CSV file">
-          <span className="material-icons" aria-hidden="true">download</span>
+          <DownloadIcon />
           {downloading ? 'Preparing…' : 'Export CSV'}
         </button>
       </div>

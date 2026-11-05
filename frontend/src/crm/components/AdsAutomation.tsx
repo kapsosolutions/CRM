@@ -8,6 +8,7 @@
 //     comparison of 2–5 campaigns or ad sets with a significance check.
 //   • Pixels: the ad account's pixels, their events, and the base code to copy.
 // Nothing here turns a campaign, ad set or ad on.
+import { CopyIcon } from './AppIcons';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type {
@@ -1277,7 +1278,7 @@ function PixelDetail({ api, pixelId, refreshNonce }: { api: CrmApi; pixelId: str
       <p className="ads-wz-hint">Paste this base code into the &lt;head&gt; of every page of your website (or give it to whoever runs the site). It records page views.</p>
       <pre className="ads-auto-code" data-testid="ads-px-code">{data.snippet}</pre>
       <button type="button" className="ads-btn sm" onClick={() => void copy(data.snippet, 'Meta Pixel base code')} data-testid="ads-px-copy">
-        <span className="material-icons" aria-hidden="true">content_copy</span> Copy base code
+        <CopyIcon /> Copy base code
       </button>
       <h4>Track a conversion</h4>
       <div className="ads-wz-row">
@@ -1291,7 +1292,7 @@ function PixelDetail({ api, pixelId, refreshNonce }: { api: CrmApi; pixelId: str
         <>
           <pre className="ads-auto-code" data-testid="ads-px-event-code">{`<script>\n${ev.code}\n</script>`}</pre>
           <button type="button" className="ads-btn sm" onClick={() => void copy(`<script>\n${ev.code}\n</script>`, `${ev.fbq} event`)} data-testid="ads-px-event-copy">
-            <span className="material-icons" aria-hidden="true">content_copy</span> Copy event code
+            <CopyIcon /> Copy event code
           </button>
         </>
       )}

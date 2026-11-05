@@ -9,6 +9,7 @@
 // image, cards / carousel, quick-reply chips): no Meta approval, sent only
 // inside the 24-hour window. The builder checks each channel's limits live
 // (../metaMessaging.ts); the server checks them again.
+import { CopyIcon } from './AppIcons';
 import { useEffect, useMemo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type {
@@ -518,7 +519,7 @@ export function QuickMessagesSection({ api, channel }: { api: CrmApi; channel: M
                   <div className="tl-actions">
                     <button type="button" className="tl-act" onClick={() => setPreview(q)} title="Preview" aria-label={`Preview ${q.name}`}><span className="material-icons">visibility</span></button>
                     <button type="button" className="tl-act" onClick={() => setEditing(q)} title="Edit" aria-label={`Edit ${q.name}`}><span className="material-icons">edit</span></button>
-                    <button type="button" className="tl-act" onClick={() => duplicate(q)} title="Duplicate" aria-label={`Duplicate ${q.name}`}><span className="material-icons">content_copy</span></button>
+                    <button type="button" className="tl-act" onClick={() => duplicate(q)} title="Duplicate" aria-label={`Duplicate ${q.name}`}><CopyIcon /></button>
                     <button type="button" className="tl-act danger" onClick={() => remove(q)} title="Delete" aria-label={`Delete ${q.name}`}><span className="material-icons">delete_outline</span></button>
                   </div>
                 </td>

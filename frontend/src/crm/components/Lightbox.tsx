@@ -1,5 +1,6 @@
 // Full-screen viewer for images and PDFs. Click the backdrop (empty area),
 // press Esc, or hit X to close.
+import { DownloadIcon } from './AppIcons';
 import { useEffect } from 'react';
 import { downloadFile } from '../utils';
 import { useBackHandler } from '../useBackHandler';
@@ -38,7 +39,7 @@ export function Lightbox({ media, onClose }: Props) {
         }}
         title="Download"
       >
-        <span className="material-icons">download</span>
+        <DownloadIcon />
       </button>
       {media.pdf ? (
         <iframe

@@ -8,6 +8,7 @@
 // duplicate PAUSED. Resume and archive (bulk), archive and delete (one row)
 // are asked here first; the server refuses them without { confirm: true }.
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AppIcon } from './AppIcons';
 import type { CrmApi } from '../api';
 import type { AdCampaignRow, AdRow, AdSetRow, AdsBulkAction, AdsBulkJob, AdsLevel, AdsProblemAd, AdsReviewInfo, AdsReviewReport } from '../types';
 import { useConfirm, useNotify } from './Dialogs';
@@ -241,7 +242,7 @@ export function BulkBar({
   const tip = !canManage ? READ_ONLY_TIP : locked || undefined;
   const btn = (a: AdsBulkAction, label: string, icon: string, tone = '') => (
     <button type="button" className={`ads-btn sm ${tone}`} disabled={!canManage || !!busy || !!locked} title={tip} onClick={() => onAction(a)} data-testid={`ads-bulk-${a}`}>
-      <span className="material-icons" aria-hidden="true">{icon}</span>
+      <AppIcon name={icon} />
       {busy === a ? '…' : label}
     </button>
   );
@@ -303,7 +304,7 @@ export function RowActions({
       aria-label={`${label}: ${row.name || row.id}`}
       data-testid={`ads-act-${key}-${row.id}`}
     >
-      <span className="material-icons" aria-hidden="true">{busy === `${key}:${row.id}` ? 'hourglass_top' : icon}</span>
+      <AppIcon name={busy === `${key}:${row.id}` ? 'hourglass_top' : icon} />
     </button>
   );
   return (

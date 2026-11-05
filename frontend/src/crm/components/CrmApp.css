@@ -1984,7 +1984,8 @@ button.rx-row:hover {
   cursor: move;
 }
 /* 8 resize handles (4 corners + 4 edge midpoints) */
-.att-crop-sel .ch {
+.att-crop-sel .ch,
+.att-blur-box .ch {
   position: absolute;
   width: 14px;
   height: 14px;
@@ -1993,42 +1994,50 @@ button.rx-row:hover {
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.35);
   touch-action: none;
 }
-.att-crop-sel .ch.nw {
+.att-crop-sel .ch.nw,
+.att-blur-box .ch.nw {
   top: -7px;
   left: -7px;
   cursor: nwse-resize;
 }
-.att-crop-sel .ch.n {
+.att-crop-sel .ch.n,
+.att-blur-box .ch.n {
   top: -7px;
   left: calc(50% - 7px);
   cursor: ns-resize;
 }
-.att-crop-sel .ch.ne {
+.att-crop-sel .ch.ne,
+.att-blur-box .ch.ne {
   top: -7px;
   right: -7px;
   cursor: nesw-resize;
 }
-.att-crop-sel .ch.e {
+.att-crop-sel .ch.e,
+.att-blur-box .ch.e {
   top: calc(50% - 7px);
   right: -7px;
   cursor: ew-resize;
 }
-.att-crop-sel .ch.se {
+.att-crop-sel .ch.se,
+.att-blur-box .ch.se {
   bottom: -7px;
   right: -7px;
   cursor: nwse-resize;
 }
-.att-crop-sel .ch.s {
+.att-crop-sel .ch.s,
+.att-blur-box .ch.s {
   bottom: -7px;
   left: calc(50% - 7px);
   cursor: ns-resize;
 }
-.att-crop-sel .ch.sw {
+.att-crop-sel .ch.sw,
+.att-blur-box .ch.sw {
   bottom: -7px;
   left: -7px;
   cursor: nesw-resize;
 }
-.att-crop-sel .ch.w {
+.att-crop-sel .ch.w,
+.att-blur-box .ch.w {
   top: calc(50% - 7px);
   left: -7px;
   cursor: ew-resize;
@@ -2108,7 +2117,7 @@ button.rx-row:hover {
   padding: 0 5px;
   border-radius: var(--wa-radius-full);
   background: var(--wa-ink);
-  color: #fff;
+  color: var(--wa-canvas);
   font-size: 11px;
   display: inline-flex;
   align-items: center;
@@ -2244,6 +2253,269 @@ button.rx-row:hover {
 .att-send:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+/* ---- Image editor (undo/redo, crop, draw, text, blur, copy, download) ---- */
+.att-tools {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.att-tools-sep {
+  width: 1px;
+  height: 22px;
+  margin: 0 6px;
+  background: var(--wa-hairline-strong);
+}
+.att-icon-btn {
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: var(--wa-radius-full);
+  border: none;
+  background: transparent;
+  color: var(--wa-ink);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  padding: 0;
+}
+.att-icon-btn .material-icons {
+  font-size: 22px;
+}
+.att-icon-btn:hover:not(:disabled) {
+  background: rgba(28, 30, 33, 0.06);
+}
+.att-icon-btn.on {
+  background: rgba(29, 191, 115, 0.14);
+  color: var(--wa-primary);
+}
+.att-icon-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+.att-aa {
+  font-family: var(--wa-font);
+  font-size: 17px;
+  font-weight: 600;
+  line-height: 1;
+  letter-spacing: -0.3px;
+}
+.att-flash {
+  flex-shrink: 0;
+  font-size: 12.5px;
+  padding: 5px 12px;
+  border-radius: var(--wa-radius-pill);
+  background: var(--wa-ink);
+  color: var(--wa-canvas);
+}
+.att-ink {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.att-layer {
+  position: absolute;
+  inset: 0;
+  touch-action: none;
+  cursor: crosshair;
+}
+.mode-text .att-layer {
+  cursor: text;
+}
+.att-text {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: pre;
+  padding: 2px 6px;
+  border-radius: 6px;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+  cursor: move;
+  user-select: none;
+  touch-action: none;
+}
+.att-text.sel {
+  outline: 1.5px dashed rgba(255, 255, 255, 0.95);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+}
+.att-text input {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  outline: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+  text-shadow: inherit;
+  line-height: 1.2;
+  cursor: text;
+}
+.att-text input::placeholder {
+  color: rgba(255, 255, 255, 0.75);
+}
+.att-blur-box {
+  position: absolute;
+  box-sizing: border-box;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25);
+  cursor: move;
+  touch-action: none;
+}
+.att-blur-box.sel {
+  border: 1.5px solid #fff;
+}
+.att-opts {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px 24px;
+  background: var(--wa-canvas);
+  border-top: 1px solid var(--wa-hairline);
+}
+.att-opts-sep {
+  width: 1px;
+  height: 24px;
+  background: var(--wa-hairline-strong);
+}
+.att-swatches {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.att-swatch {
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid var(--wa-surface);
+  box-shadow: 0 0 0 1px var(--wa-hairline-strong);
+  cursor: pointer;
+}
+.att-swatch.on {
+  box-shadow: 0 0 0 2px var(--wa-primary);
+}
+.att-brushes {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.att-brush {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.att-brush span {
+  display: block;
+  border-radius: 50%;
+  background: var(--wa-ink);
+}
+.att-brush:hover {
+  background: rgba(28, 30, 33, 0.06);
+}
+.att-brush.on {
+  background: rgba(29, 191, 115, 0.14);
+}
+.att-brush.on span {
+  background: var(--wa-primary);
+}
+.att-style {
+  position: relative;
+}
+.att-style-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  height: 36px;
+  padding: 0 6px 0 9px;
+  border-radius: 18px;
+  border: 1px solid var(--wa-hairline-strong);
+  background: var(--wa-surface);
+  color: var(--wa-ink);
+  cursor: pointer;
+}
+.att-style-btn .material-icons {
+  font-size: 22px;
+}
+.att-style-btn .att-chev {
+  font-size: 18px;
+  color: var(--wa-ink-muted);
+}
+.att-style-menu {
+  position: absolute;
+  left: 0;
+  bottom: calc(100% + 8px);
+  min-width: 170px;
+  padding: 6px;
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-hairline);
+  border-radius: 12px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.14);
+  z-index: 20;
+}
+.att-style-menu button {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--wa-ink);
+  font-family: var(--wa-font);
+  font-size: 14px;
+  cursor: pointer;
+}
+.att-style-menu button .material-icons {
+  font-size: 20px;
+}
+.att-style-menu button:hover {
+  background: rgba(28, 30, 33, 0.06);
+}
+.att-style-menu .att-check {
+  margin-left: auto;
+  font-size: 18px;
+  color: var(--wa-primary);
+}
+.att-slider {
+  width: 220px;
+  accent-color: var(--wa-primary);
+  cursor: pointer;
+}
+.att-slider-val {
+  min-width: 28px;
+  font-size: 13px;
+  color: var(--wa-ink-muted);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+.att-thumb {
+  position: relative;
+}
+.att-thumb .att-thumb-edited {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  font-size: 14px;
+  padding: 2px;
+  border-radius: 50%;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.55);
 }
 
 /* The confirm card (.disc-*) and the toasts (.toast-*) are in Dialogs.css:

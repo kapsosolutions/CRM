@@ -3,6 +3,7 @@
 // its own output port for branching), CTA URL, Call, Ask location, List menu
 // (each row branches), and an approved-Template block.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { UndoIcon, RedoIcon } from './AppIcons';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -1520,10 +1521,10 @@ function JourneyEditor({
         <input className="flow-name-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Journey name" />
         <div className="flow-head-actions">
           <button className="k-btn ghost sm icon-only" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo" data-testid="jr-undo">
-            <span className="material-icons">undo</span>
+            <UndoIcon />
           </button>
           <button className="k-btn ghost sm icon-only" onClick={redo} disabled={!canRedo} title="Redo (Ctrl+Y)" aria-label="Redo" data-testid="jr-redo">
-            <span className="material-icons">redo</span>
+            <RedoIcon />
           </button>
           {/* Nothing to save is worth saying out loud — it's the difference
               between "my work is stored" and "I forgot to press the button". */}

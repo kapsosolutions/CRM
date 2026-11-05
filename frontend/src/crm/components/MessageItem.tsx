@@ -4,6 +4,7 @@
 //    rendered as ONE unified card (WhatsApp "rich message" style)
 //  - plain text
 //  - delivery/read ticks + emoji reaction chip + the reaction picker trigger
+import { AppIcon, DownloadIcon } from './AppIcons';
 import { memo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { ChatMessage, EventRecord, PollRecord } from '../types';
@@ -606,7 +607,7 @@ export const MessageItem = memo(function MessageItem({
                   if (b.kind === 'call') {
                     return (
                       <a className="rich-btn" key={i} href={`tel:${b.url || b.text}`}>
-                        <span className="material-icons">{btnIcon(b.kind)}</span> {b.text}
+                        <AppIcon name={btnIcon(b.kind)} /> {b.text}
                       </a>
                     );
                   }
@@ -633,7 +634,7 @@ export const MessageItem = memo(function MessageItem({
                   }
                   return (
                     <span className="rich-btn" key={i}>
-                      <span className="material-icons">{btnIcon(b.kind)}</span> {b.text}
+                      <AppIcon name={btnIcon(b.kind)} /> {b.text}
                     </span>
                   );
                 })}
@@ -715,7 +716,7 @@ export const MessageItem = memo(function MessageItem({
                         </span>
                       ) : (
                         <span className="msg-card-btn" key={j}>
-                          <span className="material-icons">{btnIcon(b.kind)}</span> {b.text}
+                          <AppIcon name={btnIcon(b.kind)} /> {b.text}
                         </span>
                       ),
                     )}
@@ -844,7 +845,7 @@ export const MessageItem = memo(function MessageItem({
               onClick={() => downloadFile(dl, md.filename)}
               title="Download"
             >
-              <span className="material-icons">download</span>
+              <DownloadIcon />
             </button>
           </div>
         );
@@ -866,7 +867,7 @@ export const MessageItem = memo(function MessageItem({
               onClick={() => downloadFile(dl, md.filename)}
               title="Download"
             >
-              <span className="material-icons">download</span>
+              <DownloadIcon />
             </button>
           </div>
         );
@@ -899,7 +900,7 @@ export const MessageItem = memo(function MessageItem({
               </a>
             )}
             <button className="doc-dl" onClick={() => downloadFile(dl, name)} title="Download">
-              <span className="material-icons">download</span>
+              <DownloadIcon />
             </button>
           </div>
         );

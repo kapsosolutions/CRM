@@ -1,6 +1,7 @@
 // "Use from your apps": the API keys for the public API (/api/v1) and, for one
 // template, a ready-to-copy request in cURL, Node.js and Python. Opened from
 // the Templates list (the API column, or "API keys" in the header).
+import { CopyIcon } from './AppIcons';
 import { useEffect, useMemo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { ApiKeyInfo, TemplateItem } from '../types';
@@ -80,7 +81,7 @@ function Code({ text, testId }: { text: string; testId?: string }) {
     <div className="tad-code">
       <pre data-testid={testId}><code>{text}</code></pre>
       <button type="button" className="tad-copy" onClick={copy} aria-label="Copy">
-        <span className="material-icons" aria-hidden="true">content_copy</span>
+        <CopyIcon />
       </button>
     </div>
   );

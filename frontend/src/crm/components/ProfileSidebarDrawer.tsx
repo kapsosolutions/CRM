@@ -6,6 +6,7 @@ import { VERTICAL_OPTIONS } from '../verticals';
 import { resetBackHandler } from '../useBackHandler';
 import { platformApi } from '../../admin/platformApi';
 import { useConfirm } from './Dialogs';
+import { CopyIcon } from './AppIcons';
 import type { CrmApi } from '../api';
 import type { CrmSocket } from '../socket';
 import type { ServiceQuota, WhatsAppProfile } from '../types';
@@ -89,12 +90,7 @@ function PhoneIconSvg() {
 }
 
 function CopyIconSvg() {
-  return (
-    <svg width="13" height="13" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect x="6.5" y="6.5" width="10.5" height="10.5" rx="2" stroke="currentColor" strokeWidth="1.6" />
-      <path d="M4 13.5V4.5C4 3.67 4.67 3 5.5 3H14.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
+  return <CopyIcon size={14} />;
 }
 
 function CheckmarkIconSvg() {

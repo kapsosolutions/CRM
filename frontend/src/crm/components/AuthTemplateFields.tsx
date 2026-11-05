@@ -2,6 +2,7 @@
 // composer in place of header / body / footer / buttons. Meta writes the
 // message text itself; the business only picks the optional lines and how the
 // code reaches the customer.
+import { AppIcon } from './AppIcons';
 import type { OtpType, TemplateAuth } from '../types';
 import { MAX_APPS, OTP_TYPE_LABEL, TTL_MAX, TTL_MIN } from '../authTemplate';
 import './AuthTemplate.css';
@@ -54,7 +55,7 @@ export function AuthTemplateFields({ value, onChange, readOnly }: Props) {
                 title={o.hint}
                 onClick={() => set({ otpType: o.value })}
               >
-                <span className="material-icons">{o.icon}</span>
+                <AppIcon name={o.icon} />
                 <span className="tc-opt-text">
                   <span className="tc-opt-label">{OTP_TYPE_LABEL[o.value]}</span>
                   <span className="tc-opt-hint">{o.hint}</span>

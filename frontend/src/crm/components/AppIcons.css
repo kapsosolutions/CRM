@@ -1,0 +1,7 @@
+/* Shared SVG icons (AppIcons.tsx). They carry `material-icons` for sizing;
+   these rules undo the font-only parts and keep them lined up with text. */
+svg.app-ico {
+  flex-shrink: 0;
+  vertical-align: middle;
+  overflow: visible;
+}

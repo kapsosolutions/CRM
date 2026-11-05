@@ -11,6 +11,7 @@
 // Messenger and Instagram are hidden for now (CHANNELS below): only WhatsApp shows.
 // CRM starters are quick messages built into the CRM, labelled as such; "Use
 // template" saves one as a quick message for that channel.
+import { AppIcon } from './AppIcons';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type {
@@ -221,7 +222,7 @@ function Bubble({ item, time }: { item: Item; time: string }) {
           {item.buttons.length > 0 && (
             <div className="tlb-b-btns">
               {item.buttons.map((b, i) => (
-                <div className="tlb-b-btn" key={i}><span className="material-icons" aria-hidden="true">{BUTTON_ICON[b.kind]}</span>{b.text}</div>
+                <div className="tlb-b-btn" key={i}><AppIcon name={BUTTON_ICON[b.kind]} />{b.text}</div>
               ))}
             </div>
           )}

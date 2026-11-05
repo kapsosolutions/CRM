@@ -1,6 +1,7 @@
 // WhatsApp phone mock showing one template message. Shared by the template
 // composer (live while typing) and Campaigns (the template being sent).
 // Renders all three kinds: standard, media-card carousel and limited-time offer.
+import { AppIcon, CopyIcon } from './AppIcons';
 import { Fragment, useMemo } from 'react';
 import type { TemplateItem } from '../types';
 import { CatalogActionSvg } from './MessageItem';
@@ -382,7 +383,7 @@ export function TemplatePhonePreview({
               <div className="pv-actions-list">
                 {isOffer && offer?.hasCopyCode && (
                   <div className="pv-act-btn">
-                    <span className="material-icons">content_copy</span>
+                    <CopyIcon />
                     <span>Copy offer code</span>
                   </div>
                 )}
@@ -391,7 +392,7 @@ export function TemplatePhonePreview({
                     {String(b.type).toUpperCase() === 'CATALOG' || String(b.type).toUpperCase() === 'MPM' || /catalog|items?/i.test(b.text || '') ? (
                       <CatalogActionSvg />
                     ) : (
-                      <span className="material-icons">{btnIcon(b.type)}</span>
+                      <AppIcon name={btnIcon(b.type)} />
                     )}
                     <span>{b.text || 'Button'}</span>
                   </div>
@@ -414,7 +415,7 @@ export function TemplatePhonePreview({
                           {String(b.type).toUpperCase() === 'CATALOG' || String(b.type).toUpperCase() === 'MPM' || /catalog|items?/i.test(b.text || '') ? (
                             <CatalogActionSvg />
                           ) : (
-                            <span className="material-icons">{btnIcon(b.type)}</span>
+                            <AppIcon name={btnIcon(b.type)} />
                           )}
                           <span>{b.text || 'Button'}</span>
                         </div>

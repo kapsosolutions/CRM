@@ -4,6 +4,7 @@
 // lead forms with their leads and CSV export, and the Click-to-WhatsApp leads.
 // Every number comes from the server, which holds the ad token; the browser
 // never sees it.
+import { DownloadIcon } from './AppIcons';
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type {
@@ -898,7 +899,7 @@ function LeadForms({
             <div className="ads-card-head">
               <h4>{leads.data?.form.name || 'Leads'}</h4>
               <button type="button" className="ads-btn" onClick={csv} disabled={!formId || downloading || !leads.data?.leads.length} data-testid="ads-csv">
-                <span className="material-icons" aria-hidden="true">download</span>
+                <DownloadIcon />
                 {downloading ? 'Preparing…' : 'Download CSV'}
               </button>
             </div>

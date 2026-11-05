@@ -13,6 +13,7 @@ import { PhotoCarousel } from './PhotoCarousel';
 import { verticalConfig, type VerticalConfig } from '../verticals';
 import { useConfirm, useFlash, useNotify } from './Dialogs';
 import { BladeSpinner } from './BladeSpinner';
+import { AppIcon } from './AppIcons';
 import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
 import './CatalogPage.css';
@@ -703,9 +704,7 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
                     title="Copy Catalog ID"
                     aria-label="Copy Catalog ID"
                   >
-                    <span className="material-icons" style={{ fontSize: 16 }}>
-                      {copied ? 'check' : 'content_copy'}
-                    </span>
+                    <AppIcon name={copied ? 'check' : 'content_copy'} size={16} />
                   </button>
                 </span>
               </div>

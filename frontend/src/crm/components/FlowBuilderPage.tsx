@@ -3,6 +3,7 @@
 // another screen), preview them as a WhatsApp phone card, then publish /
 // republish to Meta using the tenant's own WhatsApp credentials.
 import { createContext, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import { UndoIcon, RedoIcon } from './AppIcons';
 import ReactFlow, {
   Background,
   BackgroundVariant,
@@ -1748,10 +1749,10 @@ function FlowEditor({
         </div>
         <div className="flow-head-actions">
           <button className="k-btn ghost sm icon-only" onClick={undo} disabled={!canUndo} title="Undo">
-            <span className="material-icons">undo</span>
+            <UndoIcon />
           </button>
           <button className="k-btn ghost sm icon-only" onClick={redo} disabled={!canRedo} title="Redo">
-            <span className="material-icons">redo</span>
+            <RedoIcon />
           </button>
           <button className="k-btn ghost sm" onClick={() => setShowJson((v) => !v)}>
             <span className="material-icons">data_object</span> {showJson ? 'Hide JSON' : 'View JSON'}

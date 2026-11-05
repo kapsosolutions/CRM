@@ -9,6 +9,7 @@
 // Coordinates are CSS pixels on an A4 page at 96dpi (794 × 1123). The canvas is
 // shown scaled down; the backend converts to PDF points, so what's arranged
 // here is what comes out.
+import { CopyIcon } from './AppIcons';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useBackHandler } from '../useBackHandler';
 import type { PdfElement, PdfElementType, PdfTemplate } from '../types';
@@ -744,7 +745,7 @@ export function PdfDesigner({ template, fileName = '', designOpts, startWithDesi
                 <div className="pdfd-prop-tools">
                   <button onClick={() => reorder(sel.id, -1)} title="Send backward"><span className="material-icons">flip_to_back</span></button>
                   <button onClick={() => reorder(sel.id, 1)} title="Bring forward"><span className="material-icons">flip_to_front</span></button>
-                  <button onClick={() => duplicate(sel.id)} title="Duplicate"><span className="material-icons">content_copy</span></button>
+                  <button onClick={() => duplicate(sel.id)} title="Duplicate"><CopyIcon /></button>
                   <button onClick={() => remove(sel.id)} title="Delete"><span className="material-icons">delete</span></button>
                 </div>
               </div>

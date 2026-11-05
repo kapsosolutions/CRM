@@ -6,6 +6,7 @@
 // would have to supply before a delivery address was visible; OSM's embed is
 // keyless, documented, and pans/zooms on its own. Google still gets used for
 // the two deep links, since that's what a rider will have on their phone.
+import { DownloadIcon } from './AppIcons';
 import { useEffect, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { Order, OrderStatus } from '../types';
@@ -292,7 +293,7 @@ export function OrderDetailsPage({
                     />
                     <div className="od-map-foot">
                       <a className="k-btn ghost sm" href={pdfUrl} download={`${o.reference || 'appointment'}.pdf`}>
-                        <span className="material-icons">download</span>
+                        <DownloadIcon />
                         Download
                       </a>
                       <a className="k-btn ghost sm" href={pdfUrl} target="_blank" rel="noreferrer">
