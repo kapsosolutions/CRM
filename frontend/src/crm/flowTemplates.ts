@@ -48,6 +48,73 @@ export interface TemplateOptions {
   extras: string[];
   /** A "Main menu" / "Start again" button after the last message. */
   restart: boolean;
+  /** What the Location / Call / Brochure menu items send (asked in a pop-up). */
+  links: Partial<Record<LinkKind, LinkDetails>>;
+}
+
+/** Menu items that are a single message with a button, and need the business's own details. */
+export type LinkKind = 'location' | 'call' | 'brochure' | 'website';
+export interface LinkDetails {
+  /** The message above the button. */
+  text: string;
+  /** The button's label (WhatsApp: 20 characters at most). */
+  label: string;
+  /** A map / brochure link (https://…) or a phone number. */
+  value: string;
+}
+export const LINK_KINDS: LinkKind[] = ['location', 'call', 'brochure', 'website'];
+export const isLinkKind = (x: string): x is LinkKind => (LINK_KINDS as string[]).includes(x);
+
+/** What each one starts with, and what its pop-up asks. */
+export const LINK_INFO: Record<LinkKind, {
+  title: string; icon: string; color: string; valueLabel: string; placeholder: string; hint: string; defaults: LinkDetails;
+}> = {
+  location: {
+    title: 'Our location', icon: 'location_on', color: '#ea4335',
+    valueLabel: 'Google Maps link', placeholder: 'https://maps.app.goo.gl/…',
+    hint: 'In Google Maps, find your business, tap Share and copy the link.',
+    defaults: { text: '📍 Here’s where to find us.', label: 'Open map', value: '' },
+  },
+  call: {
+    title: 'Call us', icon: 'call', color: '#f59e0b',
+    valueLabel: 'Phone number', placeholder: '+91 98765 43210',
+    hint: 'With the country code. The customer’s phone dials it when they tap the button.',
+    defaults: { text: 'Call us and we’ll help right away.', label: 'Call now', value: '' },
+  },
+  brochure: {
+    title: 'Get the brochure', icon: 'menu_book', color: '#0d9488',
+    valueLabel: 'Brochure link', placeholder: 'https://…/brochure.pdf',
+    hint: 'A PDF or a web page, starting with https://.',
+    defaults: { text: '📘 Here’s our brochure with all the details.', label: 'Open brochure', value: '' },
+  },
+  website: {
+    title: 'Visit our website', icon: 'language', color: '#0096de',
+    valueLabel: 'Website link', placeholder: 'https://www.yourbusiness.com',
+    hint: 'Your website or any page on it, starting with https://.',
+    defaults: { text: '🌐 See more on our website.', label: 'Visit website', value: '' },
+  },
+};
+
+/** Why these details can't be used yet ('' = they're fine). */
+export function linkProblem(kind: LinkKind, d?: Partial<LinkDetails>): string {
+  const value = String(d?.value || '').trim();
+  const label = String(d?.label || '').trim();
+  if (!label) return 'Add the button text.';
+  if (label.length > 20) return 'The button text can be 20 characters at most.';
+  if (kind === 'call') {
+    const digits = value.replace(/\D/g, '');
+    if (!value) return 'Add the phone number.';
+    if (!/^\+?[\d\s()-]+$/.test(value) || digits.length < 8 || digits.length > 15) return 'Enter a phone number with its country code, e.g. +91 98765 43210.';
+    return '';
+  }
+  if (!value) return kind === 'location' ? 'Add your Google Maps link.' : kind === 'website' ? 'Add your website link.' : 'Add the brochure link.';
+  try {
+    const u = new URL(value);
+    if (u.protocol !== 'https:' || !u.hostname.includes('.')) return 'The link must start with https://.';
+  } catch {
+    return 'That isn’t a link. It must start with https://.';
+  }
+  return '';
 }
 
 export const DEFAULT_OPTIONS: TemplateOptions = {
@@ -63,6 +130,7 @@ export const DEFAULT_OPTIONS: TemplateOptions = {
   design: 'classic',
   extras: [],
   restart: true,
+  links: {},
 };
 
 /** The journey a card builds. */
@@ -280,7 +348,7 @@ export function allTemplateCards(): { vertical: string; card: TemplateCard }[] {
 }
 
 export function optionsFor(card: TemplateCard): TemplateOptions {
-  return { ...DEFAULT_OPTIONS, ...card.defaults, extras: [...(card.defaults.extras || [])] };
+  return { ...DEFAULT_OPTIONS, ...card.defaults, extras: [...(card.defaults.extras || [])], links: { ...(card.defaults.links || {}) } };
 }
 
 // ---------------------------------------------------------------------------
@@ -465,6 +533,7 @@ export function extrasFor(card: TemplateCard, v: VerticalConfig): ExtraDef[] {
   if (v.archetype === 'lead') out.push({ id: 'brochure', label: 'Get the brochure', icon: 'menu_book' });
   out.push({ id: 'location', label: 'Our location', icon: 'location_on' });
   out.push({ id: 'call', label: 'Call us', icon: 'call' });
+  out.push({ id: 'website', label: 'Visit our website', icon: 'language' });
   const { own, common } = formsFor(v);
   for (const p of [...own, ...common]) {
     if (card.main.kind === 'form' && card.main.form === p.id) continue;
@@ -991,26 +1060,39 @@ function buildReschedule(d: Draft): Part {
 }
 
 // ---- Blocks reached straight from the menu ---------------------------------
-function buildLink(d: Draft, kind: 'location' | 'call' | 'brochure'): Part {
+/** The setup line for a Location / Call / Brochure item whose details are missing. */
+export const LINK_NEED: Record<LinkKind, string> = {
+  location: 'Add your Google Maps link to “Our location”',
+  call: 'Add your phone number to “Call us”',
+  brochure: 'Add your brochure link to “Get the brochure”',
+  website: 'Add your website link to “Visit our website”',
+};
+
+function buildLink(d: Draft, kind: LinkKind): Part {
+  const info = LINK_INFO[kind];
+  const given = d.o.links[kind];
+  const ok = !linkProblem(kind, given);
+  // Details that don't check out yet start from the defaults, so the block is
+  // still well-formed; the setup list asks for the real ones.
+  const det: LinkDetails = {
+    text: String(given?.text || '').trim() || info.defaults.text,
+    label: ok ? String(given?.label).trim() : String(given?.label || '').trim().slice(0, 20) || info.defaults.label,
+    value: ok ? String(given?.value).trim() : '',
+  };
+  if (!ok) d.need(LINK_NEED[kind]);
   if (kind === 'call') {
     const b = makeBlock({ kind: 'call' });
-    b.text = 'Call us and we’ll help right away.';
-    b.callLabel = 'Call now';
-    d.need('Put your phone number in the “Call us” block on the Map');
-    return { label: 'Call us', entry: { block: d.block(b) } };
+    b.text = det.text;
+    b.callLabel = det.label;
+    if (det.value) b.callPhone = det.value;
+    return { label: info.title, entry: { block: d.block(b) } };
   }
   const b = makeBlock({ kind: 'cta' });
-  if (kind === 'location') {
-    b.text = '📍 Here’s where to find us.';
-    b.ctaLabel = 'Open map';
-    b.ctaUrl = 'https://maps.google.com';
-    d.need('Put your Google Maps link in the “Our location” block on the Map');
-    return { label: 'Our location', entry: { block: d.block(b) } };
-  }
-  b.text = '📘 Here’s our brochure with all the details.';
-  b.ctaLabel = 'Open brochure';
-  d.need('Put your brochure link in the “Get the brochure” block on the Map');
-  return { label: 'Get the brochure', entry: { block: d.block(b) } };
+  b.text = det.text;
+  b.ctaLabel = det.label;
+  // A missing link stays as "https://", which the Map flags as "Add the link".
+  b.ctaUrl = det.value || 'https://';
+  return { label: info.title, entry: { block: d.block(b) } };
 }
 
 // ---------------------------------------------------------------------------
@@ -1018,7 +1100,7 @@ function buildLink(d: Draft, kind: 'location' | 'call' | 'brochure'): Part {
 // ---------------------------------------------------------------------------
 /** Build the flow a card makes with these choices. */
 export function buildTemplate(card: TemplateCard, v: VerticalConfig, opts: TemplateOptions): BuiltTemplate {
-  const o: TemplateOptions = { ...opts, extras: opts.extras.slice(0, MAX_EXTRAS) };
+  const o: TemplateOptions = { ...opts, extras: opts.extras.slice(0, MAX_EXTRAS), links: opts.links || {} };
   // A choice that doesn't apply is ignored rather than refused.
   if (!v.showsPage('categories')) o.categoryStep = false;
   if (!o.categoryStep) o.memberStep = false;
@@ -1042,7 +1124,7 @@ export function buildTemplate(card: TemplateCard, v: VerticalConfig, opts: Templ
     else if (x === 'track' && isOrderType(v)) p = buildTrack(d, false);
     else if (x === 'cancel') p = buildCancel(d);
     else if (x === 'reschedule' && isBookingType(v)) p = buildReschedule(d);
-    else if (x === 'location' || x === 'call' || x === 'brochure') p = buildLink(d, x);
+    else if (isLinkKind(x)) p = buildLink(d, x);
     else if (x.startsWith('form:')) p = buildForm(d, x.slice(5), false);
     if (p) parts.push(p);
   }

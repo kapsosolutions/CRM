@@ -310,3 +310,102 @@
   width: 100%;
   justify-content: center;
 }
+
+/* Location / Call / Brochure / Website details: the Map's block pop-up */
+.ftg-link-modal {
+  z-index: 1;
+}
+.ftg-link-label {
+  display: block;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #334155;
+  margin: 12px 0 6px;
+}
+.ftg-link-label:first-child {
+  margin-top: 0;
+}
+.ftg-link-input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 9px 11px;
+  border: 1px solid #d1d5db;
+  border-radius: 9px;
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+.ftg-link-input:focus {
+  border-color: var(--k, #1dbf73);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--k, #1dbf73) 18%, transparent);
+}
+.ftg-link-modal .fl-node-text {
+  min-height: 70px;
+  margin-top: 0;
+}
+.ftg-link-modal .fl-fields {
+  margin-top: 0;
+}
+/* What it looks like in the chat: the message, and its button under it. */
+.ftg-link-preview {
+  margin-top: 14px;
+  max-width: 300px;
+  padding: 10px;
+  border-radius: 12px;
+  background: #efeae2;
+}
+.ftg-link-bubble {
+  padding: 8px 10px;
+  border-radius: 8px 8px 0 0;
+  background: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #111b21;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.ftg-link-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px;
+  border-top: 1px solid #e9edef;
+  border-radius: 0 0 8px 8px;
+  background: #fff;
+  color: #027eb5;
+  font-size: 13px;
+  font-weight: 500;
+}
+.ftg-link-btn .material-icons {
+  font-size: 16px;
+}
+.ftg-link-modal .pa-error {
+  margin-top: 12px;
+}
+
+/* A Location / Call chip in the menu without its details yet */
+.ftg-chip.on.missing {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: #f59e0b;
+  color: #92400e;
+}
+.ftg-chip.on.missing .material-icons {
+  color: #d97706;
+}
+.ftg-chip .material-icons.ftg-chip-edit {
+  font-size: 14px;
+  margin-left: 2px;
+  opacity: 0.7;
+}
+.ftg-need-btn {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #0b6b33;
+  text-align: left;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+}

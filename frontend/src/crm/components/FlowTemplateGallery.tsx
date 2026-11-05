@@ -2,13 +2,13 @@
 // choices with a live list of what the customer goes through and what the
 // business needs to set up. "Create flow" saves the generated flow as a new
 // draft (flowTemplates.ts builds it).
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { WaFlowDef } from '../types';
 import type { VerticalConfig } from '../verticals';
 import {
-  buildTemplate, checkTemplateFlow, choicesFor, extrasFor, MAX_EXTRAS, optionsFor, templateCardsFor,
-  type ChoiceDef, type TemplateCard, type TemplateOptions,
+  buildTemplate, checkTemplateFlow, choicesFor, extrasFor, isLinkKind, LINK_INFO, LINK_KINDS, LINK_NEED, linkProblem, MAX_EXTRAS, optionsFor, templateCardsFor,
+  type ChoiceDef, type LinkDetails, type LinkKind, type TemplateCard, type TemplateOptions,
 } from '../flowTemplates';
 import './FlowTemplateGallery.css';
 
@@ -38,6 +38,111 @@ function tagsOf(card: TemplateCard, v: VerticalConfig): string[] {
   return t;
 }
 
+/**
+ * The details of a Location / Call / Brochure / Website menu item, asked when
+ * it's picked: the same pop-up as a block's settings on the Map and in Journeys.
+ */
+function LinkDetailsModal({
+  kind, initial, inMenu, onSave, onRemove, onClose,
+}: {
+  kind: LinkKind;
+  initial: LinkDetails;
+  /** Already in the menu: offer to take it out. */
+  inMenu: boolean;
+  onSave: (d: LinkDetails) => void;
+  onRemove: () => void;
+  onClose: () => void;
+}) {
+  const info = LINK_INFO[kind];
+  const [d, setD] = useState<LinkDetails>(initial);
+  const [tried, setTried] = useState(false);
+  const problem = linkProblem(kind, d);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        e.stopPropagation();
+        onClose();
+      }
+    };
+    window.addEventListener('keydown', onKey, true);
+    return () => window.removeEventListener('keydown', onKey, true);
+  }, [onClose]);
+  const save = () => {
+    setTried(true);
+    if (!problem) onSave({ text: d.text.trim(), label: d.label.trim(), value: d.value.trim() });
+  };
+  return (
+    <div className="jn-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="ftg-link-backdrop">
+      <div className="jn-modal ftg-link-modal" role="dialog" aria-modal="true" aria-label={`${info.title} settings`} data-testid="ftg-link-modal" data-kind={kind} style={{ ['--k' as string]: info.color }}>
+        <header className="jn-modal-head">
+          <span className="jn-ic"><span className="material-icons">{info.icon}</span></span>
+          <div className="jn-modal-titles">
+            <h3>{info.title}</h3>
+            <p>{kind === 'call' ? 'A message with a button that calls you' : 'A message with a button that opens your link'}</p>
+          </div>
+          <button type="button" className="jn-modal-x" onClick={onClose} aria-label="Close">
+            <span className="material-icons">close</span>
+          </button>
+        </header>
+        <div className="jn-modal-body">
+          <div className="fl-node jn-fields" style={{ ['--k' as string]: info.color }}>
+            <label className="ftg-link-label" htmlFor="ftg-link-value">{info.valueLabel}</label>
+            <input
+              id="ftg-link-value"
+              className="ftg-link-input"
+              value={d.value}
+              onChange={(e) => setD({ ...d, value: e.target.value })}
+              placeholder={info.placeholder}
+              inputMode={kind === 'call' ? 'tel' : 'url'}
+              autoFocus
+              data-testid="ftg-link-value"
+            />
+            <div className="ftg-hint">{info.hint}</div>
+            <label className="ftg-link-label" htmlFor="ftg-link-text">Message</label>
+            <textarea
+              id="ftg-link-text"
+              className="fl-node-text"
+              value={d.text}
+              onChange={(e) => setD({ ...d, text: e.target.value })}
+              rows={3}
+              data-testid="ftg-link-text"
+            />
+            <label className="ftg-link-label" htmlFor="ftg-link-button">Button text</label>
+            <input
+              id="ftg-link-button"
+              className="ftg-link-input"
+              value={d.label}
+              onChange={(e) => setD({ ...d, label: e.target.value })}
+              maxLength={20}
+              data-testid="ftg-link-button"
+            />
+            <div className="ftg-hint">{d.label.length}/20 characters</div>
+            <div className="ftg-link-preview" aria-hidden="true">
+              <div className="ftg-link-bubble">{d.text || info.defaults.text}</div>
+              <div className="ftg-link-btn">
+                <span className="material-icons">{kind === 'call' ? 'call' : 'open_in_new'}</span>
+                {d.label || info.defaults.label}
+              </div>
+            </div>
+            {tried && problem && <div className="pa-error" data-testid="ftg-link-problem">{problem}</div>}
+          </div>
+        </div>
+        <footer className="jn-modal-foot">
+          {inMenu ? (
+            <button type="button" className="k-btn ghost sm danger" onClick={onRemove} data-testid="ftg-link-remove">
+              <span className="material-icons">delete_outline</span> Remove from menu
+            </button>
+          ) : (
+            <button type="button" className="k-btn ghost sm" onClick={onClose} data-testid="ftg-link-cancel">Cancel</button>
+          )}
+          <span className="jn-modal-note">{inMenu ? 'Saved with the flow when you create it.' : 'Adds it to the menu.'}</span>
+          <button type="button" className="k-btn sm" onClick={save} data-testid="ftg-link-save">{inMenu ? 'Save' : 'Add to menu'}</button>
+        </footer>
+      </div>
+    </div>
+  );
+}
+
 export function ReadyTemplates({
   api,
   vertical,
@@ -54,6 +159,8 @@ export function ReadyTemplates({
   const [opts, setOpts] = useState<TemplateOptions | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // The Location / Call / Brochure / Website item whose details are being asked.
+  const [editingLink, setEditingLink] = useState<LinkKind | null>(null);
 
   const built = useMemo(() => (card && opts ? buildTemplate(card, vertical, opts) : null), [card, opts, vertical]);
   const problems = useMemo(() => (built ? checkTemplateFlow(built.flow) : []), [built]);
@@ -66,16 +173,34 @@ export function ReadyTemplates({
     setError('');
   }
   const set = (patch: Partial<TemplateOptions>) => setOpts((o) => (o ? { ...o, ...patch } : o));
+  function addExtra(o: TemplateOptions, id: string): TemplateOptions {
+    if (o.extras.includes(id) || o.extras.length >= MAX_EXTRAS) return o;
+    // Keep the menu in the order the list shows.
+    const order = extras.map((x) => x.id);
+    return { ...o, extras: [...o.extras, id].sort((a, b) => order.indexOf(a) - order.indexOf(b)) };
+  }
   function toggleExtra(id: string) {
+    // These need the business's own link or number first: ask in a pop-up.
+    if (isLinkKind(id)) {
+      setEditingLink(id);
+      return;
+    }
     setOpts((o) => {
       if (!o) return o;
       if (o.extras.includes(id)) return { ...o, extras: o.extras.filter((x) => x !== id) };
-      if (o.extras.length >= MAX_EXTRAS) return o;
-      // Keep the menu in the order the list shows.
-      const order = extras.map((x) => x.id);
-      return { ...o, extras: [...o.extras, id].sort((a, b) => order.indexOf(a) - order.indexOf(b)) };
+      return addExtra(o, id);
     });
   }
+  function saveLink(kind: LinkKind, det: LinkDetails) {
+    setOpts((o) => (o ? addExtra({ ...o, links: { ...o.links, [kind]: det } }, kind) : o));
+    setEditingLink(null);
+  }
+  function removeLink(kind: LinkKind) {
+    setOpts((o) => (o ? { ...o, extras: o.extras.filter((x) => x !== kind) } : o));
+    setEditingLink(null);
+  }
+  /** A setup line that a pop-up can fill in. */
+  const linkOfNeed = (need: string): LinkKind | null => LINK_KINDS.find((k) => LINK_NEED[k] === need) || null;
 
   async function create() {
     if (!built || !card || problems.length) return;
@@ -173,17 +298,21 @@ export function ReadyTemplates({
               {extras.map((x) => {
                 const on = opts.extras.includes(x.id);
                 const full = !on && opts.extras.length >= MAX_EXTRAS;
+                const link = isLinkKind(x.id) ? x.id : null;
+                const missing = !!link && on && !!linkProblem(link, opts.links[link]);
                 return (
                   <button
                     type="button"
                     key={x.id}
-                    className={`ftg-chip${on ? ' on' : ''}`}
+                    className={`ftg-chip${on ? ' on' : ''}${missing ? ' missing' : ''}`}
                     onClick={() => toggleExtra(x.id)}
                     disabled={full}
                     data-extra={x.id}
+                    title={link ? (on ? `Edit ${LINK_INFO[link].title}` : `Add ${LINK_INFO[link].title}: asks for your details`) : undefined}
                   >
-                    <span className="material-icons">{on ? 'check' : x.icon}</span>
+                    <span className="material-icons">{on ? (missing ? 'error_outline' : 'check') : x.icon}</span>
                     {x.label}
+                    {link && on && <span className="material-icons ftg-chip-edit">edit</span>}
                   </button>
                 );
               })}
@@ -203,9 +332,17 @@ export function ReadyTemplates({
           </ol>
           <div className="ftg-preview-head">Set up first</div>
           <ul className="ftg-needs" data-testid="ftg-needs">
-            {built.needs.map((s) => (
-              <li key={s}><span className="material-icons">check_box_outline_blank</span>{s}</li>
-            ))}
+            {built.needs.map((s) => {
+              const link = linkOfNeed(s);
+              return (
+                <li key={s}>
+                  <span className="material-icons">check_box_outline_blank</span>
+                  {link ? (
+                    <button type="button" className="ftg-need-btn" onClick={() => setEditingLink(link)} data-need={link}>{s}</button>
+                  ) : s}
+                </li>
+              );
+            })}
           </ul>
           <div className="ftg-stats" data-testid="ftg-stats">{stats}, wired on the Map</div>
           {problems.length > 0 && (
@@ -219,6 +356,16 @@ export function ReadyTemplates({
           <div className="ftg-hint">It’s saved as a draft you can change, then publish.</div>
         </div>
       </div>
+      {editingLink && (
+        <LinkDetailsModal
+          kind={editingLink}
+          initial={{ ...LINK_INFO[editingLink].defaults, ...(opts.links[editingLink] || {}) }}
+          inMenu={opts.extras.includes(editingLink)}
+          onSave={(det) => saveLink(editingLink, det)}
+          onRemove={() => removeLink(editingLink)}
+          onClose={() => setEditingLink(null)}
+        />
+      )}
     </div>
   );
 }
