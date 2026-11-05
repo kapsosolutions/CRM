@@ -1,0 +1,135 @@
+/* Templates drawer: the "no templates yet" card and the loading rows
+   (TemplateDrawer.tsx). Light theme; dark copies are generated at build time. */
+
+.tmpl-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 28px 8px 12px;
+  animation: tmpl-empty-in 0.18s ease-out;
+}
+@keyframes tmpl-empty-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+
+.tmpl-empty-icons {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.tmpl-empty-doc {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #e9fbf1;
+  color: #16a34a;
+}
+.tmpl-empty-arrows {
+  color: #94a3b8;
+}
+.tmpl-empty-icons img {
+  display: block;
+}
+
+.tmpl-empty-title {
+  margin: 0 0 8px;
+  font-size: 20px;
+  font-weight: 800;
+  color: #0f172a;
+  letter-spacing: -0.3px;
+}
+.tmpl-empty-text {
+  margin: 0 0 22px;
+  max-width: 340px;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: #475569;
+}
+
+.tmpl-empty-sub {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: #0f172a;
+  margin-bottom: 12px;
+}
+.tmpl-empty-list {
+  list-style: none;
+  margin: 0 0 24px;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  text-align: left;
+}
+.tmpl-empty-list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13.5px;
+  color: #334155;
+  line-height: 1.4;
+}
+.tmpl-empty-list svg {
+  flex-shrink: 0;
+  color: #16a34a;
+  margin-top: -1px;
+}
+
+.tmpl-empty-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 26px;
+  border: none;
+  border-radius: 10px;
+  background: #24d06e;
+  color: #ffffff;
+  font: inherit;
+  font-size: 14.5px;
+  font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(36, 208, 110, 0.3);
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+.tmpl-empty-btn:hover {
+  background: #1fb860;
+  transform: translateY(-1px);
+}
+.tmpl-empty-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--wa-focus-ring);
+}
+.tmpl-empty-note {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Reading the list: three soft rows in its place. */
+.tmpl-skel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 4px;
+}
+.tmpl-skel-row {
+  display: block;
+  height: 40px;
+  border-radius: 10px;
+  background: linear-gradient(90deg, #eef1f4 0%, #f7f8fa 40%, #eef1f4 80%);
+  background-size: 200% 100%;
+  animation: tmpl-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes tmpl-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .tmpl-empty, .tmpl-skel-row { animation: none; }
+}

@@ -9,6 +9,7 @@ import { TemplatePhonePreview, previewPropsFromTemplate } from './TemplatePhoneP
 import { Dropdown } from './Dropdown';
 import { OTP_MAX_LENGTH, authBodyWithCode, generateOtp, isAuthTemplate, otpProblem } from '../authTemplate';
 import './AuthTemplate.css';
+import './TemplateDrawer.css';
 
 const VAR_RE = /\{\{\s*(\d+)\s*\}\}/g;
 const bodyComp = (t: TemplateItem) => (t.components || []).find((c) => String(c.type).toUpperCase() === 'BODY');
@@ -61,6 +62,55 @@ interface Props {
   initialOtpTemplate?: string;
   /** The open chat's customer name, for a sample template's "Hi {{1}}". */
   contactName?: string;
+  /** The list is still being read (no "no templates" yet). */
+  loading?: boolean;
+}
+
+const TICK = (
+  <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+    <path d="M10 2.2 16.2 4.6v4.6c0 4.1-2.6 7.2-6.2 8.6-3.6-1.4-6.2-4.5-6.2-8.6V4.6L10 2.2Z" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" />
+    <path d="m7.2 10.1 1.9 1.9 3.8-3.9" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+  </svg>
+);
+
+/**
+ * No templates yet: what they're for and a button to make the first one,
+ * laid out like the "Connect WhatsApp" card.
+ */
+function NoTemplates({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="tmpl-empty" data-testid="tmpl-empty">
+      <div className="tmpl-empty-icons" aria-hidden="true">
+        <span className="tmpl-empty-doc">
+          <svg width="26" height="26" viewBox="0 0 24 24" fill="none">
+            <path d="M6 3h8l4 4v13a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1Z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
+            <path d="M14 3v4h4M8.5 11h7M8.5 14h7M8.5 17h4" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+          </svg>
+        </span>
+        <svg className="tmpl-empty-arrows" width="22" height="22" viewBox="0 0 24 24" fill="none">
+          <path d="M4 8h15m0 0-3.5-3.5M19 8l-3.5 3.5M20 16H5m0 0 3.5-3.5M5 16l3.5 3.5" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <img src="/whatsapp.svg" alt="" width="40" height="40" />
+      </div>
+      <h4 className="tmpl-empty-title">Create your first template</h4>
+      <p className="tmpl-empty-text">
+        Templates are messages WhatsApp approves in advance. They’re the only way to message a customer whose 24-hour window has closed.
+      </p>
+      <div className="tmpl-empty-sub">What you can do with templates</div>
+      <ul className="tmpl-empty-list">
+        <li>{TICK}<span>Message customers outside the 24-hour window</span></li>
+        <li>{TICK}<span>Send order updates, reminders and offers</span></li>
+        <li>{TICK}<span>Add images, buttons and the customer’s name</span></li>
+      </ul>
+      <button type="button" className="tmpl-empty-btn" onClick={onCreate} data-testid="tmpl-empty-create">
+        <svg width="18" height="18" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+          <path d="M10 4.5v11M4.5 10h11" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" />
+        </svg>
+        Create template
+      </button>
+      <p className="tmpl-empty-note">WhatsApp usually reviews a new template within minutes.</p>
+    </div>
+  );
 }
 
 function ViewIconSvg({ size = 18 }: { size?: number }) {
@@ -91,6 +141,7 @@ export function TemplateDrawer({
   onOpenTemplateCreate,
   initialOtpTemplate,
   contactName = '',
+  loading = false,
 }: Props) {
   const [mode, setMode] = useState<'list' | 'create' | 'otp'>(initialOtpTemplate ? 'otp' : 'list');
   const [selectedTemplate, setSelectedTemplate] = useState<TemplateItem | null>(null);
@@ -371,29 +422,13 @@ export function TemplateDrawer({
             <section className="drawer-sec">
               {/* No separate "Send OTP" entry: an authentication template's send
                   icon below still asks for the code first (openOtp). */}
-              <div className="sec-title">Send a template</div>
-              {templates.length === 0 && (
-                <p className="muted-note">
-                  No templates yet. Tap{' '}
-                  <button
-                    type="button"
-                    onClick={handleCreateClick}
-                    style={{
-                      background: 'none',
-                      border: 'none',
-                      color: 'var(--wa-teal, #24d06e)',
-                      fontWeight: 600,
-                      cursor: 'pointer',
-                      padding: 0,
-                      font: 'inherit',
-                      textDecoration: 'underline',
-                    }}
-                  >
-                    Create
-                  </button>{' '}
-                  to create one.
-                </p>
+              {(templates.length > 0 || loading) && <div className="sec-title">Send a template</div>}
+              {templates.length === 0 && loading && (
+                <div className="tmpl-skel" aria-busy="true" aria-label="Loading templates" data-testid="tmpl-loading">
+                  {[0, 1, 2].map((i) => <span key={i} className="tmpl-skel-row" />)}
+                </div>
               )}
+              {templates.length === 0 && !loading && <NoTemplates onCreate={handleCreateClick} />}
               {templates.map((t) => (
                 <div key={t.name} className="tmpl-item" data-testid="tmpl-item" data-name={t.name} data-shared={t.shared ? '1' : undefined}>
                   <div

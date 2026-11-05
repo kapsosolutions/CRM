@@ -166,6 +166,7 @@ export function CrmApp({
   // Retry of a one-time code whose code isn't known: reopen "Send OTP" on it.
   const [otpPreset, setOtpPreset] = useState('');
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
   const [tSending, setTSending] = useState(false);
 
   // Flow picker (send a published WhatsApp Flow into the chat).
@@ -1072,10 +1073,12 @@ export function CrmApp({
 
   /** The panel's list: the business's templates, plus the shared test number's samples while not connected. */
   function loadDrawerTemplates() {
+    setTemplatesLoading(true);
     return api
       .getTemplates({ includeShared: true })
       .then((res) => setTemplates(res.data || []))
-      .catch(() => setTemplates([]));
+      .catch(() => setTemplates([]))
+      .finally(() => setTemplatesLoading(false));
   }
 
   /**
@@ -1568,6 +1571,7 @@ export function CrmApp({
               <TemplateDrawer
                 api={api}
                 templates={templates}
+                loading={templatesLoading}
                 tSending={tSending}
                 onClose={() => {
                   setDrawerOpen(false);
