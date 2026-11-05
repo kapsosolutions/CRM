@@ -410,3 +410,66 @@ a.crm-onboarding-outlined-btn {
     margin: 10px 0;
   }
 }
+
+/* The page appears in one piece once ready. */
+.crm-onboarding-container:not(.crm-onboarding-skel) {
+  animation: ob-in 0.18s ease-out;
+}
+@keyframes ob-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Loading: the page's own shape in soft grey blocks. */
+.ob-skel {
+  display: block;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #eef1f4 0%, #f7f8fa 40%, #eef1f4 80%);
+  background-size: 200% 100%;
+  animation: ob-shimmer 1.2s ease-in-out infinite;
+}
+@keyframes ob-shimmer {
+  from { background-position: 100% 0; }
+  to { background-position: -100% 0; }
+}
+.ob-skel-title { width: 82%; height: 34px; margin-bottom: 16px; }
+.ob-skel-line { width: 70%; height: 13px; margin-bottom: 10px; }
+.ob-skel-line.short { width: 45%; }
+.ob-skel-line.mid { width: 340px; max-width: 70%; margin-bottom: 22px; }
+.ob-skel-btn { width: 170px; height: 42px; margin-top: 18px; }
+.ob-skel-hero { width: 270px; height: 270px; border-radius: 20px; }
+.ob-skel-wide-btn { width: 230px; height: 38px; margin-top: 12px; }
+.ob-skel-qr { width: 130px; height: 130px; margin-top: 14px; border-radius: 6px; }
+.crm-onboarding-skel .crm-onboarding-or-divider { background: #f1f5f9; }
+
+/* The CRM hasn't heard back about the account yet: a calm blank panel. */
+.no-chat-wait {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+}
+.no-chat-wait-spin {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: 3px solid #e5e7eb;
+  border-top-color: #24d06e;
+  animation: ob-spin 0.8s linear infinite;
+  opacity: 0;
+  animation-delay: 0.25s;
+  animation-fill-mode: forwards;
+}
+@keyframes ob-spin {
+  from { transform: rotate(0deg); opacity: 1; }
+  to { transform: rotate(360deg); opacity: 1; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ob-skel { animation: none; }
+  .crm-onboarding-container:not(.crm-onboarding-skel) { animation: none; }
+}
+@media (max-width: 900px) {
+  .ob-skel-hero { width: 200px; height: 200px; }
+}

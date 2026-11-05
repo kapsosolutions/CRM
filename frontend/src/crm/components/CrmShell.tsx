@@ -13,6 +13,7 @@ import { WalletButton } from './WalletButton';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { CallProvider } from './CallCenter';
 import { MessagingLimitProvider, SidebarMessagingLimit } from './MessagingLimit';
+import { prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, type CrmView, SettingsRailSvg, ProfileRailSvg } from './NavRail';
 import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
@@ -635,11 +636,17 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // The signed-in business, for the WhatsApp connection state.
   const [business, setBusiness] = useState<BusinessProfile | undefined>(undefined);
 
+  // The account details have come back (or failed): until then the chat page
+  // doesn't know whether to show the connect-WhatsApp page or the empty inbox.
+  const [meKnown, setMeKnown] = useState(demo);
   const loadMe = useCallback(() => {
     if (demo) return;
     api
       .getMe()
       .then((r) => {
+        // Not connected yet: the chat page will be the connect page with the
+        // test number's QR. Get it ready now, so it appears in one go.
+        if (r.business && !r.business.whatsappConnected) prepareOnboarding(api).catch(() => {});
         setBusiness(r.business);
         setCategory(r.business?.category || 'other');
         setLabels(r.business?.labels);
@@ -651,7 +658,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         // handing the tenant itself the tool.
         setCanUseFlows(r.role === 'admin' || !!r.master || !!r.business?.flowsEnabled);
       })
-      .catch(() => setCategory('other')); // on failure, don't hide anything
+      .catch(() => setCategory('other')) // on failure, don't hide anything
+      .finally(() => setMeKnown(true));
   }, [api, demo]);
 
   useEffect(() => {
@@ -1042,6 +1050,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                 visible={view === 'chats'}
                 onUnreadChange={setUnreadChats}
                 needsConnect={needsConnect}
+                accountKnown={meKnown}
                 businessName={business?.name || (business?.ownerFirstName ? `${business.ownerFirstName} ${business.ownerLastName || ''}`.trim() : '')}
                 businessAvatar={business?.profilePicture || business?.avatarUrl || business?.meta?.profilePictureUrl || ''}
                 onConnectClick={() => navigate('channel-status')}

@@ -19,6 +19,88 @@ const SANDBOX_QR_OPTIONS = {
   color: { dark: '#000000', light: '#ffffff' },
 };
 
+/** What the page needs before it's drawn: the shared number, its QR, the picture. */
+type Prepared = { sandbox: SandboxInfo; qr: string; error: string };
+
+const HERO_IMG = '/connect.avif';
+// Keyed by the signed-in token: CrmShell and the chat page have their own API
+// clients, and a new login (another business) mustn't see the last one's code.
+const prepared = new Map<string, { at: number; run: Promise<Prepared> }>();
+
+function loadImage(src: string): Promise<void> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => resolve();
+    img.onerror = () => resolve();
+    img.src = src;
+    // Never hold the page back for long on a slow picture.
+    setTimeout(resolve, 2500);
+  });
+}
+
+/**
+ * Fetch the test number, draw its QR and load the hero picture, once per API
+ * client (kept a minute). CrmShell starts this together with the account
+ * details, so the page is ready the moment it's known to be needed.
+ */
+export function prepareOnboarding(api: CrmApi): Promise<Prepared> {
+  const key = api.getToken() || '';
+  const hit = prepared.get(key);
+  if (hit && Date.now() - hit.at < 60_000) return hit.run;
+  const run = Promise.all([
+    api.getSandbox().then(
+      (r) => ({ sandbox: r, error: '' }),
+      (e) => ({ sandbox: { success: false, enabled: false } as SandboxInfo, error: e instanceof Error ? e.message : 'Could not load the test number.' }),
+    ),
+    loadImage(HERO_IMG),
+  ]).then(async ([{ sandbox, error }]) => {
+    const waMe = sandbox.enabled ? sandbox.links?.waMe || '' : '';
+    // Drawn in the browser: the join code never goes to a third-party QR service.
+    const qr = waMe ? await QRCode.toDataURL(waMe, SANDBOX_QR_OPTIONS).catch(() => '') : '';
+    return { sandbox, qr, error };
+  });
+  prepared.set(key, { at: Date.now(), run });
+  // A failure isn't kept: the next mount asks again.
+  run.then((p) => { if (p.error) prepared.delete(key); }, () => prepared.delete(key));
+  return run;
+}
+
+/** The same shape as the page while it gets ready: no text or images popping in. */
+export function OnboardingSkeleton() {
+  return (
+    <div className="crm-onboarding-container crm-onboarding-skel" aria-busy="true" aria-label="Loading" data-testid="onboarding-loading">
+      <div className="crm-onboarding-hero">
+        <div className="crm-onboarding-hero-left">
+          <span className="ob-skel ob-skel-title" />
+          <span className="ob-skel ob-skel-line" />
+          <span className="ob-skel ob-skel-line short" />
+          <span className="ob-skel ob-skel-btn" />
+        </div>
+        <div className="crm-onboarding-hero-right">
+          <span className="ob-skel ob-skel-hero" />
+        </div>
+      </div>
+      <div className="crm-onboarding-test-section">
+        <span className="ob-skel ob-skel-line mid" />
+        <div className="crm-onboarding-test-cols">
+          <div className="crm-onboarding-col-send">
+            <span className="ob-skel ob-skel-line" />
+            <span className="ob-skel ob-skel-line" />
+            <span className="ob-skel ob-skel-line short" />
+            <span className="ob-skel ob-skel-wide-btn" />
+            <span className="ob-skel ob-skel-wide-btn" />
+          </div>
+          <div className="crm-onboarding-or-divider" aria-hidden="true" />
+          <div className="crm-onboarding-col-qr">
+            <span className="ob-skel ob-skel-line" />
+            <span className="ob-skel ob-skel-qr" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function ConnectWhatsAppOnboarding({ api, onConnectClick, contacts, isFull: isFullProp }: Props) {
   const notify = useNotify();
   // null = loading; the shared number + this business's join code otherwise.
@@ -36,33 +118,22 @@ export function ConnectWhatsAppOnboarding({ api, onConnectClick, contacts, isFul
       activeContacts.linked >= activeContacts.limit)
   );
 
+  // Everything at once (usually already prepared by CrmShell).
   useEffect(() => {
     let live = true;
-    api
-      .getSandbox()
-      .then((r) => live && setSandbox(r))
-      .catch((e) => {
-        if (!live) return;
-        setLoadError(e instanceof Error ? e.message : 'Could not load the test number.');
-        setSandbox({ success: false, enabled: false });
-      });
+    prepareOnboarding(api).then((p) => {
+      if (!live) return;
+      setLoadError(p.error);
+      setQrDataUrl(p.qr);
+      setQrFailed(!p.qr && !!p.sandbox.enabled);
+      setSandbox(p.sandbox);
+    });
     return () => {
       live = false;
     };
   }, [api]);
 
   const waMe = sandbox?.enabled ? sandbox.links?.waMe || '' : '';
-  useEffect(() => {
-    if (!waMe) return;
-    let live = true;
-    // Drawn in the browser: the join code never goes to a third-party QR service.
-    QRCode.toDataURL(waMe, SANDBOX_QR_OPTIONS)
-      .then((url) => live && setQrDataUrl(url))
-      .catch(() => live && setQrFailed(true));
-    return () => {
-      live = false;
-    };
-  }, [waMe]);
 
   const copyCode = async () => {
     const code = sandbox?.code || '';
@@ -79,6 +150,8 @@ export function ConnectWhatsAppOnboarding({ api, onConnectClick, contacts, isFul
   const sb = sandbox?.enabled && sandbox.code && sandbox.links
     ? { displayPhone: sandbox.displayPhone || '', code: sandbox.code, links: sandbox.links }
     : null;
+
+  if (sandbox === null) return <OnboardingSkeleton />;
 
   return (
     <div className="crm-onboarding-container">
@@ -101,18 +174,13 @@ export function ConnectWhatsAppOnboarding({ api, onConnectClick, contacts, isFul
 
         <div className="crm-onboarding-hero-right">
           <img
-            src="/connect.avif"
+            src={HERO_IMG}
             alt="Connect WhatsApp across Meta channels"
             className="crm-onboarding-hero-img"
           />
         </div>
       </div>
 
-      {sandbox === null && (
-        <div className="crm-onboarding-test-section">
-          <p className="crm-onboarding-instructions">Loading the test number…</p>
-        </div>
-      )}
       {loadError && (
         <div className="crm-onboarding-test-section">
           <p className="crm-onboarding-instructions">The shared test number isn't available right now: {loadError}</p>

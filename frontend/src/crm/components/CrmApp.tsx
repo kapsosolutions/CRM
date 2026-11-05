@@ -31,7 +31,7 @@ import { QuickMessagePicker } from './QuickMessagePicker';
 import { FlowDrawer } from './FlowDrawer';
 import { Lightbox, type ViewMedia } from './Lightbox';
 import { AttachmentPreview } from './AttachmentPreview';
-import { ConnectWhatsAppOnboarding } from './ConnectWhatsAppOnboarding';
+import { ConnectWhatsAppOnboarding, prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { uiScale } from '../uiScale';
 import { useCalls } from './CallCenter';
 import ChatHeaderMenu, { isMutedNow, mutedLabel, type ChatMenuBusy } from './ChatHeaderMenu';
@@ -98,6 +98,8 @@ interface Props {
   /** How many chats have unread messages, for the badge on the Chats icon. */
   onUnreadChange?: (chatsWithUnread: number) => void;
   needsConnect?: boolean;
+  /** The account details have arrived, so `needsConnect` is settled. */
+  accountKnown?: boolean;
   businessName?: string;
   /** The business's profile photo, for "You" in the reactions panel. */
   businessAvatar?: string;
@@ -108,7 +110,7 @@ interface Props {
 
 export function CrmApp({
   config, initialPhone = null, openRequest = null, demo = false, businessId,
-  visible = true, onUnreadChange, needsConnect = false, businessName = '', businessAvatar = '', onConnectClick,
+  visible = true, onUnreadChange, needsConnect = false, accountKnown = true, businessName = '', businessAvatar = '', onConnectClick,
   onOpenTemplatesPage,
   onOpenTemplateCreate,
 }: Props) {
@@ -734,13 +736,14 @@ export function CrmApp({
       return undefined;
     }
     let live = true;
+    const apply = (r: { enabled?: boolean; contacts?: SandboxContacts }) =>
+      live && setSandboxContacts(r.enabled && r.contacts ? r.contacts : null);
     const load = () => {
-      api
-        .getSandbox()
-        .then((r) => live && setSandboxContacts(r.enabled && r.contacts ? r.contacts : null))
-        .catch(() => {});
+      api.getSandbox().then(apply).catch(() => {});
     };
-    load();
+    // The first read shares the connect page's (already on its way); after a
+    // reconnect, ask again.
+    prepareOnboarding(api).then((p) => apply(p.sandbox)).catch(() => {});
     const offSandbox = socket.onSandbox((e) => {
       if (!live || !mine(e.businessId)) return;
       setSandboxContacts(e.enabled ? { linked: e.linked, limit: e.limit, full: e.linked >= e.limit } : null);
@@ -1284,7 +1287,13 @@ export function CrmApp({
 
       <section className={`thread${!activePhone ? ' no-active-chat' : ' has-active-chat'}`}>
         {!activePhone ? (
-          needsConnect ? (
+          // Not yet known whether WhatsApp is connected: neither page yet (the
+          // empty inbox used to show first, then swap to the connect page).
+          !accountKnown ? (
+            <div className="no-chat-wait" data-testid="chat-empty-wait" aria-busy="true">
+              <span className="no-chat-wait-spin" aria-hidden="true" />
+            </div>
+          ) : needsConnect ? (
             <ConnectWhatsAppOnboarding
               api={api}
               onConnectClick={onConnectClick}
