@@ -655,7 +655,7 @@ export const MessageItem = memo(function MessageItem({
           </div>
         ) : (
           <div
-            className={`bubble${jumbo ? ` jumbo n${jumbo}` : md && !mediaFailed ? (mediaOnly ? ` media-only${videoOn ? ' media-playing' : ''}` : '') : ' inline-meta'}${reactions.length ? ' has-reaction' : ''}`}
+            className={`bubble${jumbo ? ` jumbo n${jumbo}` : md && !mediaFailed ? (mediaOnly ? ` media-only${videoOn ? ' media-playing' : ''}` : md.type === 'image' || md.type === 'video' ? ' media-caption' : '') : ' inline-meta'}${reactions.length ? ' has-reaction' : ''}`}
             data-testid={mediaOnly ? 'media-only-bubble' : undefined}
           >
             {quoteBlock}

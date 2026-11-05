@@ -1153,6 +1153,21 @@ video.bubble-media {
 .bubble.media-only > .meta .tick-svg.tick-sent path {
   stroke: #ffffff;
 }
+/* A photo or video with a caption: the picture fills the bubble with the same
+   thin edge (WhatsApp style); only the caption and the time keep text padding. */
+.bubble.media-caption {
+  padding: 3px 3px 4px;
+}
+.bubble.media-caption .bubble-media {
+  margin-bottom: 0;
+  border-radius: 11px;
+}
+.bubble.media-caption > .text {
+  padding: 6px 6px 0;
+}
+.bubble.media-caption > .meta {
+  padding: 0 7px 2px;
+}
 /* Playing: the video's own controls take the bottom edge. */
 .bubble.media-only.media-playing > .meta,
 .bubble.media-only.media-playing .media-wrap::after {
