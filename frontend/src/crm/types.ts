@@ -36,6 +36,18 @@ export interface Chat {
 /** How long Mute notifications lasts. */
 export type MuteFor = '8h' | '1w' | 'always';
 
+/** A key for the public API (/api/v1). `key` is only there right after it's made. */
+export interface ApiKeyInfo {
+  id: string;
+  name: string;
+  prefix: string;
+  lastFour: string;
+  createdAt: string;
+  lastUsedAt: string | null;
+  requests: number;
+  key?: string;
+}
+
 /** Messenger / Instagram (Channel Status → Connect). */
 export type MetaChannel = 'messenger' | 'instagram';
 

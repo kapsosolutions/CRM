@@ -5,7 +5,7 @@
 // written to) localStorage under config.tokenKey.
 // -----------------------------------------------------------------------------
 import type { CrmConfig } from './config';
-import type { MessagingLimitUsage, MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
+import type { ApiKeyInfo, MessagingLimitUsage, MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
 import type { CallPermission, CallSettings, CallSettingsUpdate, LiveCall, PollInput, EventInput, MuteFor } from './types';
 import type {
   CommentActivity, CommentRule, CommentRuleInput, CommentRuleWrite, SocialMedia, SocialOverview, SocialPost, SocialPostInput, SocialRecentPost, SocialTarget,
@@ -374,6 +374,30 @@ export class CrmApi {
       headers: this.authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify({ phone, body }),
     });
+  }
+
+  /** Where the public API lives, for the code samples (same origin in production). */
+  apiOrigin(): string {
+    const base = String(this.config.apiBase || '').replace(/\/+$/, '');
+    return base || (typeof window !== 'undefined' ? window.location.origin : '');
+  }
+
+  /** The business's live API keys (never the secret). */
+  listApiKeys(): Promise<{ success: boolean; data: ApiKeyInfo[] }> {
+    return this.request('/api/developer/keys', { headers: this.authHeaders() });
+  }
+
+  /** A new key: `data.key` is the secret, shown this once. */
+  createApiKey(name: string): Promise<{ success: boolean; data: ApiKeyInfo }> {
+    return this.request('/api/developer/keys', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ name }),
+    });
+  }
+
+  revokeApiKey(id: string): Promise<{ success: boolean }> {
+    return this.request(`/api/developer/keys/${encodeURIComponent(id)}`, { method: 'DELETE', headers: this.authHeaders() });
   }
 
   /** Meta's daily messaging limit and the last 24 hours' use of it. */

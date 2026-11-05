@@ -8,7 +8,7 @@ import { CrmApi } from '../api';
 import { CrmSocket, type StatusUpdate, type ReactionUpdate, type TypingUpdate } from '../socket';
 import type { CrmConfig } from '../config';
 import type { AppNotification, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, Order, OrderStatus, Journey, Registration, RegistrationStatus, BusinessSettings, PaymentSettings, SandboxInfo, ChannelStatus, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, WhatsAppVertical, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, CampaignStats, CampaignRecipientResult, BillingSummary } from '../types';
-import type { MessagingLimitUsage, MetaChannelsInfo, MuteFor, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
+import type { ApiKeyInfo, MessagingLimitUsage, MetaChannelsInfo, MuteFor, QuickMessage, ServiceQuota, UtilityTemplate } from '../types';
 import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall, EventInput, PollInput } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
@@ -871,6 +871,25 @@ export class MockCrmApi extends CrmApi {
 
   // Demo: a business part-way through this month's 1,000 free service messages.
   // Dev-only test hook: try other counts (e.g. __demoServiceUsed = 1040).
+  // Demo: API keys live in memory for the session.
+  private demoKeys: ApiKeyInfo[] = [];
+  override listApiKeys(): Promise<{ success: boolean; data: ApiKeyInfo[] }> {
+    return delay({ success: true, data: this.demoKeys.map(({ key: _k, ...k }) => k) });
+  }
+  override createApiKey(name: string): Promise<{ success: boolean; data: ApiKeyInfo }> {
+    if (this.demoKeys.length >= 10) return Promise.reject(new Error('You can have up to 10 API keys. Revoke one you no longer use first.'));
+    const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
+    const rnd = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => chars[b % 62]).join('');
+    const key = `kp_live_${rnd}`;
+    const row: ApiKeyInfo = { id: nextId(), name: name.trim() || 'API key', prefix: key.slice(0, 12), lastFour: key.slice(-4), createdAt: new Date().toISOString(), lastUsedAt: null, requests: 0, key };
+    this.demoKeys.unshift(row);
+    return delay({ success: true, data: { ...row } });
+  }
+  override revokeApiKey(id: string): Promise<{ success: boolean }> {
+    this.demoKeys = this.demoKeys.filter((k) => k.id !== id);
+    return delay({ success: true });
+  }
+
   override getMessagingLimit(): Promise<MessagingLimitUsage> {
     return delay(demoMessagingLimit());
   }

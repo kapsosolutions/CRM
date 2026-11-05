@@ -462,6 +462,21 @@ export const demoTemplates: TemplateItem[] = [
     ],
   },
   {
+    name: 'login_code',
+    status: 'APPROVED',
+    language: 'en_US',
+    category: 'AUTHENTICATION',
+    components: [
+      { type: 'BODY', text: '*{{1}}* is your verification code. For your security, do not share this code.' },
+      { type: 'FOOTER', text: 'This code expires in 10 minutes.' },
+      { type: 'BUTTONS', buttons: [{ type: 'OTP', text: 'Copy code' }] },
+    ],
+    auth: {
+      otpType: 'COPY_CODE', addSecurityRecommendation: true, codeExpirationMinutes: 10, buttonText: 'Copy code',
+      autofillText: '', supportedApps: [], zeroTapTermsAccepted: false, messageSendTtlSeconds: null,
+    },
+  },
+  {
     name: 'appointment_reminder',
     status: 'PENDING',
     language: 'en_US',

@@ -66,6 +66,8 @@ interface Props {
   onConnectWhatsApp?: () => void;
   /** Create mode: `template` is a starting point (Template Library), so its name is kept as-is (no "_copy"). */
   prefill?: boolean;
+  /** Create mode: a "Template Library" button in the header opens it (start from a ready-made one). */
+  onOpenLibrary?: () => void;
 }
 
 const CATEGORY_OPTIONS: KOption[] = [
@@ -367,6 +369,7 @@ export function TemplateComposerPage({
   onNavigate,
   onConnectWhatsApp,
   prefill = false,
+  onOpenLibrary,
 }: Props) {
   const readOnly = mode === 'view';
   const notify = useNotify();
@@ -821,6 +824,22 @@ export function TemplateComposerPage({
     onBack();
   }
 
+  /** Header "Template Library": same unsaved-work check as Back. */
+  async function openLibrary() {
+    if (!onOpenLibrary) return;
+    if (dirtyRef.current) {
+      const discard = await confirm({
+        title: 'Discard changes?',
+        message: 'This template hasn’t been submitted yet. Opening the library loses everything you’ve entered.',
+        confirmLabel: 'Discard',
+        cancelLabel: 'Keep editing',
+      });
+      if (!discard) return;
+    }
+    registerDirty?.(null);
+    onOpenLibrary();
+  }
+
   // Browser Back / swipe-back behaves like the arrow (including the prompt).
   useBackHandler(true, () => {
     goBack();
@@ -924,6 +943,20 @@ export function TemplateComposerPage({
           <>
             <h2>{prefill ? 'New template from the library' : template ? 'Duplicate template' : 'New template'}</h2>
             <div className="tc-head-actions">
+              {onOpenLibrary && (
+                <button
+                  type="button"
+                  className="k-btn ghost tc-library-btn"
+                  onClick={openLibrary}
+                  title={isAuth
+                    ? 'Start from one of Meta’s ready-made templates, including one-time code templates'
+                    : 'Start from one of Meta’s ready-made templates'}
+                  data-testid="tc-open-library"
+                >
+                  <span className="material-icons" aria-hidden="true">auto_awesome_mosaic</span>
+                  <span>Template Library</span>
+                </button>
+              )}
               <button
                 type="button"
                 className="k-btn tc-draft-btn"
@@ -1570,7 +1603,9 @@ export function TemplateComposerPage({
         {/* Right: live preview */}
         <div className="composer-preview">
           {isAuth ? (
-            <>
+            // One column: the phone, and the note under it (side by side, the
+            // note was pushed out past the preview's right edge).
+            <div className="at-preview-wrap" data-testid="at-preview">
               <TemplatePhonePreview
                 kind="standard"
                 header={{ type: 'none' }}
@@ -1583,7 +1618,7 @@ export function TemplateComposerPage({
                 WhatsApp writes this text and translates it to the template language. {'{{1}}'} becomes the code
                 you send.
               </p>
-            </>
+            </div>
           ) : (
           <TemplatePhonePreview
             kind={kind}

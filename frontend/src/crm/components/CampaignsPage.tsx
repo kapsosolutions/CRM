@@ -856,6 +856,7 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
           reloadTemplates();
           setViewMode('overview');
         }}
+        onOpenLibrary={onNavigate ? () => onNavigate('templates:library') : undefined}
       />
     );
   }

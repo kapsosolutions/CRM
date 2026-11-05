@@ -16,6 +16,7 @@ import { Pager, usePaged } from './Pager';
 import { MetaTemplatesPanel } from './MetaTemplates';
 import { TemplatePhonePreview, previewPropsFromTemplate } from './TemplatePhonePreview';
 import { TemplateLibrary } from './TemplateLibrary';
+import { TemplateApiDialog } from './TemplateApiDialog';
 import './TemplateLibrary.css';
 
 // Template Library · WhatsApp · Messenger · Instagram, in a left sidebar like
@@ -105,6 +106,8 @@ export function TemplatesPage({
   const [events, setEvents] = useState<TriggerEvent[]>([]);
   // A shared sample template opened for a look (phone preview, read-only).
   const [samplePreview, setSamplePreview] = useState<TemplateItem | null>(null);
+  // "Use from your apps": one template's API (or just the keys, when null).
+  const [apiFor, setApiFor] = useState<{ template: TemplateItem | null } | null>(null);
   const [tab, setTab] = useState<ChannelTab>(() => {
     try {
       const saved = localStorage.getItem(TAB_KEY) as ChannelTab | null;
@@ -256,6 +259,11 @@ export function TemplatesPage({
           onModeChange?.('list');
           load();
         }}
+        onOpenLibrary={() => {
+          pickTab('library');
+          setView({ mode: 'list' });
+          onModeChange?.('list');
+        }}
       />
     );
   }
@@ -355,6 +363,9 @@ export function TemplatesPage({
     <div className="page tl-page">
       <header className="page-head">
         <h2>Templates</h2>
+        <button type="button" className="k-btn ghost tl-api-keys" onClick={() => setApiFor({ template: null })} data-testid="tl-api-keys">
+          <span className="material-icons" aria-hidden="true">key</span> API keys
+        </button>
         <button className="k-btn tl-new" onClick={() => setView({ mode: 'create' })}>
           <TemplateCreateSvg width={18} height={18} /> Create Template
         </button>
@@ -407,20 +418,21 @@ export function TemplatesPage({
                 <th scope="col" className="c">Status</th>
                 <th scope="col">Language</th>
                 <th scope="col">Last Updated</th>
+                <th scope="col" className="c">API</th>
                 <th scope="col" className="c">Actions</th>
               </tr>
             </thead>
             <tbody>
               {loading && templates.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="tl-empty" style={{ padding: '36px 0' }}>
+                  <td colSpan={7} className="tl-empty" style={{ padding: '36px 0' }}>
                     <BladeSpinner center={true} containerHeight={100} />
                   </td>
                 </tr>
               )}
               {!loading && rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="tl-empty">
+                  <td colSpan={7} className="tl-empty">
                     {templates.length ? 'No templates match your search.' : 'No templates yet. Create your first one.'}
                   </td>
                 </tr>
@@ -470,6 +482,23 @@ export function TemplatesPage({
                     </td>
                     <td>{LANGUAGE_LABEL[t.language || ''] || t.language || '—'}</td>
                     <td>{dateLabel(t)}</td>
+                    <td className="c">
+                      {t.shared ? (
+                        <span className="tl-api-na" title="Sample templates of the shared test number can't be sent through the API">—</span>
+                      ) : (
+                        <button
+                          type="button"
+                          className="tl-api-btn"
+                          onClick={() => setApiFor({ template: t })}
+                          title={`Send ${t.name} from your website, app or server`}
+                          aria-label={`API for ${t.name}`}
+                          data-testid="tl-api"
+                        >
+                          <span className="material-icons" aria-hidden="true">code</span>
+                          API
+                        </button>
+                      )}
+                    </td>
                     <td className="c">
                       {t.shared ? (
                         // A sample of the shared test number: preview only (it isn't the business's to edit or delete).
@@ -524,6 +553,14 @@ export function TemplatesPage({
         </div>
         <Pager {...paged.pager} />
       </div>
+      {apiFor && (
+        <TemplateApiDialog
+          api={api}
+          template={apiFor.template}
+          connected={!!demo || !!business?.whatsappConnected}
+          onClose={() => setApiFor(null)}
+        />
+      )}
       {samplePreview && (
         <div className="demo-backdrop" onClick={() => setSamplePreview(null)}>
           <div className="demo-box co-phone-modal" onClick={(e) => e.stopPropagation()} data-testid="tl-sample-preview">

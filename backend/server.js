@@ -56,6 +56,8 @@ import { ensureAppSubscriptions } from './services/metaChannels.js';
 import { startInstagramTokenRefresh } from './services/instagramLogin.js';
 import { startPostScheduler } from './services/socialPublish.js';
 import socialRouter from './routes/social.js';
+import publicApiRouter from './routes/publicApi.js';
+import developerRouter from './routes/developer.js';
 import { ensureTokenKey } from './services/tokenCrypto.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -265,6 +267,9 @@ app.use('/api/meta/webhook', metaWebhookRouter); // Messenger + Instagram webhoo
 app.use('/api/meta-messaging', requireFeature(metaChannelOf), metaMessagingRouter); // Messenger utility templates + Messenger / Instagram quick messages
 app.use('/api/social', requireFeature('create'), socialRouter); // Create: publish to Facebook / Instagram, Comment auto-DM
 app.use('/api/whatsapp/flow-endpoint', flowEndpointRouter);
+// Public API for a business's own apps (API key auth), and its key management.
+app.use('/api/v1', publicApiRouter);
+app.use('/api/developer', developerRouter);
 
 // Last resort: anything a route passed to next(err) (a database blip, a bad
 // payload) becomes a clean 500 JSON response.
