@@ -1093,6 +1093,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                 focusRequest={focusFor('campaigns')}
                 startRequest={campaignStart}
                 onStartRequestHandled={() => setCampaignStart(null)}
+                onOpenChat={openChatFor}
               />
             )}
             {view === 'flows' && show('flows') && !planLocked('flows') && (

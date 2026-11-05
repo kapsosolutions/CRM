@@ -18,7 +18,10 @@
   gap: 4px;
 }
 
-.cl-row {
+/* Scoped to the panel: the campaign contact list has its own .cl-row
+   (CrmApp.css), and this unscoped rule took its side padding away once the
+   Calling page had been opened. */
+.cl-panel .cl-row {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -26,7 +29,7 @@
   border-bottom: 1px solid #f1f5f9;
 }
 
-.cl-row.main {
+.cl-panel .cl-row.main {
   padding-top: 4px;
 }
 

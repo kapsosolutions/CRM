@@ -30,6 +30,8 @@ interface Props {
   /** Start a new campaign from another page (Templates → Template Library). `n` changes per request. */
   startRequest?: CampaignStartRequest | null;
   onStartRequestHandled?: () => void;
+  /** Open this number's chat (a contact in the campaign's list). */
+  onOpenChat?: (phone: string) => void;
 }
 
 type Status = 'queued' | 'sending' | 'sent' | 'failed';
@@ -198,7 +200,7 @@ function CountryPickerDropdown({
   );
 }
 
-export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, startRequest, onStartRequestHandled }: Props) {
+export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, startRequest, onStartRequestHandled, onOpenChat }: Props) {
   const notify = useNotify();
   const confirm = useConfirm();
   const [viewMode, setViewMode] = useState<'overview' | 'create' | 'create-template' | 'meta-create'>('overview');
@@ -649,6 +651,26 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
     } catch {
       notify('error', 'Could not read that file', 'Please upload a .csv, .xlsx or .xls file.');
     }
+  }
+
+  /**
+   * A contact in the list → their chat. Leaving the page drops a campaign
+   * that isn't saved, so that's asked first (Draft keeps it).
+   */
+  async function openContactChat(phone: string, name?: string) {
+    if (!onOpenChat) return;
+    const unsaved = !sending && (recipients.length > 0 || !!campaignName.trim() || !!templateName);
+    if (unsaved) {
+      const who = name && name !== phone ? name : `+${phone}`;
+      const ok = await confirm({
+        title: `Open the chat with ${who}?`,
+        message: 'This campaign isn’t saved. Leaving now loses it — use Draft first to keep it.',
+        confirmLabel: 'Open chat',
+        cancelLabel: 'Stay here',
+      });
+      if (!ok) return;
+    }
+    onOpenChat(phone);
   }
 
   async function removeRecipient(phone: string, name?: string) {
@@ -1488,7 +1510,25 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
               )}
               {recipients.map((r) => {
                 return (
-                  <div className="cl-row" key={r.phone}>
+                  <div
+                    className={`cl-row${onOpenChat ? ' clickable' : ''}`}
+                    key={r.phone}
+                    {...(onOpenChat
+                      ? {
+                          role: 'button',
+                          tabIndex: 0,
+                          title: `Open the chat with ${r.name && r.name !== r.phone ? r.name : `+${r.phone}`}`,
+                          onClick: () => void openContactChat(r.phone, r.name),
+                          onKeyDown: (e: React.KeyboardEvent) => {
+                            if (e.key === 'Enter' || e.key === ' ') {
+                              e.preventDefault();
+                              void openContactChat(r.phone, r.name);
+                            }
+                          },
+                        }
+                      : {})}
+                    data-testid="camp-contact-row"
+                  >
                     <CountryFlag phone={r.phone} size={20} className="cl-flag" />
                     <div className="cl-main">
                       <div className="cl-name">{r.name}</div>
@@ -1513,7 +1553,11 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
                       <button
                         type="button"
                         className="cl-del"
-                        onClick={() => removeRecipient(r.phone, r.name)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          void removeRecipient(r.phone, r.name);
+                        }}
+                        onKeyDown={(e) => e.stopPropagation()}
                         title="Remove"
                       >
                         <CancelIconSvg width={16} height={16} />
