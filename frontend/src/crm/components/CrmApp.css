@@ -9705,6 +9705,46 @@ button.pd-phone-chip:hover {
   color: var(--wa-ink);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
+.flow-tab .material-icons.flow-tab-lock {
+  font-size: 14px;
+  margin-left: -2px;
+  opacity: 0.75;
+}
+
+/* Flows tab while the daily messaging limit is under 2,000 */
+.flows-locked {
+  max-width: 520px;
+  margin: 48px auto;
+  padding: 32px 28px;
+  text-align: center;
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-hairline);
+  border-radius: 16px;
+  box-shadow: var(--wa-shadow-sm);
+}
+.flows-locked-ic {
+  font-size: 30px;
+  width: 56px;
+  height: 56px;
+  line-height: 56px;
+  border-radius: 50%;
+  background: rgba(16, 124, 63, 0.1);
+  color: #107c3f;
+}
+.flows-locked h3 {
+  margin: 14px 0 8px;
+  font-size: 18px;
+  font-weight: 600;
+}
+.flows-locked p {
+  margin: 0 0 8px;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.flows-locked .flows-locked-sub {
+  color: var(--wa-ink-muted);
+  font-size: 13px;
+}
 
 /* Flows list */
 .flow-list-wrap {

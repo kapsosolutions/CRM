@@ -568,6 +568,22 @@ const BY_VERTICAL: Record<string, FormPreset[]> = {
         photo('issue_photo', 'Photo (optional)'),
       ],
     },
+    {
+      id: 'track_shipment', title: 'Track shipment', icon: 'travel_explore', heading: 'Track your shipment',
+      body: 'Enter your tracking number and we’ll reply here with the latest status.', button: 'Track',
+      fields: [...who(), text('tracking_no', 'Tracking number')],
+    },
+    {
+      id: 'rate_enquiry', title: 'Rate enquiry', icon: 'request_quote', heading: 'Get a delivery quote',
+      button: 'Get quote',
+      fields: [
+        ...who(),
+        num('from_pincode', 'From pincode'),
+        num('to_pincode', 'To pincode'),
+        drop('package_type', 'Package type', opts('Documents', 'Small parcel', 'Large parcel', 'Fragile', 'Food')),
+        num('weight_kg', 'Weight (kg)'),
+      ],
+    },
   ],
   finance: [
     {
@@ -671,6 +687,8 @@ const PAGE_LABEL: Record<string, string> = {
   monthly_list: 'Monthly lists',
   pickup_request: 'Pickup requests',
   delivery_issue: 'Delivery issues',
+  track_shipment: 'Tracking requests',
+  rate_enquiry: 'Rate enquiries',
   loan_enquiry: 'Loan enquiries',
   kyc_documents: 'KYC documents',
   claim_intimation: 'Claims',

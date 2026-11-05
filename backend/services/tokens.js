@@ -95,3 +95,32 @@ export function locationTokens(loc) {
 }
 
 export default { fillTokens, dropEmptyLines, TOKEN_HELP, locationTokens };
+
+// Values the runtime prefixes to mark a selection (a member, an order, a slot…)
+// rather than something the customer typed or read.
+const SELECTION_ID = /^(mem_|ord_|appt_|slot_|cat_)/;
+
+/**
+ * A submitted form's plain answers as tokens: {{pickup_address}},
+ * {{table_no}}, {{tracking_no}}. A choice reads as its label ("Small
+ * parcel", not "small_parcel") when the label came with the answers.
+ *
+ * This is what lets a ready-made flow's confirmation quote the customer's own
+ * answers, and a typed `delivery_address` reach the order the same way a
+ * shared pin does. Files, date ranges, tick boxes and selection ids are left
+ * out, and the caller spreads these FIRST so its own computed tokens (the
+ * order id, the readable appointment date) win on a shared name.
+ */
+export function answerTokens(fields = {}) {
+  const out = {};
+  if (!fields || typeof fields !== 'object') return out;
+  for (const [key, value] of Object.entries(fields)) {
+    if (key.endsWith('_label') || !/^[a-zA-Z0-9_]+$/.test(key)) continue;
+    if (value === null || value === undefined || typeof value === 'object' || typeof value === 'boolean') continue;
+    const label = fields[`${key}_label`];
+    const text = String(typeof label === 'string' && label.trim() ? label : value).trim();
+    if (!text || SELECTION_ID.test(text)) continue;
+    out[key] = text.slice(0, 500);
+  }
+  return out;
+}

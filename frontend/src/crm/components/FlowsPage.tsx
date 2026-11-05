@@ -38,6 +38,7 @@ import { BladeSpinner } from './BladeSpinner';
 import { COMING_SOON } from '../features';
 import { ComingSoonPanel, SoonPill } from './ComingSoon';
 import { FullscreenButton, IN_HANDLE, inSideFor, organizeLayout, useCanvasFullscreen, type LayoutPort } from './canvasTools';
+import { useMessagingLimit } from './MessagingLimit';
 
 type Kind =
   | 'start'
@@ -1859,6 +1860,28 @@ function JourneyManager({
   );
 }
 
+/** WhatsApp Flows open at this daily messaging limit (Meta's 2,000 tier). */
+export const FLOWS_MIN_LIMIT = 2000;
+
+/** What the Flows tab shows while the number's daily limit is under FLOWS_MIN_LIMIT. */
+function FlowsLockedPanel({ limit }: { limit: number }) {
+  const fmt = (n: number) => n.toLocaleString('en-IN');
+  return (
+    <div className="flows-locked" data-testid="flows-locked">
+      <span className="material-icons flows-locked-ic">lock</span>
+      <h3>Flows open at {fmt(FLOWS_MIN_LIMIT)} messages a day</h3>
+      <p>
+        Your WhatsApp number can message <b>{fmt(limit)}</b> customers a day right now. WhatsApp Flows unlock when
+        Meta raises it to <b>{fmt(FLOWS_MIN_LIMIT)}</b>.
+      </p>
+      <p className="flows-locked-sub">
+        Meta raises the limit on its own as your number keeps a good quality rating and messages more customers. Until
+        then, Journeys answer your chats automatically.
+      </p>
+    </div>
+  );
+}
+
 export function FlowsPage({
   api,
   canUseFlows = false,
@@ -1867,6 +1890,7 @@ export function FlowsPage({
   business: _business,
   demo: _demo,
   onNavigate,
+  limitBypass = false,
 }: {
   api: CrmApi;
   canUseFlows?: boolean;
@@ -1875,8 +1899,15 @@ export function FlowsPage({
   business?: BusinessProfile;
   demo?: boolean;
   onNavigate?: (view: any) => void;
+  /** The daily-limit lock doesn't apply (the demo, the platform owner). */
+  limitBypass?: boolean;
 }) {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
+  // WhatsApp Flows open once the number may message FLOWS_MIN_LIMIT customers
+  // a day. A limit that isn't known (not loaded, not connected) doesn't lock.
+  const { data: limitData } = useMessagingLimit();
+  const flowsLimit = limitData?.connected && limitData.limit && !limitData.limit.unlimited ? Number(limitData.limit.limit) : null;
+  const flowsLocked = !limitBypass && flowsLimit !== null && Number.isFinite(flowsLimit) && flowsLimit < FLOWS_MIN_LIMIT;
   // 'flows' = native WhatsApp Flow builder, 'journeys' = chatbot node builder.
   // Journeys is the default: it's the one every business uses.
   const [tab, setTab] = useState<'flows' | 'journeys'>('journeys');
@@ -1928,12 +1959,23 @@ export function FlowsPage({
           <button className={`flow-tab${tab === 'journeys' ? ' on' : ''}`} onClick={() => switchTab('journeys')}>
             <span className="material-icons">hub</span> Journeys
           </button>
-          <button className={`flow-tab${tab === 'flows' ? ' on' : ''}`} onClick={() => switchTab('flows')}>
+          <button
+            className={`flow-tab${tab === 'flows' ? ' on' : ''}${flowsLocked ? ' locked' : ''}`}
+            onClick={() => switchTab('flows')}
+            title={flowsLocked ? `Flows open at a daily messaging limit of ${FLOWS_MIN_LIMIT.toLocaleString('en-IN')}` : undefined}
+            data-testid="flows-tab"
+            data-locked={flowsLocked ? 'true' : undefined}
+          >
             <span className="material-icons">account_tree</span> Flows
+            {flowsLocked && <span className="material-icons flow-tab-lock" aria-label="Locked">lock</span>}
           </button>
         </div>
       </header>
-      {tab === 'flows' ? (
+      {tab === 'flows' && flowsLocked ? (
+        <div className="page-body">
+          <FlowsLockedPanel limit={flowsLimit || 0} />
+        </div>
+      ) : tab === 'flows' ? (
         <div className="page-body">
           <FlowBuilderPage api={api} registerDirty={registerChildDirty} vertical={vertical} />
         </div>

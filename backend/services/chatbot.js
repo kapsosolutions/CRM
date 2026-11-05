@@ -17,6 +17,7 @@ import { runJourney } from './journeyRuntime.js';
 import { tenantHasFeature } from './planGate.js';
 import { runFlowMap, runFlowCompletion, settlePayment } from './flowMapRuntime.js';
 import { saveFlowSubmission } from './registrations.js';
+import { answerTokens } from './tokens.js';
 import { runKeywordTrigger } from './templateTriggers.js';
 import { orderTokens, dateLabel } from './flowRuntime.js';
 import { to12h } from './slots.js';
@@ -284,6 +285,9 @@ export async function handleMessage(msg, ctx = {}) {
         : null;
       const feeValue = Number(member?.fee) || 0;
       const tokens = {
+        // The customer's own answers ({{pickup_address}}, {{table_no}}, a typed
+        // {{delivery_address}}). First, so every value below wins on a name.
+        ...answerTokens(fields),
         ...ot,
         // Link any order created at this confirmation back to the appointment
         // row, so a future reschedule can find and move the exact same order.

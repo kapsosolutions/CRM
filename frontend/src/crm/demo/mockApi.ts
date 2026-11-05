@@ -1578,7 +1578,10 @@ export class MockCrmApi extends CrmApi {
   }
   override createFlowDef(body: Partial<WaFlowDef>): Promise<{ success: boolean; data: WaFlowDef }> {
     const now = new Date().toISOString();
+    // Everything the server would keep (a ready-made flow brings its Start
+    // wiring, map layout and chat message), then the server's own fields.
     const f: WaFlowDef = {
+      ...JSON.parse(JSON.stringify(body)),
       _id: nextId(),
       name: body.name || 'Untitled flow',
       categories: body.categories || ['OTHER'],

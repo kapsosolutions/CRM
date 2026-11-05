@@ -635,6 +635,9 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // The native Flow builder is the platform owner's tool, plus any tenant it's
   // been enabled for. Demo mode shows everything.
   const [canUseFlows, setCanUseFlows] = useState(demo);
+  // The platform owner (admin, or a master-password session): the Flows tab's
+  // daily-limit lock doesn't apply, so any tenant's flows can be looked after.
+  const [staffSession, setStaffSession] = useState(false);
   // Who we're signed in as, so the chat view can sanity-check live events
   // against the tenant they claim to belong to.
   const [businessId, setBusinessId] = useState<string | undefined>(undefined);
@@ -664,6 +667,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         // one is what makes the builder reachable inside *any* tenant without
         // handing the tenant itself the tool.
         setCanUseFlows(r.role === 'admin' || !!r.master || !!r.business?.flowsEnabled);
+        setStaffSession(r.role === 'admin' || !!r.master);
       })
       .catch(() => setCategory('other')) // on failure, don't hide anything
       .finally(() => setMeKnown(true));
@@ -761,6 +765,10 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   }, [category, vertical, view]);
 
   const show = (p: CrmView) => vertical.showsPage(p);
+  // The demo shows every page, so its Flows tab stays open. Dev-only test hook
+  // (stripped from production builds): localStorage `__demoFlowsLock` = '1'
+  // applies the daily-limit lock to the demo too (its number is on 250).
+  const demoFlowsLock = demo && import.meta.env.DEV && typeof localStorage !== 'undefined' && localStorage.getItem('__demoFlowsLock') === '1';
 
   // ---- Sound and desktop nudge for every notification ----------------------
   // Settings → Manage Notifications decides, per kind of event (the
@@ -1168,6 +1176,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
               <FlowsPage
                 api={api}
                 canUseFlows={canUseFlows}
+                limitBypass={staffSession || (demo && !demoFlowsLock)}
                 registerDirty={registerDirty}
                 vertical={vertical}
                 business={business}

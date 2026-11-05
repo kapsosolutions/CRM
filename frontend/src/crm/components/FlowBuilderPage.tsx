@@ -45,10 +45,12 @@ import type {
 import { buildFlowJson, FINAL_SCREEN_ONLY, incomingDataKeys, isEndpointMode } from '../flowJson';
 import { Dropdown, type KOption } from './Dropdown';
 import { MediaCtx, useLeaveCleanup, useMedia, useMediaApi, usePendingUploads } from './uploadCtx';
-import { PdfDesigner, confirmPdfTemplate, PDF_A4, type ConfirmPdfOpts } from './PdfDesigner';
+import { PdfDesigner, PDF_A4, type ConfirmPdfOpts } from './PdfDesigner';
 import { pdfDesignName } from './pdfDesigns';
 import { FlowMessageFields, FlowMessageModal, flowMessageOf, type FlowMessage } from './FlowMessageEditor';
-import { verticalConfig, type ConfirmWording, type VerticalConfig } from '../verticals';
+import { verticalConfig, type VerticalConfig } from '../verticals';
+import { makeBlock, type BlockSpec } from '../flowBlocks';
+import { ReadyTemplates } from './FlowTemplateGallery';
 import {
   blockLabel as chipLabel, blockShown, formsFor, payOptions, RATING_OPTIONS, TIME_OPTIONS,
   type BlockId, type FieldSpec, type FormPreset,
@@ -566,6 +568,7 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
         <TemplatesModal
           api={api}
           vertical={v}
+          existingNames={flows.map((f) => f.name)}
           onClose={() => setBrowsing(false)}
           onUsed={(flow) => {
             setBrowsing(false);
@@ -648,13 +651,17 @@ function SaveTemplateModal({
 // new flow from one.
 // ---------------------------------------------------------------------------
 function TemplatesModal({
-  api, vertical, onClose, onUsed,
+  api, vertical, existingNames, onClose, onUsed,
 }: {
   api: CrmApi;
   vertical: VerticalConfig;
+  existingNames: string[];
   onClose: () => void;
   onUsed: (flow: WaFlowDef) => void;
 }) {
+  // Ready-made: built for this business type (flowTemplates.ts). Shared: the
+  // flows other businesses of the same type saved as templates.
+  const [tab, setTab] = useState<'ready' | 'shared'>('ready');
   const [items, setItems] = useState<FlowTemplate[] | null>(null);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState('');
@@ -704,25 +711,39 @@ function TemplatesModal({
 
   return (
     <div className="disc-backdrop tpl-backdrop" onClick={onClose}>
-      <div className="disc-box tpl-box lg" onClick={(e) => e.stopPropagation()}>
+      <div className="disc-box tpl-box lg xl" onClick={(e) => e.stopPropagation()} data-testid="tpl-modal">
         <div className="tpl-head">
-          <div className="disc-title">Templates for {vertical.archetypeLabel.toLowerCase()}</div>
+          <div className="disc-title">Templates for {vertical.key === 'other' ? 'your business' : vertical.label}</div>
           <button type="button" className="tpl-x" onClick={onClose} title="Close" aria-label="Close" data-testid="tpl-close">
             <span className="material-icons">close</span>
           </button>
         </div>
         <p className="tpl-sub">
-          Blueprints shared by businesses like yours. “Use” creates a new draft flow you can edit and
-          publish with your own WhatsApp account.
+          {tab === 'ready'
+            ? 'Pick a ready-made flow, change how it works, and create it. It’s built and wired for you, as a draft you can edit and publish.'
+            : 'Blueprints shared by businesses like yours. “Use” creates a new draft flow you can edit and publish with your own WhatsApp account.'}
         </p>
-        {error && <div className="pa-error">{error}</div>}
-        {!items && !error && <BladeSpinner center={true} containerHeight={180} />}
-        {items && items.length === 0 && (
+        <div className="flow-tabs tpl-tabs">
+          <button type="button" className={`flow-tab${tab === 'ready' ? ' on' : ''}`} onClick={() => setTab('ready')} data-testid="tpl-tab-ready">
+            <span className="material-icons">auto_awesome</span> Ready-made
+          </button>
+          <button type="button" className={`flow-tab${tab === 'shared' ? ' on' : ''}`} onClick={() => setTab('shared')} data-testid="tpl-tab-shared">
+            <span className="material-icons">groups</span> Shared by businesses
+            {items && items.length > 0 && <span className="ord-count">{items.length}</span>}
+          </button>
+        </div>
+        <div className="tpl-body">
+        {tab === 'ready' && (
+          <ReadyTemplates api={api} vertical={vertical} existingNames={existingNames} onCreated={onUsed} />
+        )}
+        {tab === 'shared' && error && <div className="pa-error">{error}</div>}
+        {tab === 'shared' && !items && !error && <BladeSpinner center={true} containerHeight={180} />}
+        {tab === 'shared' && items && items.length === 0 && (
           <div className="page-note">
             No templates for your business type yet. Build a flow and use “Save as template” to add one.
           </div>
         )}
-        {items && items.length > 0 && (
+        {tab === 'shared' && items && items.length > 0 && (
           <div className="tpl-list">
             {items.map((t) => (
               <div className="tpl-item" key={t._id}>
@@ -759,6 +780,7 @@ function TemplatesModal({
             ))}
           </div>
         )}
+        </div>
       </div>
     </div>
   );
@@ -3095,113 +3117,6 @@ function branchFieldOf(s: FlowScreen): FlowComponent | undefined {
       c.source !== 'slots' &&
       c.source !== 'appointments',
   );
-}
-
-interface BlockSpec {
-  kind: FlowBlockKind;
-  buttons?: number;
-  header?: FlowBlockHeader;
-  // Which document a 'pdfdoc' block starts from. Cancellations and order
-  // confirmations are both A4 slips but say opposite things, so each gets its
-  // own palette entry and its own seeded template.
-  preset?: 'cancel' | 'confirm';
-}
-
-/** Fallback wording when no vertical is known (standalone / demo use). */
-const DEFAULT_CONFIRM = verticalConfig('other').confirm;
-
-let blkSeq = 1;
-function makeBlock(spec: BlockSpec, wording: ConfirmWording = DEFAULT_CONFIRM): FlowBlock {
-  const id = `blk_${Date.now().toString(36)}_${blkSeq++}`;
-  const b: FlowBlock = { id, kind: spec.kind, header: spec.header || 'none', text: '' };
-  switch (spec.kind) {
-    case 'message':
-      b.text = 'Thanks! We will be in touch shortly.';
-      break;
-    case 'reply':
-      b.text = 'How can we help?';
-      b.buttons = Array.from({ length: spec.buttons || 1 }, (_, i) => `Button ${i + 1}`);
-      break;
-    // Same wire as 'reply', only the wording and buttons start off as a
-    // payment question. The costed Items / Delivery / Total payable summary is
-    // generated at send time and sits above this text, so all that's stored
-    // here is the prompt. Both button labels are editable in the node.
-    case 'paymethod':
-      b.text = 'Select an option below to confirm.';
-      b.buttons = ['Online', 'COD'];
-      b.deliveryFee = 0;
-      b.showSummary = true;
-      b.summaryTitle = 'Payment';
-      break;
-    case 'cta':
-      b.text = 'Check this out';
-      b.ctaLabel = 'Open';
-      b.ctaUrl = 'https://';
-      break;
-    case 'call':
-      b.text = 'Call us';
-      b.callLabel = 'Call';
-      b.callPhone = '+91';
-      break;
-    case 'location':
-      b.text = 'Please share your location.';
-      break;
-    case 'list':
-      b.text = 'Choose an option';
-      b.listTitle = 'Menu';
-      b.options = ['Option 1', 'Option 2'];
-      break;
-    case 'template':
-      b.templateName = '';
-      break;
-    case 'payment':
-      b.text = 'Review your items and pay securely via UPI.';
-      b.currency = 'INR';
-      break;
-    case 'catalog':
-      b.text = 'Browse our products. Tap a product for full details, ratings & to add to cart.';
-      b.ctaLabel = 'View items';
-      break;
-    // Everything the conversation captured, in one message. Lines whose live
-    // value is empty are dropped at send time, which is what makes the same
-    // default work for a delivery business and a walk-in one.
-    case 'orderconfirm':
-      // Wording comes from the business type: a clinic confirms an appointment
-      // with a doctor and a time, a shop confirms a cart with a delivery
-      // address. Label-and-colon rather than padded columns, because runs of
-      // spaces are collapsed when the live values are filled in.
-      b.text = wording.body;
-      b.buttons = [];
-      break;
-    // Reports the record the customer picked earlier. Same rule: a line with no
-    // value doesn't get sent, so a business that never records a payment
-    // status won't show an empty one.
-    case 'orderdetails':
-      b.text = wording.detailsBody;
-      b.buttons = ['Start'];
-      break;
-    case 'pdfdoc':
-      // One message: the generated PDF, the wording, and reply buttons.
-      if (spec.preset === 'confirm') {
-        b.text = wording.pdfText;
-        b.buttons = ['Start'];
-        b.pdfFileName = wording.pdfFileName;
-        // The slip layout follows the business type too — a clinic's has no
-        // cart, no delivery address and no totals.
-        b.pdfTemplate = { ...confirmPdfTemplate(wording.pdf), design: 'classic', slip: 'confirm' };
-      } else {
-        // The cancellation slip. Wording follows the business type too — a
-        // clinic cancels an appointment, not an order — and it reuses the
-        // confirm slip layout with its own heading and note.
-        const c = wording.cancel;
-        b.text = c.docText;
-        b.buttons = ['Start'];
-        b.pdfFileName = c.pdfFileName;
-        b.pdfTemplate = { ...confirmPdfTemplate({ ...wording.pdf, title: c.pdfTitle, note: c.pdfNote }), design: 'classic', slip: 'cancel' };
-      }
-      break;
-  }
-  return b;
 }
 
 /**
