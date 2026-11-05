@@ -813,17 +813,19 @@ export const MessageItem = memo(function MessageItem({
   function renderMedia() {
     if (!md || mediaFailed) return null;
     const dl = api.downloadUrl(md.url, md.filename);
+    // A file sent from this browser keeps showing its local copy (no reload flash).
+    const shownUrl = m.raw?.localPreview || md.url;
     switch (md.type) {
       case 'image':
         return (
           <div className="media-wrap">
             <img
               className="bubble-media clickable"
-              src={md.url}
+              src={shownUrl}
               alt=""
               loading="lazy"
               onError={() => setMediaFailed(true)}
-              onClick={() => onViewMedia({ url: md.url, pdf: false })}
+              onClick={() => onViewMedia({ url: shownUrl, pdf: false })}
             />
             {uploadingMedia && <UploadSpinner />}
           </div>
@@ -834,7 +836,7 @@ export const MessageItem = memo(function MessageItem({
             <video
               className="bubble-media"
               // #t=0.1: the first frame as the preview, before it's played.
-              src={videoOn ? md.url : `${md.url}#t=0.1`}
+              src={videoOn ? shownUrl : `${shownUrl}#t=0.1`}
               preload="metadata"
               playsInline
               controls={videoOn}
@@ -877,7 +879,7 @@ export const MessageItem = memo(function MessageItem({
             <span className={`audio-kind material-icons${md.voice ? ' voice' : ''}`}>
               {md.voice ? 'mic' : 'headphones'}
             </span>
-            <audio className="bubble-audio" src={md.url} controls onError={() => setMediaFailed(true)} />
+            <audio className="bubble-audio" src={shownUrl} controls onError={() => setMediaFailed(true)} />
             <button
               className="dl-btn inline"
               onClick={() => downloadFile(dl, md.filename)}

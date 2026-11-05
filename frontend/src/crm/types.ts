@@ -2146,6 +2146,13 @@ export interface ChatMessage {
     media?: MediaInfo;
     /** CRM-only: a file still uploading from this browser (shown from a local copy). */
     localUpload?: boolean;
+    /**
+     * CRM-only, on the saved copy of a file sent from this browser: the local
+     * copy it keeps showing (no reload flash), and the bubble's first id (so
+     * the bubble on screen is kept, not rebuilt).
+     */
+    localPreview?: string;
+    localKey?: string;
     order?: OrderInfo;
     payment?: PaymentInfo;
     location?: LocationInfo;

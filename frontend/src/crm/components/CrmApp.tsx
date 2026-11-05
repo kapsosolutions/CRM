@@ -152,11 +152,15 @@ export function CrmApp({
   // Once a bubble is gone (replaced by the saved message, or another chat
   // opened), its local copy is let go.
   useEffect(() => {
-    const onScreen = new Set(messages.map((m) => m._id));
+    const inUse = new Set<string>();
+    for (const m of messages) {
+      inUse.add(m._id);
+      if (m.raw?.localPreview) inUse.add(m.raw.localPreview);
+    }
     for (const [id, local] of localFilesRef.current) {
-      if (onScreen.has(id)) continue;
-      // Let the saved message's own image load before the local one goes.
-      window.setTimeout(() => URL.revokeObjectURL(local.url), 30000);
+      // Still a bubble, or the saved message still draws this local copy.
+      if (inUse.has(id) || inUse.has(local.url)) continue;
+      URL.revokeObjectURL(local.url);
       localFilesRef.current.delete(id);
     }
   }, [messages]);
@@ -573,7 +577,16 @@ export function CrmApp({
       seenIdsRef.current.add(m._id);
       if (isUpdate) {
         // Keep the ticks we already have: the re-push may carry an older status.
-        setMessages((list) => list.map((x) => (x._id === m._id ? withEarlyStatus(m, x) : x)));
+        setMessages((list) =>
+          list.map((x) => {
+            if (x._id !== m._id) return x;
+            const next = withEarlyStatus(m, x);
+            // A file sent from here keeps its bubble and local copy.
+            return x.raw?.localKey
+              ? { ...next, raw: { ...next.raw, localPreview: x.raw.localPreview, localKey: x.raw.localKey } }
+              : next;
+          }),
+        );
         // A call row moves on (ringing → missed / 2:14): the chat list line follows.
         if (m.type === 'call') {
           setChats((list) => list.map((c) => (c.phone === m.phone ? { ...c, lastMessageBody: previewOf(m) } : c)));
@@ -604,7 +617,12 @@ export function CrmApp({
             );
             if (i >= 0) {
               const next = [...list];
-              next[i] = fresh;
+              const temp = list[i];
+              // A file we sent: keep the same bubble and keep drawing the
+              // local copy, so the photo doesn't blank while the saved one loads.
+              next[i] = temp.raw?.localUpload
+                ? { ...fresh, raw: { ...fresh.raw, localPreview: temp.raw.outbound?.mediaUrl, localKey: temp._id } }
+                : fresh;
               return next;
             }
             return [...list, fresh];
@@ -1500,7 +1518,7 @@ export function CrmApp({
                 const day = dayKey(m.createdAt);
                 const newDay = !!day && day !== dayKey(shownMessages[i - 1]?.createdAt);
                 return (
-                  <Fragment key={m._id}>
+                  <Fragment key={m.raw?.localKey || m._id}>
                     {newDay && (
                       <div className="day-sep" role="separator">
                         <span>{dayLabel(m.createdAt)}</span>
