@@ -619,7 +619,11 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   const [focusRequest, setFocusRequest] = useState<{ view: CrmView; id: string; n: number } | null>(null);
 
   // Resolve the tenant's vertical. Demo mode shows everything.
-  const [category, setCategory] = useState<string | undefined>(demo ? 'other' : undefined);
+  // Dev-only test hook (stripped from production builds): localStorage
+  // `__demoCategory` = 'hospital' etc. runs the demo as that business type.
+  const [category, setCategory] = useState<string | undefined>(
+    demo ? (import.meta.env.DEV && typeof localStorage !== 'undefined' && localStorage.getItem('__demoCategory')) || 'other' : undefined,
+  );
   // The SaaS plan in force (backend services/plans.js): which pages are open,
   // limits, trial / renewal dates. The demo shows a trial with every feature.
   const [planState, setPlanState] = useState<PlanState | null>(() => (demo ? demoPlan() : null));

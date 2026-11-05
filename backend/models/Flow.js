@@ -40,6 +40,12 @@ const FlowComponentSchema = new Schema(
     // DatePicker only: how many days ahead a date may be picked. 0/unset falls
     // back to the generator's default booking horizon. Blocks "too far" dates.
     maxDaysAhead: { type: Number, default: 0 },
+    // DatePicker: > 0 asks for a past date instead (this many days back to today).
+    pastDays: { type: Number, default: 0 },
+    // CalendarPicker (date range): the end date's label; `label` is the start's.
+    endLabel: { type: String, default: '' },
+    // OptIn (agreement tick box): an optional "Read more" link.
+    linkUrl: { type: String, default: '' },
     photoSource: { type: String, default: 'camera_gallery' }, // camera | gallery | camera_gallery
     maxFiles: { type: Number, default: 1 },
     // Where a selection list gets its rows: static options, or live data served

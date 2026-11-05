@@ -1,0 +1,136 @@
+/* A typed answer from a submitted form (FormAnswer.tsx). */
+.fa-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.fa-stars {
+  color: #f5a623;
+  letter-spacing: 1px;
+  font-size: 15px;
+  line-height: 1;
+}
+.fa-stars-off {
+  color: rgba(134, 150, 160, 0.4);
+}
+.fa-rating-n {
+  font-size: 12px;
+  color: var(--wa-ink-muted);
+}
+.fa-chips {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+.fa-chip {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(29, 191, 115, 0.12);
+  color: #0b6b33;
+}
+.fa-consent,
+.fa-date {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.fa-consent .material-icons,
+.fa-date .material-icons {
+  font-size: 16px;
+}
+.fa-consent.yes .material-icons {
+  color: #16a34a;
+}
+.fa-consent.no .material-icons {
+  color: #dc2626;
+}
+.fa-date .material-icons {
+  color: var(--wa-ink-muted);
+}
+.fa-link {
+  color: #027eb5;
+  text-decoration: none;
+}
+.fa-link:hover {
+  text-decoration: underline;
+}
+.fa-long {
+  white-space: pre-wrap;
+}
+.fa-photos {
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.fa-thumb {
+  width: 64px;
+  height: 64px;
+  padding: 0;
+  border: 1px solid var(--wa-hairline);
+  border-radius: 8px;
+  overflow: hidden;
+  background: rgba(28, 30, 33, 0.05);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fa-photos.compact .fa-thumb {
+  width: 40px;
+  height: 40px;
+}
+.fa-thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.fa-thumb.missing {
+  cursor: default;
+  color: var(--wa-ink-muted);
+}
+.fa-docs {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.fa-doc {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 220px;
+  padding: 5px 8px;
+  border-radius: 8px;
+  background: rgba(28, 30, 33, 0.05);
+  color: var(--wa-ink);
+  text-decoration: none;
+}
+.fa-doc:hover {
+  background: rgba(28, 30, 33, 0.09);
+}
+.fa-doc.missing {
+  opacity: 0.6;
+}
+.fa-doc-ic {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: #ea4335;
+  color: #fff;
+  font-size: 9.5px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.fa-doc-name {
+  font-size: 12.5px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

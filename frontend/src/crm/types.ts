@@ -1747,7 +1747,21 @@ export interface BillingSummary {
 export interface FormRow {
   key: string;
   label: string;
+  /** Readable text for the answer (always set, also for the typed ones below). */
   value: string;
+  /**
+   * What kind of answer it is, so it can be drawn as such. Rows saved before
+   * types existed have none and show as plain text.
+   */
+  type?: 'text' | 'longtext' | 'phone' | 'email' | 'date' | 'daterange' | 'choice' | 'multi' | 'rating' | 'consent' | 'photo' | 'document';
+  /** multi: each ticked option. */
+  items?: string[];
+  /** rating: 1–5. */
+  rating?: number;
+  /** consent: ticked or not. */
+  agreed?: boolean;
+  /** photo / document: the saved files ('' url when the file couldn't be fetched). */
+  files?: { url: string; name: string; mime: string }[];
 }
 export interface FormSubmission {
   flowName?: string;
@@ -2700,6 +2714,8 @@ export type FlowComponentType =
   | 'DatePicker'
   | 'PhotoPicker' // camera / gallery image upload
   | 'DocumentPicker' // document upload
+  | 'CalendarPicker' // a start → end date range (check-in / check-out)
+  | 'OptIn' // an "I agree" tick box
   | 'Footer';
 
 // input-type for TextInput (maps to Flow JSON "input-type").
@@ -2764,6 +2780,13 @@ export interface FlowComponent {
   // DatePicker only: furthest a date may be picked, in days from today. Blocks
   // "too far" bookings; 0/unset uses the default horizon.
   maxDaysAhead?: number;
+  // DatePicker: > 0 asks for a date in the PAST instead (date of an incident,
+  // of birth): from this many days ago up to today.
+  pastDays?: number;
+  // CalendarPicker: the label of the range's end (`label` is the start's).
+  endLabel?: string;
+  // OptIn: optional "Read more" link opened from the agreement.
+  linkUrl?: string;
   description?: string; // picker description
   // PhotoPicker: where photos come from
   photoSource?: 'camera' | 'gallery' | 'camera_gallery';

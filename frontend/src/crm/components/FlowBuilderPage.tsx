@@ -42,13 +42,17 @@ import type {
   WaFlowDef,
   FlowTemplate,
 } from '../types';
-import { buildFlowJson, incomingDataKeys, isEndpointMode } from '../flowJson';
+import { buildFlowJson, FINAL_SCREEN_ONLY, incomingDataKeys, isEndpointMode } from '../flowJson';
 import { Dropdown, type KOption } from './Dropdown';
 import { MediaCtx, useLeaveCleanup, useMedia, useMediaApi, usePendingUploads } from './uploadCtx';
 import { PdfDesigner, confirmPdfTemplate, PDF_A4, type ConfirmPdfOpts } from './PdfDesigner';
 import { pdfDesignName } from './pdfDesigns';
 import { FlowMessageFields, FlowMessageModal, flowMessageOf, type FlowMessage } from './FlowMessageEditor';
 import { verticalConfig, type ConfirmWording, type VerticalConfig } from '../verticals';
+import {
+  blockLabel as chipLabel, blockShown, formsFor, payOptions, RATING_OPTIONS, TIME_OPTIONS,
+  type BlockId, type FieldSpec, type FormPreset,
+} from '../flowForms';
 import { useConfirm, useFlash, useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { BladeSpinner } from './BladeSpinner';
@@ -175,37 +179,61 @@ const REGISTER_FIELDS: {
   { type: 'DatePicker', name: 'preferred_date', label: 'Preferred date', required: true },
 ];
 
-const PALETTE: {
+// A chip that builds something bigger than one component (a whole journey, or
+// a small set of fields) rather than adding a single plain component.
+type PaletteGroup =
+  | 'register' | 'cancel' | 'paymethod' | 'booking' | 'reschedule'
+  | 'address' | 'rating' | 'yesno' | 'timewindow';
+
+interface PaletteEntry {
+  /** Which chip this is: decides who sees it and what it's called (flowForms.ts). */
+  id: BlockId;
   type: FlowComponentType;
   icon: string;
   label: string;
   source?: DynSource;
-  group?: 'register' | 'cancel' | 'paymethod' | 'booking' | 'reschedule';
-}[] = [
-  { type: 'TextInput', icon: 'how_to_reg', label: 'Register', group: 'register' },
-  { type: 'TextInput', icon: 'event_available', label: 'Book appointment', group: 'booking' },
-  { type: 'RadioButtonsGroup', icon: 'event_repeat', label: 'Reschedule', group: 'reschedule' },
-  { type: 'RadioButtonsGroup', icon: 'cancel', label: 'Cancel order', group: 'cancel' },
-  { type: 'RadioButtonsGroup', icon: 'payments', label: 'Payment method', group: 'paymethod' },
-  { type: 'Image', icon: 'panorama', label: 'Banner image (8:1)' },
-  { type: 'TextHeading', icon: 'title', label: 'Heading' },
-  { type: 'TextSubheading', icon: 'subtitles', label: 'Subheading' },
-  { type: 'TextBody', icon: 'notes', label: 'Body text' },
-  { type: 'TextCaption', icon: 'short_text', label: 'Caption' },
-  { type: 'RadioButtonsGroup', icon: 'radio_button_checked', label: 'Radio list' },
-  { type: 'CheckboxGroup', icon: 'check_box', label: 'Checkbox list' },
-  { type: 'RadioButtonsGroup', icon: 'category', label: 'Category list', source: 'categories' },
-  { type: 'RadioButtonsGroup', icon: 'groups', label: 'Members list', source: 'members' },
-  { type: 'RadioButtonsGroup', icon: 'receipt_long', label: 'Order list', source: 'orders' },
-  { type: 'RadioButtonsGroup', icon: 'event_busy', label: 'Open orders', source: 'active_orders' },
-  { type: 'Dropdown', icon: 'schedule', label: 'Slot list', source: 'slots' },
-  { type: 'RadioButtonsGroup', icon: 'event_repeat', label: 'My appointments', source: 'appointments' },
-  { type: 'Dropdown', icon: 'arrow_drop_down_circle', label: 'Dropdown' },
-  { type: 'TextInput', icon: 'text_fields', label: 'Text input' },
-  { type: 'TextArea', icon: 'wrap_text', label: 'Text area' },
-  { type: 'DatePicker', icon: 'event', label: 'Date picker' },
-  { type: 'PhotoPicker', icon: 'photo_camera', label: 'Camera / photo' },
-  { type: 'DocumentPicker', icon: 'upload_file', label: 'Upload document' },
+  group?: PaletteGroup;
+  /** Hover text. */
+  hint?: string;
+}
+
+const PALETTE: PaletteEntry[] = [
+  { id: 'register', type: 'TextInput', icon: 'how_to_reg', label: 'Register', group: 'register',
+    hint: 'Adds Name, Business name, locked WhatsApp number, Email and a date picker' },
+  { id: 'booking', type: 'TextInput', icon: 'event_available', label: 'Book appointment', group: 'booking',
+    hint: 'Builds the booking journey: a details screen (name, locked WhatsApp number, email, gender, age, date) and a second screen whose times come live from the chosen date. Wire its port to a confirmation block' },
+  { id: 'reschedule', type: 'RadioButtonsGroup', icon: 'event_repeat', label: 'Reschedule', group: 'reschedule',
+    hint: "Builds the reschedule journey: a picker of the customer's own upcoming bookings, then a new date + live times with the same person. Submitting moves the booking instead of adding one" },
+  { id: 'cancel', type: 'RadioButtonsGroup', icon: 'cancel', label: 'Cancel order', group: 'cancel',
+    hint: 'Builds the whole cancel journey: a picker of what can still be cancelled, a confirmation screen, and a confirmation message wired on the map' },
+  { id: 'paymethod', type: 'RadioButtonsGroup', icon: 'payments', label: 'Payment method', group: 'paymethod',
+    hint: 'Adds a pay-later / pay-online choice the customer picks before submitting' },
+  { id: 'banner', type: 'Image', icon: 'panorama', label: 'Banner image (8:1)' },
+  { id: 'heading', type: 'TextHeading', icon: 'title', label: 'Heading' },
+  { id: 'subheading', type: 'TextSubheading', icon: 'subtitles', label: 'Subheading' },
+  { id: 'body', type: 'TextBody', icon: 'notes', label: 'Body text' },
+  { id: 'caption', type: 'TextCaption', icon: 'short_text', label: 'Caption' },
+  { id: 'radio', type: 'RadioButtonsGroup', icon: 'radio_button_checked', label: 'Radio list' },
+  { id: 'checkbox', type: 'CheckboxGroup', icon: 'check_box', label: 'Checkbox list' },
+  { id: 'categories', type: 'RadioButtonsGroup', icon: 'category', label: 'Category list', source: 'categories' },
+  { id: 'members', type: 'RadioButtonsGroup', icon: 'groups', label: 'Members list', source: 'members' },
+  { id: 'orders', type: 'RadioButtonsGroup', icon: 'receipt_long', label: 'Order list', source: 'orders' },
+  { id: 'active_orders', type: 'RadioButtonsGroup', icon: 'event_busy', label: 'Open orders', source: 'active_orders' },
+  { id: 'slots', type: 'Dropdown', icon: 'schedule', label: 'Slot list', source: 'slots' },
+  { id: 'appointments', type: 'RadioButtonsGroup', icon: 'event_repeat', label: 'My appointments', source: 'appointments' },
+  { id: 'dropdown', type: 'Dropdown', icon: 'arrow_drop_down_circle', label: 'Dropdown' },
+  { id: 'text', type: 'TextInput', icon: 'text_fields', label: 'Text input' },
+  { id: 'textarea', type: 'TextArea', icon: 'wrap_text', label: 'Text area' },
+  { id: 'date', type: 'DatePicker', icon: 'event', label: 'Date picker' },
+  { id: 'daterange', type: 'CalendarPicker', icon: 'date_range', label: 'Date range',
+    hint: 'A start → end date pair on one calendar, e.g. check-in and check-out. Sent from the screen that completes the flow' },
+  { id: 'photo', type: 'PhotoPicker', icon: 'photo_camera', label: 'Camera / photo' },
+  { id: 'document', type: 'DocumentPicker', icon: 'upload_file', label: 'Upload document' },
+  { id: 'address', type: 'TextArea', icon: 'home', label: 'Address', group: 'address', hint: 'Adds Address, Pincode and Landmark' },
+  { id: 'rating', type: 'RadioButtonsGroup', icon: 'star_rate', label: 'Rating', group: 'rating', hint: 'A 1–5 star rating question' },
+  { id: 'yesno', type: 'RadioButtonsGroup', icon: 'rule', label: 'Yes / No', group: 'yesno', hint: 'A required Yes / No question' },
+  { id: 'timewindow', type: 'Dropdown', icon: 'schedule', label: 'Time window', group: 'timewindow', hint: 'Morning / Afternoon / Evening' },
+  { id: 'consent', type: 'OptIn', icon: 'verified', label: 'Consent', hint: 'An “I agree” tick box the customer must tick. Sent from the screen that completes the flow' },
 ];
 
 const PHOTO_SOURCES: KOption[] = [
@@ -228,9 +256,10 @@ const TEXTY = new Set<FlowComponentType>(['TextHeading', 'TextSubheading', 'Text
 const PICKERS = new Set<FlowComponentType>(['PhotoPicker', 'DocumentPicker']);
 const FIELDY = new Set<FlowComponentType>([
   'RadioButtonsGroup', 'CheckboxGroup', 'Dropdown', 'TextInput', 'TextArea', 'DatePicker', 'PhotoPicker', 'DocumentPicker',
+  'CalendarPicker', 'OptIn',
 ]);
 
-function defaultComponent(type: FlowComponentType, source?: DynSource): FlowComponent {
+function defaultComponent(type: FlowComponentType, source?: DynSource, v?: VerticalConfig): FlowComponent {
   const base: FlowComponent = { cid: newCid(), type };
   if (TEXTY.has(type)) base.text = type === 'TextHeading' ? 'Heading text' : 'Some text';
   if (type === 'Image') base.src = '';
@@ -249,16 +278,26 @@ function defaultComponent(type: FlowComponentType, source?: DynSource): FlowComp
     base.label = 'Upload document';
     base.maxFiles = 1;
   }
+  if (type === 'CalendarPicker') {
+    base.name = 'stay_dates';
+    base.label = 'Start date';
+    base.endLabel = 'End date';
+    base.maxDaysAhead = 365;
+  }
+  if (type === 'OptIn') {
+    base.name = 'consent';
+    base.label = 'I agree to be contacted on WhatsApp about this request.';
+  }
   if (SELECTION.has(type)) {
     if (source === 'categories') {
       base.source = 'categories';
       base.name = 'selected_category';
-      base.label = 'Categories';
+      base.label = v && v.key !== 'other' ? v.categoryPlural : 'Categories';
       base.options = [];
     } else if (source === 'members') {
       base.source = 'members';
       base.name = 'selected_member';
-      base.label = 'Choose a member';
+      base.label = v && v.key !== 'other' ? `Choose a ${v.memberSingular.toLowerCase()}` : 'Choose a member';
       base.options = [];
     } else if (source === 'active_orders') {
       base.source = 'active_orders';
@@ -784,6 +823,8 @@ function FlowEditor({
   const [issues, setIssues] = useState<string[]>([]);
   const [showJson, setShowJson] = useState(false);
   const [view, setView] = useState<'build' | 'map'>('build');
+  // The "Forms" chip's menu of ready-made forms.
+  const [formsOpen, setFormsOpen] = useState(false);
   const [positions, setPositions] = useState<Record<string, { x: number; y: number }>>(() =>
     sanitizePositions(flow?.positions),
   );
@@ -946,7 +987,111 @@ function FlowEditor({
     );
   }
   function addComponent(type: FlowComponentType, source?: DynSource) {
-    insertComponents([defaultComponent(type, source)]);
+    const comp = defaultComponent(type, source, vertical);
+    // One-of-a-kind field names (a second date range, a second consent box)
+    // get a suffix, so their answers don't overwrite each other.
+    if ((type === 'CalendarPicker' || type === 'OptIn') && comp.name) comp.name = freeFieldName(comp.name);
+    insertComponents([comp]);
+  }
+
+  /** Field names already used on any screen of this flow. */
+  function usedFieldNames(): Set<string> {
+    return new Set(screens.flatMap((s) => (s.components || []).map((c) => c.name).filter(Boolean) as string[]));
+  }
+  /** `base`, or base_2, base_3… when it's taken somewhere in the flow. */
+  function freeFieldName(base: string, taken = usedFieldNames()): string {
+    if (!taken.has(base)) return base;
+    for (let i = 2; ; i++) if (!taken.has(`${base}_${i}`)) return `${base}_${i}`;
+  }
+
+  /** A ready-made form's field as an ordinary component. */
+  function componentFromSpec(f: FieldSpec, name: string): FlowComponent {
+    if (f.source === 'orders') {
+      return { ...defaultComponent('RadioButtonsGroup', 'orders'), name, label: f.label, required: !!f.required };
+    }
+    return {
+      cid: newCid(),
+      type: f.type,
+      name,
+      label: f.label,
+      required: !!f.required,
+      ...(f.inputType ? { inputType: f.inputType } : {}),
+      ...(f.helperText ? { helperText: f.helperText } : {}),
+      ...(f.description ? { description: f.description } : {}),
+      ...(f.prefill ? { prefill: f.prefill } : {}),
+      ...(f.locked ? { locked: true } : {}),
+      ...(f.maxFiles ? { maxFiles: f.maxFiles } : {}),
+      ...(f.photoSource ? { photoSource: f.photoSource } : {}),
+      ...(f.maxDaysAhead ? { maxDaysAhead: f.maxDaysAhead } : {}),
+      ...(f.pastDays ? { pastDays: f.pastDays } : {}),
+      ...(f.endLabel ? { endLabel: f.endLabel } : {}),
+      ...(f.options
+        ? { source: 'static' as const, options: f.options.map(([id, title]) => ({ id, title, description: '' })) }
+        : {}),
+    };
+  }
+
+  /**
+   * Add a ready-made form to this screen: its heading, a line of text and its
+   * fields, all ordinary components afterwards. Name and WhatsApp number are
+   * skipped when the flow already asks for them; any other field whose name is
+   * taken gets a suffix, so two forms never overwrite each other's answers.
+   */
+  function addFormPreset(p: FormPreset) {
+    const current = screens[activeScreen];
+    if (!current) return;
+    const taken = usedFieldNames();
+    const comps: FlowComponent[] = [];
+    const hasHeading = (current.components || []).some((c) => c.type === 'TextHeading' && c.text && c.text !== 'Heading text');
+    if (hasHeading) comps.push({ cid: newCid(), type: 'TextSubheading', text: p.heading });
+    else comps.push({ cid: newCid(), type: 'TextHeading', text: p.heading });
+    if (p.body) comps.push({ cid: newCid(), type: 'TextBody', text: p.body });
+    for (const f of p.fields) {
+      if ((f.name === 'name' || f.name === 'whatsapp_number') && taken.has(f.name)) continue;
+      const name = freeFieldName(f.name, taken);
+      taken.add(name);
+      comps.push(componentFromSpec(f, name));
+    }
+    setScreens((ss) =>
+      ss.map((s, idx) => {
+        if (idx !== activeScreen) return s;
+        // An untouched placeholder heading ("Heading text") is replaced by the
+        // form's own, and an untouched "Continue" button takes the form's label.
+        const kept = s.components.filter((c) => !(c.type === 'TextHeading' && (c.text || '') === 'Heading text'));
+        const footerAt = kept.findIndex((c) => c.type === 'Footer');
+        const before = footerAt >= 0 ? kept.slice(0, footerAt) : kept;
+        const after = footerAt >= 0 ? kept.slice(footerAt) : [];
+        const footer = after.map((c) =>
+          c.type === 'Footer' && (!c.buttonLabel || c.buttonLabel === 'Continue') && c.action !== 'navigate'
+            ? { ...c, buttonLabel: p.button }
+            : c,
+        );
+        return { ...s, title: !s.title || /^(Welcome|Screen \d+)$/.test(s.title) ? p.title.slice(0, 30) : s.title, components: [...before, ...comps, ...footer] };
+      }),
+    );
+  }
+
+  /** The small field sets: Address, Rating, Yes / No, Time window. */
+  function addFieldSet(group: 'address' | 'rating' | 'yesno' | 'timewindow') {
+    const taken = usedFieldNames();
+    const make = (f: FieldSpec) => {
+      const name = freeFieldName(f.name, taken);
+      taken.add(name);
+      return componentFromSpec(f, name);
+    };
+    if (group === 'address') {
+      insertComponents([
+        make({ type: 'TextArea', name: 'address', label: 'Address', required: true }),
+        make({ type: 'TextInput', name: 'pincode', label: 'Pincode', inputType: 'number', required: true }),
+        make({ type: 'TextInput', name: 'landmark', label: 'Landmark (optional)', inputType: 'text' }),
+      ]);
+    } else if (group === 'rating') {
+      insertComponents([make({ type: 'RadioButtonsGroup', name: 'rating', label: 'How would you rate us?', required: true, options: RATING_OPTIONS })]);
+    } else if (group === 'yesno') {
+      insertComponents([make({ type: 'RadioButtonsGroup', name: 'yes_no', label: 'Your question?', required: true, options: [['yes', 'Yes'], ['no', 'No']] })]);
+    } else {
+      insertComponents([make({ type: 'Dropdown', name: 'time_window', label: 'Preferred time', required: true, options: TIME_OPTIONS })]);
+    }
   }
   /**
    * A payment-method chooser on the screen: a radio list the customer answers
@@ -964,9 +1109,11 @@ function FlowEditor({
         label: 'How would you like to pay?',
         required: true,
         source: 'static',
+        // The ids are what the runtime reads; only the wording follows the
+        // business ("Pay at the visit" for a clinic).
         options: [
-          { id: 'cod', title: 'Cash on delivery', description: '' },
-          { id: 'online', title: 'Pay online', description: '' },
+          { id: 'cod', title: payOptions(vertical).cod, description: '' },
+          { id: 'online', title: payOptions(vertical).online, description: '' },
         ],
       },
     ]);
@@ -1150,11 +1297,15 @@ function FlowEditor({
           ...(f.helperText ? { helperText: f.helperText } : {}),
         }) as FlowComponent,
     );
+    // A room or venue booking doesn't ask a guest's gender and age — those are
+    // a clinic's questions.
+    const personal = vertical.archetype !== 'unit';
+    const bookTitle = personal ? 'Book an appointment' : chipLabel('booking', 'Book appointment', vertical);
     const detailComps: FlowComponent[] = [
-      { cid: newCid(), type: 'TextHeading', text: 'Book an appointment' },
+      { cid: newCid(), type: 'TextHeading', text: bookTitle },
       { cid: newCid(), type: 'TextBody', text: 'Fill in your details and pick a day.' },
       ...identityFields,
-      {
+      ...(!personal ? [] : [{
         // A dropdown rather than radio buttons: three stacked radio rows cost
         // as much vertical space as the rest of the form put together.
         cid: newCid(),
@@ -1176,7 +1327,7 @@ function FlowEditor({
         label: 'Age',
         inputType: 'number',
         required: true,
-      },
+      }] as FlowComponent[]),
       // The date stays last: the slot screen reads it, so it's the final
       // question before "See times".
       { cid: newCid(), type: 'DatePicker', name: 'preferred_date', label: 'Preferred date', required: true },
@@ -1259,9 +1410,13 @@ function FlowEditor({
       title: current.title || 'Reschedule',
       components: [
         ...kept,
-        { cid: newCid(), type: 'TextHeading', text: 'Reschedule an appointment' },
-        { cid: newCid(), type: 'TextBody', text: 'Which appointment would you like to move?' },
-        defaultComponent('RadioButtonsGroup', 'appointments'),
+        { cid: newCid(), type: 'TextHeading', text: vertical.archetype === 'unit' ? 'Change your booking' : 'Reschedule an appointment' },
+        {
+          cid: newCid(),
+          type: 'TextBody',
+          text: vertical.archetype === 'unit' ? 'Which booking would you like to move?' : 'Which appointment would you like to move?',
+        },
+        { ...defaultComponent('RadioButtonsGroup', 'appointments'), ...(vertical.archetype === 'unit' ? { label: 'Your bookings' } : {}) },
         {
           cid: newCid(),
           type: 'Footer',
@@ -1892,37 +2047,56 @@ function FlowEditor({
 
         {/* Component palette + editor */}
         <div className="flow-build-main">
-          <div className="flow-palette-row">
-            {PALETTE.map((p) => (
+          <div className="flow-palette-row" data-testid="flow-palette">
+            {/* Ready-made forms for this business type, then the common ones. */}
+            <div className="flow-forms-anchor">
               <button
-                key={p.label}
-                className={`flow-pal-chip${p.group ? ' accent' : ''}`}
-                onClick={() => {
-                  if (p.group === 'register') addRegisterFields();
-                  else if (p.group === 'booking') addBookingFlow();
-                  else if (p.group === 'reschedule') addRescheduleFlow();
-                  else if (p.group === 'cancel') addCancelFlow();
-                  else if (p.group === 'paymethod') addPaymentMethod();
-                  else addComponent(p.type, p.source);
-                }}
-                title={
-                  p.group === 'register'
-                    ? 'Adds Name, Business name, locked WhatsApp number, Email and a date picker'
-                    : p.group === 'booking'
-                      ? 'Builds the booking journey: a details screen (name, locked WhatsApp number, email, gender, age, date) and a second screen whose times come live from the chosen date. Wire its port to an "Order confirmed" block for the confirmation'
-                      : p.group === 'reschedule'
-                      ? "Builds the reschedule journey: a picker of the customer's own upcoming appointments, then a new date + live times for the same doctor. Submitting moves the booking instead of adding one"
-                      : p.group === 'cancel'
-                        ? 'Builds the whole cancel journey: open-orders picker, a confirmation screen, and a confirmation message + reply button wired on the map'
-                        : p.group === 'paymethod'
-                          ? 'Adds a Cash on delivery / Pay online choice the customer picks before submitting'
-                          : p.label
-                }
+                type="button"
+                className={`flow-pal-chip accent forms${formsOpen ? ' open' : ''}`}
+                onClick={() => setFormsOpen((o) => !o)}
+                aria-haspopup="menu"
+                aria-expanded={formsOpen}
+                title={`Ready-made forms for ${vertical.label}`}
+                data-testid="flow-forms-chip"
               >
-                <span className="material-icons">{p.icon}</span>
-                {p.label}
+                <span className="material-icons">dynamic_form</span>
+                Forms
+                <span className="material-icons flow-forms-caret">expand_more</span>
               </button>
-            ))}
+              {formsOpen && (
+                <FormsMenu
+                  vertical={vertical}
+                  onPick={(p) => {
+                    setFormsOpen(false);
+                    addFormPreset(p);
+                  }}
+                  onClose={() => setFormsOpen(false)}
+                />
+              )}
+            </div>
+            {PALETTE.filter((p) => blockShown(p.id, vertical)).map((p) => {
+              const label = chipLabel(p.id, p.label, vertical);
+              return (
+                <button
+                  key={p.id}
+                  className={`flow-pal-chip${p.group ? ' accent' : ''}`}
+                  onClick={() => {
+                    if (p.group === 'register') addRegisterFields();
+                    else if (p.group === 'booking') addBookingFlow();
+                    else if (p.group === 'reschedule') addRescheduleFlow();
+                    else if (p.group === 'cancel') addCancelFlow();
+                    else if (p.group === 'paymethod') addPaymentMethod();
+                    else if (p.group === 'address' || p.group === 'rating' || p.group === 'yesno' || p.group === 'timewindow') addFieldSet(p.group);
+                    else addComponent(p.type, p.source);
+                  }}
+                  title={p.hint || label}
+                  data-block={p.id}
+                >
+                  <span className="material-icons">{p.icon}</span>
+                  {label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="flow-screen-fields">
@@ -1952,6 +2126,7 @@ function FlowEditor({
                 screenOptions={screenOptions}
                 dynamicFields={dynamicFields}
                 branching={screenBranches}
+                finalScreen={!screenBranches && !screen.components.some((x) => x.type === 'Footer' && x.action === 'navigate' && x.nextScreen)}
                 onChange={(patch) => patchComponent(screen.id, c.cid, patch)}
                 onRemove={() => removeComponent(c.cid)}
                 onMove={(dir) => moveComponent(c.cid, dir)}
@@ -3089,6 +3264,18 @@ const BLOCK_PALETTE: { label: string; icon: string; color: string; spec: BlockSp
   { label: 'Start over', icon: 'restart_alt', color: '#25d366', spec: { kind: 'restart' } },
 ];
 
+/**
+ * Map blocks this business type can use. The Catalog block sends the WhatsApp
+ * catalog, so only a business with a catalog gets it; a pay-online / pay-later
+ * choice means nothing to an enquiry or a notification-only business.
+ */
+function mapBlockShown(p: (typeof BLOCK_PALETTE)[number], v: VerticalConfig): boolean {
+  if (v.key === 'other') return true;
+  if (p.spec.kind === 'catalog') return v.showsPage('catalog');
+  if (p.spec.kind === 'paymethod') return v.archetype !== 'lead' && v.archetype !== 'notify';
+  return true;
+}
+
 /** A palette entry's label, with the confirmation entries named for the business type. */
 function paletteLabel(p: (typeof BLOCK_PALETTE)[number], v: VerticalConfig): string {
   if (p.spec.kind === 'orderconfirm') return v.confirm.label;
@@ -3110,7 +3297,7 @@ function mapAddItems(v: VerticalConfig): MapAddItem[] {
   return [
     { label: 'Screen', icon: 'smartphone', color: '#25d366', pick: { type: 'screen' } },
     { label: 'Flow hand-off', icon: 'account_tree', color: '#6366f1', pick: { type: 'flow' } },
-    ...BLOCK_PALETTE.map((p) => ({ label: paletteLabel(p, v), icon: p.icon, color: p.color, pick: { type: 'block' as const, spec: p.spec } })),
+    ...BLOCK_PALETTE.filter((p) => mapBlockShown(p, v)).map((p) => ({ label: paletteLabel(p, v), icon: p.icon, color: p.color, pick: { type: 'block' as const, spec: p.spec } })),
   ];
 }
 const testSlug = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, '-');
@@ -3634,7 +3821,7 @@ function ScreenMapInner({
         <div className="pal-item" draggable onDragStart={(e) => onPaletteDragStart(e, { type: 'flow' })}>
           <span className="material-icons" style={{ color: '#6366f1' }}>account_tree</span> Flow hand-off
         </div>
-        {BLOCK_PALETTE.map((p) => (
+        {BLOCK_PALETTE.filter((p) => mapBlockShown(p, vertical)).map((p) => (
           <div key={p.label} className="pal-item" draggable onDragStart={(e) => onPaletteDragStart(e, { type: 'block', spec: p.spec })}>
             <span className="material-icons" style={{ color: p.color }}>{p.icon}</span> {paletteLabel(p, vertical)}
           </div>
@@ -3730,6 +3917,51 @@ function ScreenMapInner({
 }
 
 // ---------------------------------------------------------------------------
+// "Forms" chip: the ready-made forms for this business type
+// ---------------------------------------------------------------------------
+function FormsMenu({ vertical, onPick, onClose }: { vertical: VerticalConfig; onPick: (p: FormPreset) => void; onClose: () => void }) {
+  const { own, common } = formsFor(vertical);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  // What the form asks, after the name and number every form starts with.
+  const summary = (p: FormPreset) => {
+    const asks = p.fields.filter((f) => f.name !== 'name' && f.name !== 'whatsapp_number').map((f) => f.label.replace(/ \(optional\)$/i, ''));
+    return asks.length > 4 ? `${asks.slice(0, 4).join(', ')} +${asks.length - 4} more` : asks.join(', ');
+  };
+  const item = (p: FormPreset) => (
+    <button type="button" role="menuitem" className="flow-forms-item" key={p.id} onClick={() => onPick(p)} data-testid={`flow-form-${p.id}`}>
+      <span className="material-icons flow-forms-ic">{p.icon}</span>
+      <span className="flow-forms-txt">
+        <span className="flow-forms-title">{p.title}</span>
+        <span className="flow-forms-sub">{summary(p)}</span>
+      </span>
+    </button>
+  );
+  return (
+    <>
+      <div className="flow-forms-backdrop" onClick={onClose} />
+      <div className="flow-forms-menu" role="menu" aria-label="Ready-made forms" data-testid="flow-forms-menu">
+        {own.length > 0 && (
+          <>
+            <div className="flow-forms-head">For {vertical.label}</div>
+            {own.map(item)}
+          </>
+        )}
+        <div className="flow-forms-head">For every business</div>
+        {common.map(item)}
+        <div className="flow-forms-note">
+          Each form adds ordinary fields to this screen, so you can edit or delete any of them. Photos, documents,
+          date ranges and agreements are sent from the screen that completes the flow.
+        </div>
+      </div>
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Per-component editor card
 // ---------------------------------------------------------------------------
 /** A change to a component, or a function of its current value giving one. */
@@ -3740,6 +3972,7 @@ function ComponentEditor({
   screenOptions,
   dynamicFields,
   branching = false,
+  finalScreen = true,
   onChange,
   onRemove,
   onMove,
@@ -3749,6 +3982,8 @@ function ComponentEditor({
   dynamicFields: string[];
   /** True when this screen's options each branch to their own screen. */
   branching?: boolean;
+  /** True when this screen completes the flow (nothing comes after it). */
+  finalScreen?: boolean;
   onChange: (patch: ComponentPatch) => void;
   onRemove: () => void;
   onMove: (dir: -1 | 1) => void;
@@ -3765,9 +4000,12 @@ function ComponentEditor({
   // labelled "Reschedule" is the visible symptom; the entry it should match is
   // the one with the same source.
   const src = c.source || 'static';
-  const meta =
+  const vertical = useVertical();
+  const metaEntry =
     PALETTE.find((p) => !p.group && p.type === c.type && (p.source || 'static') === src)
     || PALETTE.find((p) => !p.group && p.type === c.type);
+  // Named the way the palette names it for this business ("Doctors list").
+  const meta = metaEntry ? { icon: metaEntry.icon, label: chipLabel(metaEntry.id, metaEntry.label, vertical) } : undefined;
 
   function onImage(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -3957,7 +4195,77 @@ function ComponentEditor({
         </div>
       )}
 
+      {FINAL_SCREEN_ONLY.has(c.type) && !finalScreen && (
+        <div className="flow-dyn-note warn" data-testid="flow-final-only">
+          <span className="material-icons">warning</span>
+          This answer is only sent from the screen that completes the flow. Move it to the last screen,
+          or set this screen&apos;s button to “Complete flow”.
+        </div>
+      )}
+
       {c.type === 'DatePicker' && (
+        <div className="k-field">
+          <label className="k-label">Dates allowed</label>
+          <div className="flow-seg">
+            <button className={`seg${!c.pastDays ? ' on' : ''}`} onClick={() => onChange({ pastDays: 0 })}>
+              Upcoming
+            </button>
+            <button className={`seg${c.pastDays ? ' on' : ''}`} onClick={() => onChange({ pastDays: c.pastDays || 365 })} data-testid="flow-date-past">
+              Past (e.g. date of an incident)
+            </button>
+          </div>
+        </div>
+      )}
+      {c.type === 'DatePicker' && !!c.pastDays && (
+        <div className="flow-field-row">
+          <div className="k-field">
+            <label className="k-label">Earliest date (days back)</label>
+            <input
+              className="k-input"
+              type="number"
+              min={1}
+              value={c.pastDays || ''}
+              onChange={(e) => onChange({ pastDays: Math.max(1, Number(e.target.value) || 1) })}
+            />
+            <div className="k-hint">Future dates are blocked. 36500 allows a date of birth.</div>
+          </div>
+          <div className="k-field">
+            <label className="k-label">Helper text</label>
+            <input className="k-input" value={c.helperText || ''} onChange={(e) => onChange({ helperText: e.target.value })} />
+          </div>
+        </div>
+      )}
+
+      {c.type === 'CalendarPicker' && (
+        <div className="flow-field-row">
+          <div className="k-field">
+            <label className="k-label">End date label</label>
+            <input className="k-input" value={c.endLabel || ''} placeholder="End date" onChange={(e) => onChange({ endLabel: e.target.value })} />
+            <div className="k-hint">The Label above is the start date’s (e.g. Check-in / Check-out).</div>
+          </div>
+          <div className="k-field">
+            <label className="k-label">Latest date (days ahead)</label>
+            <input
+              className="k-input"
+              type="number"
+              min={1}
+              placeholder="60"
+              value={c.maxDaysAhead || ''}
+              onChange={(e) => onChange({ maxDaysAhead: Number(e.target.value) || 0 })}
+            />
+          </div>
+        </div>
+      )}
+
+      {c.type === 'OptIn' && (
+        <div className="k-field">
+          <label className="k-label">“Read more” link (optional)</label>
+          <input className="k-input" value={c.linkUrl || ''} placeholder="https://your-site.com/terms" onChange={(e) => onChange({ linkUrl: e.target.value.trim() })} />
+          <div className="k-hint">The Label above is what they agree to (up to 120 characters).</div>
+        </div>
+      )}
+
+      {c.type === 'DatePicker' && !c.pastDays && (
         <div className="flow-field-row">
           <div className="k-field">
             <label className="k-label">Latest date (days ahead)</label>
@@ -4235,7 +4543,35 @@ function PhonePreview({ screen }: { screen?: FlowScreen }) {
                     Select date
                     <span className="material-icons">event</span>
                   </div>
-                  <div className="fpp-caption">{c.helperText || `Pick a date within the next ${c.maxDaysAhead || 60} days`}</div>
+                  {(c.helperText || !c.pastDays) && (
+                    <div className="fpp-caption">{c.helperText || `Pick a date within the next ${c.maxDaysAhead || 60} days`}</div>
+                  )}
+                </div>
+              );
+            case 'CalendarPicker':
+              return (
+                <div className="fpp-input" key={c.cid} data-testid="fpp-daterange">
+                  <div className="fpp-range">
+                    <div>
+                      <div className="fpp-field-label">{c.label || 'Start date'}{c.required ? ' *' : ''}</div>
+                      <div className="fpp-dropdown">Select date<span className="material-icons">calendar_month</span></div>
+                    </div>
+                    <div>
+                      <div className="fpp-field-label">{c.endLabel || 'End date'}{c.required ? ' *' : ''}</div>
+                      <div className="fpp-dropdown">Select date<span className="material-icons">calendar_month</span></div>
+                    </div>
+                  </div>
+                </div>
+              );
+            case 'OptIn':
+              return (
+                <div className="fpp-optin" key={c.cid} data-testid="fpp-optin">
+                  <span className="fpp-optin-box" />
+                  <span>
+                    {c.label || 'I agree'}
+                    {c.required ? ' *' : ''}
+                    {c.linkUrl && <span className="fpp-optin-link"> Read more</span>}
+                  </span>
                 </div>
               );
             case 'PhotoPicker':

@@ -13,6 +13,9 @@ import { CrmEmptyState } from './CrmEmptyState';
 import { BladeSpinner } from './BladeSpinner';
 import { Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
+import { FormAnswer } from './FormAnswer';
+import { Lightbox, type ViewMedia } from './Lightbox';
+import { rawAnswer } from '../utils';
 import type { BusinessProfile } from '../types';
 
 interface Props {
@@ -135,15 +138,16 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
   // ("Completed" for a clinic, "Delivered" for a shop, "Closed" for a lead).
   const completedLabel = labelOf('delivered');
 
-  // A catalog business (shop, restaurant) records orders, not enquiries, so it
-  // never sees the submissions tab — and doesn't pay for the request either.
-  const showForms = v.formsTab;
+  // Enquiry and booking businesses always have the submissions tab. Every
+  // other business (a shop, a clinic) gets it as soon as a form has been
+  // submitted — the ready-made forms in the Flow builder are for everyone.
+  const showForms = v.formsTab || registrations.length > 0;
 
   function load() {
     setLoading(true);
     Promise.all([
       api.getOrders().then((r) => r.data || []).catch(() => []),
-      showForms ? api.getRegistrations().then((r) => r.data || []).catch(() => []) : Promise.resolve([]),
+      api.getRegistrations().then((r) => r.data || []).catch(() => []),
     ])
       .then(([o, r]) => {
         setOrders(o);
@@ -549,11 +553,7 @@ function answerRows(r: Registration): FormRow[] {
     ? r.rows
     : Object.entries(r.fields || {})
         .filter(([k]) => !k.endsWith('_label'))
-        .map(([k, v]) => ({
-          key: k,
-          label: pretty(k),
-          value: String((r.fields || {})[`${k}_label`] ?? v ?? ''),
-        }));
+        .map(([k, v]) => ({ key: k, label: pretty(k), ...rawAnswer(v, (r.fields || {})[`${k}_label`]) }));
 
   return rows.filter(
     (row) =>
@@ -579,7 +579,18 @@ function RegistrationsList({
 }) {
   const confirm = useConfirm();
   const notify = useNotify();
-  const paged = usePaged(items, '', { key: 'form-submissions', noun: ['submission', 'submissions'] });
+  // Narrow to one form ("Patient registration") when several are in use.
+  const [formFilter, setFormFilter] = useState('');
+  const [viewing, setViewing] = useState<ViewMedia | null>(null);
+  const formNames = useMemo(
+    () => [...new Set(items.map((r) => r.flowName || 'Form'))].sort((a, b) => a.localeCompare(b)),
+    [items],
+  );
+  const shown = useMemo(
+    () => (formFilter ? items.filter((r) => (r.flowName || 'Form') === formFilter) : items),
+    [items, formFilter],
+  );
+  const paged = usePaged(shown, formFilter, { key: 'form-submissions', noun: ['submission', 'submissions'] });
   function changeStatus(r: Registration, status: RegistrationStatus) {
     setItems((list) => list.map((x) => (x._id === r._id ? { ...x, status } : x)));
     api.setRegistrationStatus(r._id, status).catch(onChanged);
@@ -610,8 +621,20 @@ function RegistrationsList({
           icon="assignment"
           iconTone="purple"
           title="No form submissions yet"
-          description="Add a Register block to your WhatsApp flow screens. When customers fill out forms in chat, their responses and entries will land here."
+          description="Add a form to a WhatsApp flow (Automation → Flows → Build → Forms). When customers fill it in on WhatsApp, their answers land here."
         />
+      )}
+      {formNames.length > 1 && (
+        <div className="reg-form-filter" data-testid="reg-form-filter">
+          <Dropdown
+            options={[{ value: '', label: `All forms (${items.length})` }, ...formNames.map((n) => ({
+              value: n,
+              label: `${n} (${items.filter((r) => (r.flowName || 'Form') === n).length})`,
+            }))]}
+            value={formFilter}
+            onChange={setFormFilter}
+          />
+        </div>
       )}
       {items.length > 0 && (
         <div className="ord-list reg-list">
@@ -654,9 +677,9 @@ function RegistrationsList({
                   </span>
                 )}
                 {answerRows(r).map((row) => (
-                  <span className="reg-answer" key={row.key}>
+                  <span className={`reg-answer${row.type ? ` t-${row.type}` : ''}`} key={row.key}>
                     <span className="reg-answer-q">{row.label}</span>
-                    <span className="reg-answer-a">{row.value}</span>
+                    <span className="reg-answer-a"><FormAnswer row={row} onView={setViewing} compact /></span>
                   </span>
                 ))}
                 {!r.category && !r.memberName && answerRows(r).length === 0 && (
@@ -685,7 +708,8 @@ function RegistrationsList({
           ))}
         </div>
       )}
-      {items.length > 0 && <Pager {...paged.pager} />}
+      {shown.length > 0 && <Pager {...paged.pager} />}
+      {viewing && <Lightbox media={viewing} onClose={() => setViewing(null)} />}
     </div>
   );
 }

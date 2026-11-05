@@ -186,7 +186,18 @@ export async function saveFlowSubmission(form, phone, businessId) {
 
   for (const [key, value] of Object.entries(form)) {
     if (IGNORED.has(key)) continue;
-    // Flow answers are strings; arrays (checkbox groups) get joined.
+    // Typed answers are kept as they are: files (a list of { url, name, mime }),
+    // a date range ({ start-date, end-date }) and a tick box (true / false) —
+    // the CRM draws them from that. Only lists of plain strings (checkbox
+    // groups) are joined, as before.
+    if (Array.isArray(value) && value.some((x) => x && typeof x === 'object')) {
+      fields[key] = value;
+      continue;
+    }
+    if ((value && typeof value === 'object' && !Array.isArray(value)) || typeof value === 'boolean') {
+      fields[key] = value;
+      continue;
+    }
     const val = Array.isArray(value) ? value.join(', ') : value;
     if (val === '' || val === null || val === undefined) continue;
 

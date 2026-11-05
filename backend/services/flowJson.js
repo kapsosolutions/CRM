@@ -5,7 +5,11 @@
 const FLOW_VERSION = '6.3';
 
 const STRING_FIELDS = new Set(['RadioButtonsGroup', 'CheckboxGroup', 'Dropdown', 'TextInput', 'TextArea', 'DatePicker']);
-const ALL_FIELDS = new Set([...STRING_FIELDS, 'PhotoPicker', 'DocumentPicker']);
+// Answers that aren't plain strings (files, a date range, a tick box) are only
+// sent from the screen that completes the flow: a later screen's data can only
+// declare strings, so they can't be passed along from an earlier one.
+const FINAL_SCREEN_ONLY = new Set(['PhotoPicker', 'DocumentPicker', 'CalendarPicker', 'OptIn']);
+const ALL_FIELDS = new Set([...STRING_FIELDS, ...FINAL_SCREEN_ONLY]);
 const SELECTION = new Set(['RadioButtonsGroup', 'CheckboxGroup', 'Dropdown']);
 
 function toBase64(src) {
@@ -134,6 +138,9 @@ function daysAheadISO(days) {
 export const MAX_DAYS_AHEAD_DEFAULT = 60;
 export const maxDaysAheadOf = (c) =>
   Number(c?.maxDaysAhead) > 0 ? Number(c.maxDaysAhead) : MAX_DAYS_AHEAD_DEFAULT;
+// A DatePicker asking for a date in the PAST (an incident, a birthday): this
+// many days back up to today. 0 = the usual upcoming-date picker.
+const pastDaysOf = (c) => (Number(c?.pastDays) > 0 ? Math.min(Number(c.pastDays), 36500) : 0);
 
 // A text with a dynamic token embedded in a larger string ("Available times on
 // ${data.x}") is NOT interpolated by the Flow client — the whole string renders
@@ -215,6 +222,18 @@ function componentToJson(c, opts = {}) {
     case 'TextArea':
       return { type: 'TextArea', name: c.name || 'field', label: c.label || '', required: !!c.required };
     case 'DatePicker': {
+      const past = pastDaysOf(c);
+      if (past) {
+        return {
+          type: 'DatePicker',
+          name: c.name || 'field',
+          label: c.label || '',
+          required: !!c.required,
+          ...(c.helperText ? { 'helper-text': c.helperText } : {}),
+          'min-date': daysAheadISO(-past),
+          'max-date': todayISO(),
+        };
+      }
       const days = maxDaysAheadOf(c);
       return {
         type: 'DatePicker',
@@ -262,6 +281,27 @@ function componentToJson(c, opts = {}) {
         ...(c.description ? { description: c.description } : {}),
         'min-uploaded-documents': c.required ? 1 : 0,
         'max-uploaded-documents': c.maxFiles || 1,
+      };
+    case 'CalendarPicker': {
+      // A check-in → check-out style range on WhatsApp's full calendar.
+      const days = maxDaysAheadOf(c);
+      return {
+        type: 'CalendarPicker',
+        name: c.name || 'dates',
+        mode: 'range',
+        label: { 'start-date': c.label || 'Start date', 'end-date': c.endLabel || 'End date' },
+        required: { 'start-date': !!c.required, 'end-date': !!c.required },
+        'min-date': todayISO(),
+        'max-date': daysAheadISO(days),
+      };
+    }
+    case 'OptIn':
+      return {
+        type: 'OptIn',
+        name: c.name || 'consent',
+        label: c.label || 'I agree',
+        required: !!c.required,
+        ...(c.linkUrl ? { 'on-click-action': { name: 'open_url', url: c.linkUrl } } : {}),
       };
     default:
       return null;

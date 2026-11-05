@@ -155,6 +155,8 @@ function parsePreview(body: string): { icon: string | null; label: string } {
     { re: /^📊\s*/, icon: 'poll', fallback: 'Poll' },
     { re: /^📅\s*/, icon: 'calendar_month', fallback: 'Event' },
     { re: /^📞\s*/, icon: 'call', fallback: 'Voice call' },
+    // A submitted form: its name on the first line, the answers below it.
+    { re: /^📝\s*/u, icon: 'assignment_turned_in', fallback: 'Form submitted' },
     { re: /^📍\s*/, icon: 'location_on', fallback: 'Location' },
     { re: /^🧾\s*/, icon: 'receipt_long', fallback: 'Order' },
     // Markers left by automatic replies.
@@ -164,7 +166,8 @@ function parsePreview(body: string): { icon: string | null; label: string } {
   ];
   for (const r of rules) {
     if (r.re.test(b)) {
-      const rest = b.replace(r.re, '').trim();
+      // First line only: a form's answers follow its name on the next lines.
+      const rest = b.replace(r.re, '').split('\n')[0].trim();
       return { icon: r.icon, label: rest || r.fallback };
     }
   }

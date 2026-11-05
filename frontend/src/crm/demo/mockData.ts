@@ -1,5 +1,5 @@
 // In-memory demo dataset so the CRM can be explored with no backend.
-import type { Chat, ChatMessage, TemplateItem } from '../types';
+import type { Chat, ChatMessage, FormSubmission, TemplateItem } from '../types';
 
 const now = Date.now();
 const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
@@ -80,6 +80,34 @@ export const demoChats: Chat[] = [
     botPaused: false,
   },
 ];
+
+// A submitted ready-made form, with every kind of typed answer the CRM draws.
+export const DEMO_FORM: FormSubmission = {
+  flowName: 'Vehicle service request',
+  rows: [
+    { key: 'name', label: 'Name', value: 'Oliver Smith', type: 'text' },
+    { key: 'whatsapp_number', label: 'WhatsApp number', value: '+447911123456', type: 'phone' },
+    { key: 'vehicle_type', label: 'Vehicle', value: 'Car / SUV', type: 'choice' },
+    { key: 'registration_no', label: 'Registration no.', value: 'TS 09 AB 1234', type: 'text' },
+    { key: 'work_needed', label: 'Work needed', value: 'General service, Brakes, AC service', type: 'multi', items: ['General service', 'Brakes', 'AC service'] },
+    { key: 'visit_date', label: 'Preferred date', value: '18 Oct 2026', type: 'date' },
+    { key: 'stay_dates', label: 'Courtesy car', value: '18 Oct 2026 → 20 Oct 2026', type: 'daterange' },
+    { key: 'rating', label: 'Last visit', value: '★★★★ Good', type: 'rating', rating: 4 },
+    { key: 'issue_details', label: 'What happened?', value: 'Squeaking from the front left wheel.\nWorse when braking.', type: 'longtext' },
+    {
+      key: 'issue_photo', label: 'Photo of the issue', value: '2 photos', type: 'photo',
+      files: [
+        { url: 'https://picsum.photos/id/111/600/400', name: 'wheel.jpg', mime: 'image/jpeg' },
+        { url: 'https://picsum.photos/id/133/600/400', name: 'dashboard.jpg', mime: 'image/jpeg' },
+      ],
+    },
+    {
+      key: 'policy_document', label: 'Policy document', value: '1 document', type: 'document',
+      files: [{ url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf', name: 'policy-2026.pdf', mime: 'application/pdf' }],
+    },
+    { key: 'consent', label: 'I agree to be contacted about this request.', value: 'Agreed', type: 'consent', agreed: true },
+  ],
+};
 
 // ---- Messages per phone ----
 export const demoMessages: Record<string, ChatMessage[]> = {
@@ -424,6 +452,13 @@ export const demoMessages: Record<string, ChatMessage[]> = {
       _id: 'o2', phone: '447911123456', direction: 'out', type: 'text',
       body: 'You are welcome, Oliver! Reach out anytime. 😊', status: 'read',
       metaMessageId: 'wamid.o2', createdAt: iso(29.5 * HOUR),
+    },
+    // A ready-made form filled in on WhatsApp: every kind of answer.
+    {
+      _id: 'o3', phone: '447911123456', direction: 'in', type: 'flow_reply',
+      body: '📝 Vehicle service request', status: 'received', metaMessageId: 'wamid.o3',
+      createdAt: iso(29 * HOUR),
+      raw: { form: DEMO_FORM },
     },
   ],
 };

@@ -12,7 +12,7 @@ import type { ApiKeyInfo, MessagingLimitUsage, MetaChannelsInfo, MuteFor, QuickM
 import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall, EventInput, PollInput } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
-import { demoChats, demoMessages, demoTemplates } from './mockData';
+import { demoChats, demoMessages, demoTemplates, DEMO_FORM } from './mockData';
 import { demoCategories, demoProducts, demoOffers } from './catalogData';
 import { demoFlows, demoJourneys } from './flowData';
 import { demoOrders } from './orderData';
@@ -309,6 +309,13 @@ const registrations: Registration[] = [
     category: 'Dermatology', memberName: 'Dr. Meera Nair · Dermatologist',
     fields: { name: 'Priya Sharma', whatsapp_number: '+91 98123 45678', email: 'priya@example.com', preferred_date: '2026-10-14' },
     createdAt: new Date(Date.now() - 9e6).toISOString(),
+  },
+  // A ready-made form with photos, a document, ticked options and a rating.
+  {
+    _id: 'reg_3', phone: '447911123456', name: 'Oliver Smith', businessName: '',
+    email: '', date: '2026-10-18', status: 'new', flowName: DEMO_FORM.flowName,
+    category: '', memberName: '', fields: {}, rows: DEMO_FORM.rows,
+    createdAt: new Date(Date.now() - 29 * 36e5).toISOString(),
   },
 ];
 // Demo members (a hospital-style directory) so the Members page is explorable.

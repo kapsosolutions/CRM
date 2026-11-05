@@ -5,6 +5,7 @@
 //  - plain text
 //  - delivery/read ticks + emoji reaction chip + the reaction picker trigger
 import { AppIcon, DownloadIcon } from './AppIcons';
+import { FormAnswer } from './FormAnswer';
 import { memo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { ChatMessage, EventRecord, PollRecord } from '../types';
@@ -554,9 +555,9 @@ export const MessageItem = memo(function MessageItem({
             <table className="form-table">
               <tbody>
                 {form.rows.map((r) => (
-                  <tr key={r.key}>
+                  <tr key={r.key} data-type={r.type || 'text'}>
                     <th scope="row">{r.label}</th>
-                    <td>{r.value}</td>
+                    <td><FormAnswer row={r} onView={onViewMedia} /></td>
                   </tr>
                 ))}
               </tbody>

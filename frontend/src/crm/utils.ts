@@ -255,10 +255,36 @@ export function formOf(m: ChatMessage): FormSubmission | null {
     if (FORM_IGNORED.has(key) || key.endsWith('_label')) continue;
     if (value === '' || value === null || value === undefined) continue;
     const label = data[`${key}_label`];
-    const text = Array.isArray(value) ? value.join(', ') : String(value);
-    rows.push({ key, label: prettyKey(key), value: label ? String(label) : text });
+    rows.push({ key, label: prettyKey(key), ...rawAnswer(value, label) });
   }
   return rows.length ? { rows } : null;
+}
+
+/**
+ * A raw answer (no flow definition to go by) as a typed row: files, a date
+ * range or a tick box are recognised by their shape, so they never show up
+ * as "[object Object]".
+ */
+export function rawAnswer(value: unknown, label: unknown): Omit<FormRow, 'key' | 'label'> {
+  if (Array.isArray(value) && value.some((x) => x && typeof x === 'object')) {
+    const files = value
+      .filter((x): x is Record<string, unknown> => !!x && typeof x === 'object')
+      .map((f) => ({
+        url: String(f.url || ''),
+        name: String(f.name || f.file_name || 'file'),
+        mime: String(f.mime || f.mime_type || ''),
+      }));
+    const photos = files.length > 0 && files.every((f) => f.mime.startsWith('image/'));
+    const n = files.length;
+    return { type: photos ? 'photo' : 'document', files, value: `${n} ${photos ? (n === 1 ? 'photo' : 'photos') : n === 1 ? 'document' : 'documents'}` };
+  }
+  if (value && typeof value === 'object') {
+    const r = value as Record<string, unknown>;
+    return { type: 'daterange', value: [r['start-date'], r['end-date']].filter(Boolean).join(' → ') };
+  }
+  if (typeof value === 'boolean') return { type: 'consent', agreed: value, value: value ? 'Agreed' : 'Not agreed' };
+  const text = Array.isArray(value) ? value.join(', ') : String(value);
+  return { value: label ? String(label) : text };
 }
 
 // The raw shape Meta posts for a cart, before the backend resolves it.
@@ -372,7 +398,10 @@ export function previewOf(m: ChatMessage): string {
   if (m.raw?.payment) return '🧾 Payment';
   if (m.raw?.location) return '📍 Location';
   if (m.type === 'flow_reply') {
+    // Named after the form ("📝 Patient registration"); an unnamed one keeps
+    // the count of answers.
     const form = formOf(m);
+    if (form?.flowName?.trim()) return `📝 ${form.flowName.trim()}`;
     const n = form?.rows.length || 0;
     return `📝 Form submitted${n ? ` · ${n} answer${n === 1 ? '' : 's'}` : ''}`;
   }

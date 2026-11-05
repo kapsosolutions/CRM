@@ -7,7 +7,9 @@ import logger from './logger.js';
 import {
   handleMessage, handleReaction, handlePaymentUpdate, logInbound,
 } from './chatbot.js';
-import { buildSubmissionSummary, summaryToText } from './flowSubmission.js';
+import { buildSubmissionSummary, summaryToText, storeFlowMedia } from './flowSubmission.js';
+import storage from './storage.js';
+import metaCloud from './metaCloud.js';
 import { priceCart, cartToText, cartBubble } from './cart.js';
 import { replyToFromContext } from './reactions.js';
 import { emitCall } from './eventBus.js';
@@ -106,6 +108,12 @@ export async function processInboundMessage(message, names, ctx) {
   // the chat shows the questions and the chosen wording rather than
   // component names and option ids.
   if (msg.type === 'flow_reply') {
+    // Photos / documents attached to the form arrive as short-lived media ids:
+    // saved first, so the chat, the submission record and the bot all get the
+    // stored file.
+    await storeFlowMedia(msg.formData, { meta: ctx.meta || metaCloud, tenantId: ctx.tenantId }, storage).catch((e) =>
+      logger.warn('flow media could not be stored', { error: e.message }),
+    );
     msg.form = await buildSubmissionSummary(msg.formData);
     msg.logBody = summaryToText(msg.form);
   }
@@ -218,9 +226,16 @@ export function parseIncoming(message) {
         } catch {
           out.formData = {};
         }
+        // Files, date ranges and tick boxes aren't strings: shown by kind here
+        // (the readable version replaces this once the flow is resolved).
+        const show = (v) => {
+          if (Array.isArray(v)) return v.map((x) => (x && typeof x === 'object' ? x.file_name || 'file' : x)).join(', ');
+          if (v && typeof v === 'object') return Object.values(v).join(' → ');
+          return v;
+        };
         const answers = Object.entries(out.formData)
           .filter(([k]) => k !== 'flow_token' && k !== '__version__')
-          .map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`);
+          .map(([k, v]) => `${k}: ${show(v)}`);
         out.text = answers.join('\n');
         out.logBody = `📝 Form submitted${answers.length ? `\n${answers.join('\n')}` : ''}`;
       }

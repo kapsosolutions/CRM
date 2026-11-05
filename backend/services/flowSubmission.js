@@ -14,7 +14,7 @@
 // to fetch the flow definition itself.
 // ---------------------------------------------------------------------------
 import Flow from '../models/Flow.js';
-import { flowIdFromToken, memberLabel, categoryLabel, orderLabel, slotLabel } from './flowRuntime.js';
+import { flowIdFromToken, memberLabel, categoryLabel, orderLabel, slotLabel, dateLabel } from './flowRuntime.js';
 
 // Internal keys Meta echoes back that aren't answers.
 const IGNORED = new Set(['flow_token', 'flow_name', '__version__']);
@@ -110,14 +110,89 @@ export async function rowsForFields(flow, fields = {}) {
     if (Array.isArray(value) && !value.length) continue;
 
     const component = byName.get(key);
-    rows.push({
-      key,
-      label: cleanLabel(component?.label) || prettyKey(key),
-      // eslint-disable-next-line no-await-in-loop
-      value: await displayValue(fields, key, component, value, businessId),
-    });
+    const label = cleanLabel(component?.label) || prettyKey(key);
+    // eslint-disable-next-line no-await-in-loop
+    const typed = await typedRow(fields, key, component, value, businessId);
+    rows.push({ key, label, ...typed });
   }
   return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Typed answers
+//
+// A date picker submits epoch milliseconds, a date range an object, a tick box
+// a boolean and a photo picker a list of files. Each is turned into readable
+// text (`value`, for the chat list and notifications) plus what the CRM needs
+// to draw it properly: stars for a rating, chips for ticked options, thumbnails
+// for photos.
+// ---------------------------------------------------------------------------
+const FILE_TYPES = new Set(['PhotoPicker', 'DocumentPicker']);
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/** A stored file answer → { url, name, mime } ('' url when it couldn't be fetched). */
+export function fileOf(f) {
+  if (!f || typeof f !== 'object') return null;
+  return {
+    url: String(f.url || ''),
+    name: String(f.name || f.file_name || f.filename || 'file'),
+    mime: String(f.mime || f.mime_type || ''),
+  };
+}
+const looksLikeFiles = (v) =>
+  Array.isArray(v) && v.length > 0 && v.every((x) => x && typeof x === 'object' && ('url' in x || 'file_name' in x || 'id' in x || 'media_id' in x));
+const rangeOf = (v) => (v && typeof v === 'object' && !Array.isArray(v) && ('start-date' in v || 'end-date' in v) ? v : null);
+
+async function typedRow(form, key, component, value, businessId) {
+  const type = component?.type || '';
+  const supplied = form[`${key}_label`];
+
+  // Photos and documents.
+  if (FILE_TYPES.has(type) || looksLikeFiles(value)) {
+    const files = (Array.isArray(value) ? value : [value]).map(fileOf).filter(Boolean);
+    const isPhoto = type === 'PhotoPicker' || (!type && files.every((f) => f.mime.startsWith('image/')));
+    return {
+      type: isPhoto ? 'photo' : 'document',
+      files,
+      value: isPhoto ? plural(files.length, 'photo', 'photos') : plural(files.length, 'document', 'documents'),
+    };
+  }
+
+  // A start → end date range.
+  const range = rangeOf(value);
+  if (type === 'CalendarPicker' || range) {
+    const r = range || {};
+    const from = dateLabel(r['start-date']) || String(r['start-date'] || '');
+    const to = dateLabel(r['end-date']) || String(r['end-date'] || '');
+    return { type: 'daterange', value: [from, to].filter(Boolean).join(' → ') };
+  }
+
+  // An "I agree" tick box.
+  if (type === 'OptIn' || typeof value === 'boolean') {
+    const agreed = value === true || value === 'true';
+    return { type: 'consent', agreed, value: agreed ? 'Agreed' : 'Not agreed' };
+  }
+
+  // A date: readable, whether or not the runtime published a label for it.
+  if (type === 'DatePicker') {
+    return { type: 'date', value: (supplied && String(supplied)) || dateLabel(value) || String(value) };
+  }
+
+  const text = await displayValue(form, key, component, value, businessId);
+
+  // A 1–5 rating (the Rating block's ids are rate_1 … rate_5).
+  const rate = String(Array.isArray(value) ? '' : value).match(/^rate_([1-5])$/);
+  if (rate) return { type: 'rating', rating: Number(rate[1]), value: text };
+
+  if (type === 'CheckboxGroup' || Array.isArray(value)) {
+    const items = text.split(', ').filter(Boolean);
+    return { type: 'multi', items, value: text };
+  }
+  if (type === 'RadioButtonsGroup' || type === 'Dropdown') return { type: 'choice', value: text };
+  if (type === 'TextArea') return { type: 'longtext', value: text };
+  if (type === 'TextInput' && component?.inputType === 'phone') return { type: 'phone', value: text };
+  if (type === 'TextInput' && component?.inputType === 'email') return { type: 'email', value: text };
+  return { type: 'text', value: text };
 }
 
 /**
@@ -144,7 +219,56 @@ export async function buildSubmissionSummary(form = {}) {
 /** Plain-text version, for the chat-list preview and notification bodies. */
 export function summaryToText(summary) {
   const lines = (summary?.rows || []).map((r) => `${r.label}: ${r.value}`);
-  return `📝 Form submitted${lines.length ? `\n${lines.join('\n')}` : ''}`;
+  // Named after the form ("📝 Patient registration"), so the chat list and the
+  // notification say which form came in.
+  const title = String(summary?.flowName || '').trim() || 'Form submitted';
+  return `📝 ${title}${lines.length ? `\n${lines.join('\n')}` : ''}`;
 }
 
-export default { buildSubmissionSummary, rowsForFields, summaryToText };
+/**
+ * Save the photos and documents a customer attached to a form.
+ *
+ * WhatsApp hands back each file as a media reference ({ file_name, mime_type,
+ * sha256, id }) on the completed form. Those ids expire, so the bytes are
+ * fetched with the business's WhatsApp access and stored with the rest of the
+ * chat's media; the answer then holds { url, name, mime } instead. A file that
+ * can't be fetched keeps its name with an empty url, so the CRM can still say
+ * one was sent. Changes `form` in place.
+ * @param {object} form parsed nfm_reply response_json
+ * @param {{ meta?: object, tenantId?: string }} ctx the tenant's WhatsApp client
+ * @param {{ uploadBuffer: Function, mediaFolder: Function }} storage
+ */
+export async function storeFlowMedia(form, ctx = {}, storage) {
+  if (!form || typeof form !== 'object' || !ctx.meta?.downloadMedia || !storage) return form;
+  for (const [key, value] of Object.entries(form)) {
+    if (!looksLikeFiles(value)) continue;
+    const saved = [];
+    for (const f of value) {
+      const id = f.id || f.media_id;
+      const base = { url: '', name: String(f.file_name || f.name || 'file'), mime: String(f.mime_type || f.mime || '') };
+      if (f.url) {
+        saved.push({ ...base, url: String(f.url) });
+        continue;
+      }
+      if (!id) {
+        saved.push(base);
+        continue;
+      }
+      try {
+        // eslint-disable-next-line no-await-in-loop
+        const { buffer, mime } = await ctx.meta.downloadMedia(id);
+        const m = mime || base.mime;
+        const kind = m.startsWith('image/') ? 'image' : 'raw';
+        // eslint-disable-next-line no-await-in-loop
+        const url = await storage.uploadBuffer(buffer, storage.mediaFolder(ctx.tenantId, 'inbound'), kind);
+        saved.push({ ...base, url, mime: m });
+      } catch {
+        saved.push(base);
+      }
+    }
+    form[key] = saved;
+  }
+  return form;
+}
+
+export default { buildSubmissionSummary, rowsForFields, summaryToText, storeFlowMedia };

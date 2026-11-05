@@ -11067,6 +11067,117 @@ button.pd-phone-chip:hover {
   font-size: 16px;
   color: var(--wa-primary);
 }
+/* "Forms" chip + its menu of ready-made forms */
+.flow-forms-anchor {
+  position: relative;
+  display: inline-flex;
+}
+.flow-pal-chip.forms .flow-forms-caret {
+  font-size: 16px;
+  margin-left: -2px;
+  transition: transform 0.15s ease;
+}
+.flow-pal-chip.forms.open .flow-forms-caret {
+  transform: rotate(180deg);
+}
+.flow-forms-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+}
+.flow-forms-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  z-index: 41;
+  width: 340px;
+  max-height: min(460px, 70vh);
+  overflow-y: auto;
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-hairline);
+  border-radius: 12px;
+  box-shadow: 0 12px 32px rgba(16, 24, 40, 0.16);
+  padding: 6px;
+}
+.flow-forms-head {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--wa-ink-muted);
+  padding: 8px 10px 4px;
+}
+.flow-forms-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 10px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--wa-ink);
+  text-align: left;
+  cursor: pointer;
+  font-family: var(--wa-font);
+}
+.flow-forms-item:hover {
+  background: rgba(29, 191, 115, 0.08);
+}
+.flow-forms-ic {
+  font-size: 20px;
+  color: var(--wa-primary);
+  margin-top: 1px;
+}
+.flow-forms-txt {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.flow-forms-title {
+  font-size: 13.5px;
+  font-weight: 600;
+}
+.flow-forms-sub {
+  font-size: 11.5px;
+  line-height: 1.35;
+  color: var(--wa-ink-muted);
+}
+.flow-forms-note {
+  margin: 6px 4px 2px;
+  padding: 8px 10px;
+  border-top: 1px solid var(--wa-hairline);
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--wa-ink-muted);
+}
+/* Phone preview: a date range side by side, and the agreement tick box */
+.fpp-range {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.fpp-optin {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: #111b21;
+}
+.fpp-optin-box {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  margin-top: 1px;
+  border: 2px solid #8696a0;
+  border-radius: 4px;
+}
+.fpp-optin-link {
+  color: #008069;
+  font-weight: 600;
+}
 .flow-screen-fields {
   display: flex;
   flex-direction: column;
@@ -11864,6 +11975,27 @@ button.pd-phone-chip:hover {
 .reg-none {
   font-size: 11.5px;
   color: var(--wa-ink-muted);
+}
+/* Photos, documents and ticked options need room to wrap, so the answer
+   stacks under its question instead of sitting in one pill. */
+.reg-answer.t-photo,
+.reg-answer.t-document,
+.reg-answer.t-multi {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  border-radius: 10px;
+  padding: 5px 8px;
+}
+.reg-answer.t-photo .reg-answer-a,
+.reg-answer.t-document .reg-answer-a,
+.reg-answer.t-multi .reg-answer-a {
+  white-space: normal;
+  overflow: visible;
+}
+.reg-form-filter {
+  width: 260px;
+  margin: 0 0 10px;
 }
 .ord-row.reg-row-grid::before {
   width: 3px;
