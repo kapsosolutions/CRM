@@ -4,7 +4,7 @@
 // drawing, text, blurred / pixelated boxes, undo / redo, copy and download.
 // Edits are kept per file as a list of operations (../mediaEdit.ts) and burned
 // into the file on Send. Per-file caption. Light CRM theme.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { useBackHandler } from '../useBackHandler';
 import { uiScale } from '../uiScale';
 import {
@@ -30,6 +30,9 @@ import {
   RedoIcon,
   UndoIcon,
 } from './AppIcons';
+
+// The chat composer's emoji picker (its own chunk, usually already loaded).
+const EmojiPicker = lazy(() => import('./FastEmojiPicker'));
 
 interface Snap {
   file: File;
@@ -216,6 +219,23 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
   const imgRef = useRef<HTMLImageElement>(null);
   const inkRef = useRef<HTMLCanvasElement>(null);
   const addRef = useRef<HTMLInputElement>(null);
+  const captionRef = useRef<HTMLInputElement>(null);
+  const [showEmoji, setShowEmoji] = useState(false);
+  const setCaption = (caption: string) =>
+    setItems((prev) => prev.map((it, i) => (i === active ? { ...it, caption } : it)));
+  /** Put the emoji where the caret is, and keep typing after it. */
+  function insertEmoji(emoji: string) {
+    const el = captionRef.current;
+    const text = current?.caption ?? '';
+    const start = el?.selectionStart ?? text.length;
+    const end = el?.selectionEnd ?? text.length;
+    setCaption(text.slice(0, start) + emoji + text.slice(end));
+    setTimeout(() => {
+      el?.focus();
+      const pos = start + emoji.length;
+      el?.setSelectionRange(pos, pos);
+    }, 0);
+  }
   // natural size + displayed (CSS px) width of the active image
   const [dims, setDims] = useState({ nw: 0, nh: 0, cw: 0 });
   const [loaded, setLoaded] = useState(0); // bumped on every image load (repaint)
@@ -402,7 +422,8 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
   // Back behaves like Esc: leave the current tool, else ask before discarding
   // (and a second Back with that prompt up keeps the selection).
   useBackHandler(true, () => {
-    if (mode !== 'none') leaveMode();
+    if (showEmoji) setShowEmoji(false);
+    else if (mode !== 'none') leaveMode();
     else setShowDiscard((open) => !open);
   });
 
@@ -418,7 +439,8 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
     const onKey = (e: KeyboardEvent) => {
       const typing = e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement;
       if (e.key === 'Escape') {
-        if (editText) finishText();
+        if (showEmoji) setShowEmoji(false);
+        else if (editText) finishText();
         else if (mode !== 'none') leaveMode();
         else setShowDiscard(true);
         return;
@@ -1074,16 +1096,18 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
             <button className="att-add" onClick={() => addRef.current?.click()} title="Add files">
               <span className="material-icons">add</span>
             </button>
-            <input
-              ref={addRef}
-              type="file"
-              multiple
-              hidden
-              onChange={addMore}
-              accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt"
-            />
           </div>
         )}
+        {/* Shared by the strip's + and the caption bar's + (there while cropping too). */}
+        <input
+          ref={addRef}
+          type="file"
+          multiple
+          hidden
+          onChange={addMore}
+          accept="image/*,video/*,audio/*,application/pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.zip,.txt"
+          data-testid="att-add-input"
+        />
       </div>
 
       {/* Tool options, WhatsApp-style, between the photo and the caption. */}
@@ -1202,20 +1226,64 @@ export function AttachmentPreview({ files, sending, onCancel, onSend }: Props) {
         </div>
       )}
 
+      {/* Caption bar: the chat composer's pill, with + (add files) and emoji
+          but no templates (they can't carry an attachment). */}
       <div className="att-footer">
-        <input
-          className="att-caption"
-          type="text"
-          placeholder="Add a caption…"
-          value={current.caption}
-          autoFocus
-          onChange={(e) =>
-            setItems((prev) => prev.map((it, i) => (i === active ? { ...it, caption: e.target.value } : it)))
-          }
-          onKeyDown={(e) => {
-            if (e.key === 'Enter') void send();
-          }}
-        />
+        <div className="composer-pill att-caption-pill" data-testid="att-caption-pill">
+          <div className="composer-left-actions">
+            <button
+              type="button"
+              className="icon-btn"
+              onClick={() => addRef.current?.click()}
+              title="Add files"
+              aria-label="Add files"
+              data-testid="att-caption-add"
+            >
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M11 13H6q-.42 0-.71-.29A1 1 0 0 1 5 12q0-.42.29-.71A1 1 0 0 1 6 11h5V6q0-.42.29-.71A1 1 0 0 1 12 5q.42 0 .71.29.3.29.29.71v5h5q.42 0 .71.29.3.29.29.71 0 .42-.29.71A1 1 0 0 1 18 13h-5v5q0 .42-.29.71A1 1 0 0 1 12 19a1 1 0 0 1-.71-.29A1 1 0 0 1 11 18z" />
+              </svg>
+            </button>
+            <div className="emoji-anchor">
+              <button
+                type="button"
+                className={`icon-btn${showEmoji ? ' active' : ''}`}
+                onClick={() => setShowEmoji((v) => !v)}
+                title="Emoji"
+                aria-label="Emoji"
+                data-testid="att-caption-emoji"
+              >
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                  <circle cx="10" cy="10" r="7.5" stroke="currentColor" strokeWidth="1.5" />
+                  <circle cx="7.5" cy="8" r="0.9" fill="currentColor" />
+                  <circle cx="12.5" cy="8" r="0.9" fill="currentColor" />
+                  <path d="M6.5 11.5C7.3 13.2 8.5 14 10 14C11.5 14 12.7 13.2 13.5 11.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                </svg>
+              </button>
+              {showEmoji && (
+                <>
+                  <div className="emoji-pop-backdrop" onClick={() => setShowEmoji(false)} />
+                  <div className="emoji-pop" data-testid="att-emoji-pop">
+                    <Suspense fallback={<div className="emoji-pop-loading" role="status" aria-label="Loading emoji" />}>
+                      <EmojiPicker onSelect={insertEmoji} />
+                    </Suspense>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+          <input
+            ref={captionRef}
+            className="composer-input att-caption"
+            type="text"
+            placeholder="Add a caption…"
+            value={current.caption}
+            autoFocus
+            onChange={(e) => setCaption(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') void send();
+            }}
+          />
+        </div>
         <button className="att-send" onClick={() => void send()} disabled={sending || busy} aria-label="Send">
           <span className="material-icons">send</span>
           {items.length > 1 && <span className="att-send-count">{items.length}</span>}

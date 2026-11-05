@@ -2213,29 +2213,18 @@ button.rx-row:hover {
 .att-doc-icon.pdf {
   background: #ea4335;
 }
+/* Caption bar: the chat composer's pill (.composer-pill) on the chat
+   background, with the round send button beside it. */
 .att-footer {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 14px 24px 18px;
-  background: var(--wa-canvas);
-  border-top: 1px solid var(--wa-hairline);
+  gap: 10px;
+  padding: 8px 16px 14px;
+  background: transparent;
 }
-.att-caption {
+.att-caption-pill {
   flex: 1;
   min-width: 0;
-  background: var(--wa-surface);
-  color: var(--wa-ink);
-  border: 1px solid var(--wa-hairline-strong);
-  border-radius: var(--wa-radius-pill);
-  padding: 13px 20px;
-  font-family: var(--wa-font);
-  font-size: 15px;
-  outline: none;
-}
-.att-caption:focus {
-  border-color: var(--wa-primary);
-  box-shadow: 0 0 0 3px rgba(29, 191, 115, 0.18);
 }
 .att-send {
   flex-shrink: 0;
@@ -3396,10 +3385,6 @@ a.msg-btn {
   min-height: 48px;
   box-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
-}
-.composer-pill:focus-within {
-  border-color: rgba(0, 168, 132, 0.7);
-  box-shadow: 0 0 0 2px rgba(0, 168, 132, 0.2);
 }
 .composer-pill.is-locked {
   background: #ffffff;
