@@ -2144,6 +2144,8 @@ export interface ChatMessage {
   raw?: {
     outbound?: OutboundDescriptor;
     media?: MediaInfo;
+    /** CRM-only: a file still uploading from this browser (shown from a local copy). */
+    localUpload?: boolean;
     order?: OrderInfo;
     payment?: PaymentInfo;
     location?: LocationInfo;

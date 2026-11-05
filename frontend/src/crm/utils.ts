@@ -383,7 +383,9 @@ export function previewOf(m: ChatMessage): string {
       : md.type === 'video'
         ? '🎥 Video'
         : md.type === 'audio'
-          ? '🎵 Audio'
+          ? md.voice
+            ? '🎤 Voice message'
+            : '🎵 Audio'
           : '📄 Document';
   }
   const d = outboundOf(m);

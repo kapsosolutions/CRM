@@ -1155,6 +1155,20 @@ export class MockCrmApi extends CrmApi {
     caption?: string,
     voice?: boolean,
   ): Promise<{ success: boolean }> {
+    // Like a real upload, the file takes a moment before it's saved and
+    // echoed. Dev hooks: __demoUploadDelay = ms, __demoUploadFail = 'message'.
+    const hooks = import.meta.env.DEV
+      ? (window as unknown as { __demoUploadDelay?: number; __demoUploadFail?: string })
+      : {};
+    const wait = typeof hooks.__demoUploadDelay === 'number' ? hooks.__demoUploadDelay : 700;
+    const fail = hooks.__demoUploadFail || '';
+    return new Promise((r) => setTimeout(r, wait)).then(() => {
+      if (fail) throw new Error(fail);
+      return this.saveDemoMedia(phone, file, caption, voice);
+    });
+  }
+
+  private saveDemoMedia(phone: string, file: File, caption?: string, voice?: boolean): Promise<{ success: boolean }> {
     const url = URL.createObjectURL(file);
     const mime = file.type || 'application/octet-stream';
     const mediaType = mime.startsWith('image/')

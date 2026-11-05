@@ -1153,6 +1153,25 @@ video.bubble-media {
 .bubble.media-only > .meta .tick-svg.tick-sent path {
   stroke: #ffffff;
 }
+/* A photo / video still uploading: a spinning ring in the middle. */
+.media-uploading {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  z-index: 2;
+}
+.media-uploading-arc {
+  transform-origin: 24px 24px;
+  animation: mediaUploadSpin 0.9s linear infinite;
+}
+@keyframes mediaUploadSpin {
+  to {
+    transform: rotate(360deg);
+  }
+}
 /* A photo or video with a caption: the picture fills the bubble with the same
    thin edge (WhatsApp style); only the caption and the time keep text padding. */
 .bubble.media-caption {

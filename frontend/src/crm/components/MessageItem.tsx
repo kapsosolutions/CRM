@@ -58,6 +58,18 @@ export function CatalogActionSvg({ className = 'tc-wa-act-icon tc-wa-catalog-ico
   );
 }
 
+/** WhatsApp's "sending" ring over a photo / video that is still uploading. */
+function UploadSpinner() {
+  return (
+    <span className="media-uploading" role="status" aria-label="Sending" data-testid="media-uploading">
+      <svg viewBox="0 0 48 48" width="48" height="48" aria-hidden="true">
+        <circle cx="24" cy="24" r="22" fill="rgba(11, 20, 26, 0.45)" />
+        <circle className="media-uploading-arc" cx="24" cy="24" r="15" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeDasharray="70 100" />
+      </svg>
+    </span>
+  );
+}
+
 export function MessageStatusTick({ status }: { status: string }) {
   if (status === 'read') {
     return (
@@ -310,6 +322,8 @@ export const MessageItem = memo(function MessageItem({
   const form = formOf(m);
   const caption = mediaCaption(m);
   const failed = m.direction === 'out' && m.status === 'failed';
+  // A file still uploading from this browser: shown from the local copy.
+  const uploadingMedia = m.status === 'pending' && !!m.raw?.localUpload;
   const tpl = d ? m.raw?.template || null : null;
 
   // A rich card = an interactive message with a media/text header, or any buttons/CTA.
@@ -811,6 +825,7 @@ export const MessageItem = memo(function MessageItem({
               onError={() => setMediaFailed(true)}
               onClick={() => onViewMedia({ url: md.url, pdf: false })}
             />
+            {uploadingMedia && <UploadSpinner />}
           </div>
         );
       case 'video':
@@ -827,7 +842,8 @@ export const MessageItem = memo(function MessageItem({
               onLoadedMetadata={(e) => setVideoSecs(Number.isFinite(e.currentTarget.duration) ? e.currentTarget.duration : 0)}
               onError={() => setMediaFailed(true)}
             />
-            {!videoOn && (
+            {uploadingMedia && <UploadSpinner />}
+            {!videoOn && !uploadingMedia && (
               <>
                 <button type="button" className="vid-play" onClick={() => setVideoOn(true)} aria-label="Play video" data-testid="video-play">
                   <span className="material-icons">play_arrow</span>

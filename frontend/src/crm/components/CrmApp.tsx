@@ -146,7 +146,20 @@ export function CrmApp({
   const [activeName, setActiveName] = useState('');
 
   const [draft, setDraft] = useState('');
-  const [uploading, setUploading] = useState(false);
+  // Files behind media bubbles that are still uploading (or failed, for
+  // Retry), by the bubble's temporary id.
+  const localFilesRef = useRef(new Map<string, { file: File; caption?: string; voice?: boolean; url: string }>());
+  // Once a bubble is gone (replaced by the saved message, or another chat
+  // opened), its local copy is let go.
+  useEffect(() => {
+    const onScreen = new Set(messages.map((m) => m._id));
+    for (const [id, local] of localFilesRef.current) {
+      if (onScreen.has(id)) continue;
+      // Let the saved message's own image load before the local one goes.
+      window.setTimeout(() => URL.revokeObjectURL(local.url), 30000);
+      localFilesRef.current.delete(id);
+    }
+  }, [messages]);
 
   const [paused, setPaused] = useState(false);
   const [pausing, setPausing] = useState(false);
@@ -577,8 +590,17 @@ export function CrmApp({
           // Our own text echoed back: swap it in for the optimistic copy that
           // is already on screen instead of showing it twice.
           if (m.direction === 'out') {
+            // A file we sent: the oldest of its kind still uploading (they
+            // go one at a time). Text: the copy with the same words.
+            const mediaType = m.raw?.outbound?.mediaType;
             const i = list.findIndex(
-              (x) => isTemp(x) && x.phone === m.phone && x.body === m.body && x.status !== 'failed',
+              (x) =>
+                isTemp(x) &&
+                x.phone === m.phone &&
+                x.status !== 'failed' &&
+                (mediaType
+                  ? !!x.raw?.localUpload && x.raw?.outbound?.mediaType === mediaType
+                  : !x.raw?.localUpload && x.body === m.body),
             );
             if (i >= 0) {
               const next = [...list];
@@ -828,7 +850,16 @@ export function CrmApp({
   /** "Retry" on a failed text or template: drop the failed copy if it was ours, send again. */
   function retrySend(m: ChatMessage) {
     const phone = activePhone;
-    if (!phone || !m.body) return;
+    if (!phone) return;
+    // A file that failed to upload: upload the same file again.
+    if (m.raw?.localUpload) {
+      const local = localFilesRef.current.get(m._id);
+      if (!local) return;
+      setMessages((list) => list.filter((x) => x._id !== m._id));
+      queueMedia(phone, [{ file: local.file, caption: local.caption, voice: local.voice }]);
+      return;
+    }
+    if (!m.body) return;
     if (isTemp(m)) setMessages((list) => list.filter((x) => x._id !== m._id));
     if (m.type === 'template' && m.raw?.template?.name) {
       const tmpl = templates.find((t) => t.name === m.raw?.template?.name) || {
@@ -853,31 +884,78 @@ export function CrmApp({
     }
   }
 
+  /**
+   * Media goes out like text: the bubble shows at once from the local file
+   * (clock icon, spinner on photos and videos) and the upload runs behind it.
+   * The socket echo of the saved message replaces the copy; a failed upload
+   * stays as "Not delivered" with Retry. Files go one after another, so they
+   * arrive in the order they were picked.
+   */
+  function queueMedia(phone: string, files: { file: File; caption?: string; voice?: boolean }[]) {
+    const uploads = files.map((f) => stageMedia(phone, f.file, f.caption, f.voice));
+    scrollToBottom();
+    void uploads.reduce((prev, upload) => prev.then(upload), Promise.resolve());
+  }
+
+  function stageMedia(phone: string, file: File, caption?: string, voice?: boolean): () => Promise<void> {
+    const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const url = URL.createObjectURL(file);
+    const mime = file.type || '';
+    const mediaType = mime.startsWith('image/')
+      ? 'image'
+      : mime.startsWith('video/')
+        ? 'video'
+        : mime.startsWith('audio/')
+          ? 'audio'
+          : 'document';
+    localFilesRef.current.set(tempId, { file, caption, voice, url });
+    const temp: ChatMessage = {
+      _id: tempId,
+      phone,
+      direction: 'out',
+      type: mediaType,
+      body: caption || '',
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+      raw: {
+        localUpload: true,
+        outbound: { type: mediaType, body: caption || '', mediaType, mediaUrl: url, filename: file.name, voice: !!voice },
+      },
+    };
+    setMessages((list) => [...list, temp]);
+    const setStatus = (status: string) =>
+      setMessages((list) => list.map((x) => (x._id === tempId ? { ...x, status } : x)));
+    return () =>
+      api
+        .sendMedia(phone, file, caption, voice)
+        .then(() => setStatus('sent')) // no-op once the socket echo has replaced it
+        .catch((e: Error) => {
+          setStatus('failed');
+          toast(
+            'error',
+            voice ? 'Voice message not sent' : 'File not sent',
+            e?.message || (voice ? 'Could not send the voice note.' : 'Could not send the file.'),
+          );
+        });
+  }
+
   // Send a recorded voice note.
   function sendVoice(file: File) {
     const phone = activePhone;
     if (!phone) return;
-    api.sendMedia(phone, file, undefined, true).catch((e: Error) => {
-      toast('error', 'Voice message failed', e.message || 'Could not send the voice note.');
-    });
+    queueMedia(phone, [{ file, voice: true }]);
   }
 
-  // Confirm-and-send all previewed attachments (each with its caption).
-  async function sendPendingFiles(toSend: { file: File; caption: string }[]) {
+  // Send all previewed attachments (each with its caption): the preview
+  // closes straight away and the files show in the chat while they upload.
+  function sendPendingFiles(toSend: { file: File; caption: string }[]) {
     const phone = activePhone;
     if (!phone || !toSend.length) return;
-    setUploading(true);
-    try {
-      for (const it of toSend) {
-        // eslint-disable-next-line no-await-in-loop
-        await api.sendMedia(phone, it.file, it.caption.trim() || undefined);
-      }
-      setUploading(false);
-      setPendingFiles([]);
-    } catch (e) {
-      setUploading(false);
-      toast('error', 'File not sent', e instanceof Error ? e.message : 'Could not send the file.');
-    }
+    setPendingFiles([]);
+    queueMedia(
+      phone,
+      toSend.map((it) => ({ file: it.file, caption: it.caption.trim() || undefined })),
+    );
   }
 
   // Polls and events from the composer's + menu. The sent message comes back
@@ -1438,7 +1516,7 @@ export function CrmApp({
                       onReply={onReplyStable}
                       onJumpTo={onJumpToStable}
                       onViewMedia={setViewMedia}
-                      onRetry={m.type === 'text' ? onRetryStable : undefined}
+                      onRetry={m.type === 'text' || m.raw?.localUpload ? onRetryStable : undefined}
                       people={people}
                     />
                   </Fragment>
@@ -1521,7 +1599,7 @@ export function CrmApp({
               draft={draft}
               windowOpen={windowOpen}
               sending={false /* text sends are optimistic; the composer never blocks */}
-              uploading={uploading}
+              uploading={false /* media uploads run behind their chat bubbles */}
               replyTo={
                 replyingTo
                   ? {
@@ -1590,7 +1668,7 @@ export function CrmApp({
             {pendingFiles.length > 0 && (
               <AttachmentPreview
                 files={pendingFiles}
-                sending={uploading}
+                sending={false}
                 onCancel={() => setPendingFiles([])}
                 onSend={sendPendingFiles}
               />
