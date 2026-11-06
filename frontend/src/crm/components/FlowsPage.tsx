@@ -240,6 +240,8 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const cardFileRef = useRef<HTMLInputElement>(null);
   const cardTarget = useRef(-1);
+  // WhatsApp carousel: the row of cards (scrolled to a card that was just added).
+  const waRowRef = useRef<HTMLDivElement>(null);
   const k = KINDS[data.kind];
   const patch = (p: Partial<WaData>) =>
     rf.setNodes((nds) => nds.map((n) => (n.id === id ? { ...n, data: { ...n.data, ...p } } : n)));
@@ -356,6 +358,10 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
     if (cards.length >= WA_CARDS_MAX) return;
     const first = cards[0]?.buttons || [{ title: 'Choose', url: '' }];
     patch({ cards: [...cards, waNewCard(mode === 'link' ? [{ title: first[0]?.title || 'Open', url: '' }] : first.map((b) => ({ title: b.title, url: '' })))] });
+    setTimeout(() => {
+      const row = waRowRef.current;
+      row?.scrollTo({ left: row.scrollWidth, behavior: 'smooth' });
+    }, 0);
   };
 
   // Extender: what each numbered output leads to, live from the canvas.
@@ -458,7 +464,7 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
         <textarea
           className="fl-node-text"
           value={data.text || ''}
-          placeholder={data.kind === 'location' ? 'Prompt text…' : data.kind === 'carousel' ? 'Text before the cards (optional)…' : 'Type the message… use {{name}} to greet them'}
+          placeholder={data.kind === 'location' ? 'Prompt text…' : data.kind === 'carousel' ? (channel === 'whatsapp' ? 'Message above the cards (required)…' : 'Text before the cards (optional)…') : 'Type the message… use {{name}} to greet them'}
           onChange={(e) => patch({ text: e.target.value })}
           rows={2}
         />
@@ -606,8 +612,9 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
               </div>
             </div>
           )}
+          <div className="fl-wa-cards" ref={waRowRef} data-testid="fl-wa-cards">
           {cards.map((c, i) => (
-            <div className="fl-card" key={i} data-testid={`fl-card-${i}`}>
+            <div className="fl-card fl-wa-card" key={i} data-testid={`fl-card-${i}`}>
               <div className="fl-card-head">
                 <span>Card {i + 1}</span>
                 {cards.length > WA_CARDS_MIN && (
@@ -616,7 +623,7 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
                   </button>
                 )}
               </div>
-              <div className={`fl-header-tile fl-card-img${c.imageUrl ? '' : ' need'}`} onClick={() => pickCardImage(i)} title="Upload / replace the photo or video">
+              <div className={`fl-header-tile fl-card-img fl-wa-img${c.imageUrl ? '' : ' need'}`} onClick={() => pickCardImage(i)} title="Upload / replace the photo or video">
                 {c.imageUrl ? (
                   c.mediaType === 'video' ? <video src={c.imageUrl} muted /> : <img src={c.imageUrl} alt="" />
                 ) : (
@@ -647,10 +654,16 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
             </div>
           ))}
           {cards.length < WA_CARDS_MAX && (
-            <button className="fl-add-opt" onClick={addWaCard} data-testid="fl-card-add">
-              <span className="material-icons">add</span> Add card ({cards.length}/{WA_CARDS_MAX})
+            <button type="button" className="fl-wa-add" onClick={addWaCard} data-testid="fl-card-add">
+              <span className="material-icons">add</span>
+              <span>Add card</span>
+              <small>{cards.length}/{WA_CARDS_MAX}</small>
             </button>
           )}
+          </div>
+          <div className="fl-wa-cards-note">
+            {cards.length} of {WA_CARDS_MAX} cards · scroll sideways to see them all. Square photos look best (1:1).
+          </div>
           <input ref={cardFileRef} type="file" hidden accept="image/png,image/jpeg,video/mp4" onChange={onCardFile} />
         </div>
       )}
