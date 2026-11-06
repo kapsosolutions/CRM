@@ -10,6 +10,7 @@
 //   call      Messenger only: a button template with a phone_number button
 //   carousel  a generic template: 1 card, or up to 10 cards side by side; a card
 //             button with a link opens it, one without branches
+//   extender  sends what is connected to its numbered outputs, 1 first
 //   end
 //
 // Branching works like WhatsApp journeys: a postback / quick-reply payload is
@@ -21,7 +22,7 @@ import Business from '../models/Business.js';
 import Conversation from '../models/Conversation.js';
 import { fillTokens } from './tokens.js';
 import { sendChannelMessage, CHANNEL_LABEL } from './metaChannels.js';
-import { pickJourney, startNode, edgeTarget } from './journeyRuntime.js';
+import { pickJourney, startNode, edgeTarget, walkJourney } from './journeyRuntime.js';
 import logger from './logger.js';
 
 export const JOURNEY_CHANNELS = ['whatsapp', 'instagram', 'messenger'];
@@ -34,8 +35,8 @@ export const CHANNEL_LIMITS = {
   instagram: { text: 1000, templateText: 640, buttons: 3, buttonTitle: 20, quickReplies: 13, quickReplyTitle: 20, cards: 10, cardTitle: 80, cardSubtitle: 80 },
 };
 const KINDS = {
-  messenger: ['start', 'message', 'reply', 'quick', 'cta', 'call', 'carousel', 'restart', 'end'],
-  instagram: ['start', 'message', 'reply', 'quick', 'cta', 'carousel', 'restart', 'end'],
+  messenger: ['start', 'message', 'reply', 'quick', 'cta', 'call', 'carousel', 'extender', 'restart', 'end'],
+  instagram: ['start', 'message', 'reply', 'quick', 'cta', 'carousel', 'extender', 'restart', 'end'],
 };
 const MEDIA = ['image', 'video', 'audio', 'pdf'];
 const isHttps = (u) => /^https:\/\/[^\s]+$/i.test(String(u || '').trim());
@@ -239,44 +240,22 @@ async function tokensFor(businessId, convo) {
   };
 }
 
-/** Send `node` and the plain blocks after it, stopping at one that waits for a tap. */
+/**
+ * Send `node` and the plain blocks after it, stopping at one that waits for a
+ * tap; an Extender sends its numbered outputs in order (walkJourney).
+ */
 async function sendChain(business, channel, convo, journey, node, tokens) {
   const businessId = String(business._id);
-  let current = node;
-  const sent = new Set();
-  for (let guard = 0; current && guard < 20; guard += 1) {
-    // "Start again": back to the block after Start, unless that block already
-    // went out for this message (a loop with no question in between).
-    if (current.data?.kind === 'restart') {
-      const start = startNode(journey);
-      const first = start ? edgeTarget(journey, start.id, null) : null;
-      if (!first || first.data?.kind === 'restart' || sent.has(first.id)) {
-        // eslint-disable-next-line no-await-in-loop
-        await setState(businessId, convo.phone, { nodeId: null, done: true });
-        return;
-      }
-      current = first;
-      continue;
-    }
-    sent.add(current.id);
+  const parked = await walkJourney(journey, node, async (current) => {
     const { sends, wait } = channelNodeSends(channel, current, tokens);
     for (const s of sends) {
       // eslint-disable-next-line no-await-in-loop
       await sendChannelMessage(business, channel, convo, convo.phone, s.message, s.d, { extra: { ...(s.extra || {}), journey: String(journey._id) } });
     }
-    if (wait) {
-      // eslint-disable-next-line no-await-in-loop
-      await setState(businessId, convo.phone, { nodeId: current.id });
-      return;
-    }
-    const next = edgeTarget(journey, current.id, null);
-    if (!next || current.data?.kind === 'end') {
-      // eslint-disable-next-line no-await-in-loop
-      await setState(businessId, convo.phone, { nodeId: null, done: true });
-      return;
-    }
-    current = next;
-  }
+    if (wait) return 'wait';
+    return current.data?.kind === 'end' ? 'stop' : 'continue';
+  });
+  await setState(businessId, convo.phone, parked ? { nodeId: parked } : { nodeId: null, done: true });
 }
 
 const PAYLOAD = /^n:([^:]+):(?:(btn|opt):(\d+)|card:(\d+):(\d+))$/;

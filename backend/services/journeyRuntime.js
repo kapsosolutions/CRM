@@ -6,6 +6,9 @@
 //     edge and advance to the next node.
 // Interactive option ids are encoded as  n:<nodeId>:btn:<i>  /  n:<nodeId>:opt:<i>
 // so an inbound reply maps straight back to the source node + handle.
+//   • An Extender block sends what is connected to its numbered outputs
+//     (ext-0, ext-1, …) one after another, in that order: each output's block
+//     and the plain blocks after it, then the next output (walkJourney).
 import Journey from '../models/Journey.js';
 import Conversation from '../models/Conversation.js';
 import Business from '../models/Business.js';
@@ -119,43 +122,105 @@ async function sendNode(meta, phone, node, tokens = {}) {
   }
 }
 
-// Send `node` and keep chaining through plain leaf nodes that have a single
-// outgoing edge, stopping at an interactive node (which waits for a reply).
-async function sendChain(meta, phone, journey, node, convo, tokens = {}) {
+// Blocks one inbound message may send at most (Extender branches included).
+export const MAX_JOURNEY_STEPS = 30;
+// An Extender has 2 to 10 numbered outputs (as the builder allows).
+const EXT_MIN = 2;
+const EXT_MAX = 10;
+// Extender inside an Extender inside…: deeper than this is cut off.
+const EXT_DEPTH = 5;
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/**
+ * The pause between an Extender's messages, so they arrive in their order:
+ * Meta doesn't promise to deliver messages sent at the same moment in order
+ * (a photo can overtake the text before it). JOURNEY_EXTENDER_GAP_MS
+ * overrides it (0 in tests).
+ */
+export function extenderGapMs() {
+  const v = Number(process.env.JOURNEY_EXTENDER_GAP_MS);
+  return Number.isFinite(v) && v >= 0 ? v : 700;
+}
+
+/** The blocks an Extender sends, in its number order (output 1 first), each once. */
+export function extenderTargets(journey, node) {
+  const slots = Math.min(EXT_MAX, Math.max(EXT_MIN, Math.round(Number(node?.data?.slots) || EXT_MIN)));
+  const edges = edgesFrom(journey, node?.id);
+  const out = [];
+  for (let i = 0; i < slots; i += 1) {
+    // Exact port only: edgeTarget would fall back to the Extender's first connection.
+    const e = edges.find((x) => (x.sourceHandle || '') === `ext-${i}`);
+    const t = e ? nodeById(journey, e.target) : null;
+    if (t && !out.some((x) => x.id === t.id)) out.push(t);
+  }
+  return out;
+}
+
+/**
+ * Walk the journey from `node` for one inbound message: send it and the plain
+ * blocks after it, until a block that waits for a tap, an End, or a block
+ * with nothing after it. An Extender sends each numbered output's chain in
+ * turn. `sendOne(node)` sends one block and returns 'wait', 'continue' or
+ * 'stop'.
+ * @returns the id of the block left waiting for a tap (the last one, if
+ *          several Extender branches end in one), or null when it finished.
+ */
+export async function walkJourney(journey, node, sendOne, { maxSteps = MAX_JOURNEY_STEPS, gapMs = extenderGapMs() } = {}) {
+  const ctx = { steps: 0, sent: new Set(), open: new Set(), parked: null, maxSteps, gapMs };
+  await walkFrom(journey, node, sendOne, ctx, 0);
+  return ctx.parked;
+}
+
+async function walkFrom(journey, node, sendOne, ctx, depth) {
   let current = node;
-  let guard = 0;
-  // The journey carries its owner, so state writes land on the right tenant's
-  // chat even when two tenants are talking to the same customer.
-  const businessId = journey?.businessId || null;
-  const sent = new Set();
-  while (current && guard++ < 20) {
+  while (current && ctx.steps < ctx.maxSteps) {
+    ctx.steps += 1;
+    const kind = current.data?.kind;
     // "Start again" sends nothing: it goes back to the block after Start, as a
     // fresh "hi" would. Not when that block already went out for this message
     // (Start → … → Start again with no question in between would repeat it).
-    if (current.data?.kind === 'restart') {
+    if (kind === 'restart') {
       const start = startNode(journey);
       const first = start ? edgeTarget(journey, start.id, null) : null;
-      if (!first || first.data?.kind === 'restart' || sent.has(first.id)) {
-        await setState(convo.phone, { nodeId: null, done: true }, businessId);
-        return;
-      }
+      if (!first || first.data?.kind === 'restart' || ctx.sent.has(first.id)) return;
       current = first;
       continue;
     }
-    sent.add(current.id);
-    const status = await sendNode(meta, phone, current, tokens);
+    if (kind === 'extender') {
+      // An Extender reached again from one of its own outputs would loop.
+      if (ctx.open.has(current.id) || depth >= EXT_DEPTH) return;
+      ctx.open.add(current.id);
+      const targets = extenderTargets(journey, current);
+      for (let i = 0; i < targets.length && ctx.steps < ctx.maxSteps; i += 1) {
+        // eslint-disable-next-line no-await-in-loop
+        if (i > 0 && ctx.gapMs) await sleep(ctx.gapMs);
+        // eslint-disable-next-line no-await-in-loop
+        await walkFrom(journey, targets[i], sendOne, ctx, depth + 1);
+      }
+      ctx.open.delete(current.id);
+      return;
+    }
+    ctx.sent.add(current.id);
+    // eslint-disable-next-line no-await-in-loop
+    const status = await sendOne(current);
     if (status === 'wait') {
-      await setState(convo.phone, { nodeId: current.id }, businessId);
+      ctx.parked = current.id;
       return;
     }
-    // plain node: follow a single default edge if present, else stop.
-    const next = edgeTarget(journey, current.id, null);
-    if (!next) {
-      await setState(convo.phone, { nodeId: null, done: true }, businessId);
-      return;
-    }
-    current = next;
+    if (status === 'stop') return;
+    // plain node: follow its default edge if present, else stop.
+    current = edgeTarget(journey, current.id, null);
   }
+}
+
+// Send `node` and keep chaining through plain blocks, stopping at an
+// interactive one (which waits for a reply); an Extender sends its outputs in order.
+async function sendChain(meta, phone, journey, node, convo, tokens = {}) {
+  // The journey carries its owner, so state writes land on the right tenant's
+  // chat even when two tenants are talking to the same customer.
+  const businessId = journey?.businessId || null;
+  const parked = await walkJourney(journey, node, (n) => sendNode(meta, phone, n, tokens));
+  await setState(convo.phone, parked ? { nodeId: parked } : { nodeId: null, done: true }, businessId);
 }
 
 async function setState(phone, journeyState, businessId) {

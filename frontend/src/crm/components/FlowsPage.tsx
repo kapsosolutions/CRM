@@ -17,6 +17,8 @@ import ReactFlow, {
   useEdgesState,
   useReactFlow,
   useUpdateNodeInternals,
+  useEdges,
+  useNodes,
   ReactFlowProvider,
   type Node,
   type Edge,
@@ -51,6 +53,7 @@ type Kind =
   | 'template'
   | 'quick'
   | 'carousel'
+  | 'extender'
   | 'end'
   | 'restart';
 
@@ -87,6 +90,8 @@ interface WaData {
   templateName?: string;
   /** Instagram / Messenger card or carousel. */
   cards?: CardData[];
+  /** Extender: how many numbered outputs it has (each sends its block, in order). */
+  slots?: number;
 }
 
 /** The journey's channel, for the blocks (header types, limits, wording). */
@@ -99,6 +104,10 @@ const META_BUTTON_TITLE = 20;
 const META_QUICK_REPLIES = 13;
 const META_CARDS = 10;
 const META_CARD_BUTTONS = 3;
+// Extender: at least two numbered outputs (one would just be a connection), at most ten.
+const EXT_MIN = 2;
+const EXT_MAX = 10;
+const extSlots = (d: WaData) => Math.min(EXT_MAX, Math.max(EXT_MIN, Math.round(Number(d.slots) || EXT_MIN)));
 const newCard = (): CardData => ({ imageUrl: '', title: '', subtitle: '', buttons: [{ title: 'Choose', url: '' }] });
 
 const KINDS: Record<Kind, { title: string; icon: string; color: string }> = {
@@ -112,6 +121,8 @@ const KINDS: Record<Kind, { title: string; icon: string; color: string }> = {
   template: { title: 'Template', icon: 'description', color: '#107c3f' },
   quick: { title: 'Quick replies', icon: 'bubble_chart', color: '#ec4899' },
   carousel: { title: 'Cards', icon: 'view_carousel', color: '#0ea5e9' },
+  // Sends several blocks one after another: output 1, then 2, then 3…
+  extender: { title: 'Extender', icon: 'call_split', color: '#c026d3' },
   end: { title: 'End', icon: 'stop', color: '#ea4335' },
   // Like the Flows builder's "Start over": back to Start, as if the customer said "hi".
   restart: { title: 'Start again', icon: 'restart_alt', color: '#25d366' },
@@ -164,6 +175,8 @@ function makeData(kind: Kind, count = 1, header: HeaderType = 'none'): WaData {
       return { kind, text: 'Please share your delivery location.' };
     case 'template':
       return { kind, templateName: '' };
+    case 'extender':
+      return { kind, slots: Math.min(EXT_MAX, Math.max(EXT_MIN, count > 1 ? count : 3)) };
     case 'message':
       return { kind, header, text: '' };
     default:
@@ -272,6 +285,29 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
     patch({ cards: cards.filter((_, idx) => idx !== i) });
     // Its reply ports go with it; later cards' ports keep their old index, so drop their edges too.
     rf.setEdges((es) => es.filter((e) => !(e.source === id && /^card-(\d+)-/.test(e.sourceHandle || '') && Number(/^card-(\d+)-/.exec(e.sourceHandle || '')![1]) >= i)));
+  };
+
+  // Extender: what each numbered output leads to, live from the canvas.
+  const allEdges = useEdges();
+  const allNodes = useNodes<WaData>();
+  const slots = extSlots(data);
+  const extTarget = (i: number) => {
+    const e = allEdges.find((x) => x.source === id && x.sourceHandle === `ext-${i}`);
+    return e ? allNodes.find((n) => n.id === e.target) || null : null;
+  };
+  const addSlot = () => {
+    if (slots < EXT_MAX) patch({ slots: slots + 1 });
+  };
+  // The removed number's connection goes; the later ones move up a number.
+  const removeSlot = (i: number) => {
+    if (slots <= EXT_MIN) return;
+    patch({ slots: slots - 1 });
+    rf.setEdges((es) => es
+      .filter((e) => !(e.source === id && e.sourceHandle === `ext-${i}`))
+      .map((e) => {
+        const m = e.source === id ? /^ext-(\d+)$/.exec(e.sourceHandle || '') : null;
+        return m && Number(m[1]) > i ? { ...e, sourceHandle: `ext-${Number(m[1]) - 1}` } : e;
+      }));
   };
 
   return (
@@ -410,6 +446,39 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
           {(data.options || []).length < 10 && (
             <button className="fl-add-opt" onClick={addOption}>
               <span className="material-icons">add</span> Add option
+            </button>
+          )}
+        </div>
+      )}
+
+      {data.kind === 'extender' && (
+        <div className="fl-rows" data-testid="fl-ext-rows">
+          <div className="fl-restart jn-start-note">
+            <span className="material-icons">call_split</span>
+            <div>
+              Sends several messages one after another, in number order: 1 first, then 2, then 3. Connect a block to each
+              number on the canvas. The blocks connected after it go out with it.
+            </div>
+          </div>
+          {Array.from({ length: slots }, (_, i) => {
+            const t = extTarget(i);
+            return (
+              <div className={`fl-row ext${t ? '' : ' empty'}`} key={i} data-testid={`fl-ext-row-${i}`}>
+                <span className="fl-row-num">{i + 1}</span>
+                <span className="fl-ext-target" title={t ? summaryOf(t.data, channel) : undefined}>
+                  {t ? `${KINDS[t.data.kind]?.title || 'Block'} · ${summaryOf(t.data, channel)}` : 'Not connected yet'}
+                </span>
+                {slots > EXT_MIN && (
+                  <button className="fl-row-del" onClick={() => removeSlot(i)} title="Remove this number" data-testid={`fl-ext-del-${i}`}>
+                    <span className="material-icons">close</span>
+                  </button>
+                )}
+              </div>
+            );
+          })}
+          {slots < EXT_MAX && (
+            <button className="fl-add-opt" onClick={addSlot} data-testid="fl-ext-add">
+              <span className="material-icons">add</span> Add a message
             </button>
           )}
         </div>
@@ -588,6 +657,7 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
 
 /** Where a block's connections come out, said in its pop-up. */
 const OUTPUT_HINT: Partial<Record<Kind, string>> = {
+  extender: 'Each number is an output on the block. Connect a block to each; they go out in order, 1 first.',
   reply: 'Each button gets its own output on the block: connect it to what happens when the customer taps it.',
   list: 'Each option gets its own output on the block.',
   quick: 'Each quick reply gets its own output on the block.',
@@ -642,6 +712,8 @@ function outputsOf(data: WaData, templates: TemplateItem[]): Output[] {
       });
       return out.length ? [...out, { id: '', label: 'Next' }] : [{ id: '', label: '' }];
     }
+    case 'extender':
+      return Array.from({ length: extSlots(data) }, (_, i) => ({ id: `ext-${i}`, label: String(i + 1) }));
     case 'end':
     case 'restart':
       return [];
@@ -672,6 +744,7 @@ function summaryOf(data: WaData, channel: JourneyChannel): string {
     case 'template': return data.templateName || 'Template not chosen';
     case 'quick': return count((data.options || []).length, 'quick reply', 'quick replies');
     case 'carousel': return count((data.cards || []).length, 'card', 'cards');
+    case 'extender': return `Sends ${extSlots(data)} messages in order`;
     case 'end': return 'Ends the journey';
     case 'restart': return 'Back to Start';
     default: return '';
@@ -767,11 +840,13 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
   // right side, labelled there, like a plain "next". Several go along the bottom.
   const side = !next && allBranches.length === 1 ? allBranches[0] : null;
   const branches = side ? [] : allBranches;
-  const problem = problemOf(data, outputs);
   const isStart = data.kind === 'start';
   // A port turns from "+" into a dot when connected (and back): React Flow
   // must measure the block's ports again, or the line starts from the old spot.
   const { connected, inUsed } = useContext(CanvasCtx);
+  const problem = data.kind === 'extender' && !outputs.some((o) => connected.has(`${id}|${o.id}`))
+    ? 'Connect a block to number 1'
+    : problemOf(data, outputs);
   const portsKey = outputs.map((o) => `${o.id}:${connected.has(`${id}|${o.id}`) ? 1 : 0}`).join(',');
   const updateInternals = useUpdateNodeInternals();
   useEffect(() => {
@@ -859,6 +934,7 @@ const WHATSAPP_PALETTE: PaletteItem[] = [
   { kind: 'location', label: 'Ask location' },
   { kind: 'list', label: 'List menu' },
   { kind: 'template', label: 'Template' },
+  { kind: 'extender', count: 3, label: 'Extender' },
   { kind: 'restart', label: 'Start again' },
   { kind: 'end', label: 'End' },
 ];
@@ -879,6 +955,7 @@ const metaPalette = (channel: 'instagram' | 'messenger'): PaletteItem[] => [
   ...(channel === 'messenger' ? [{ kind: 'call' as Kind, label: 'Call button' }] : []),
   { kind: 'carousel', count: 1, label: 'Card', icon: 'crop_landscape' },
   { kind: 'carousel', count: 2, label: 'Carousel' },
+  { kind: 'extender', count: 3, label: 'Extender' },
   { kind: 'restart', label: 'Start again' },
   { kind: 'end', label: 'End' },
 ];

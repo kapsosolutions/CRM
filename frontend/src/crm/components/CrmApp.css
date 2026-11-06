@@ -7706,6 +7706,23 @@ a.msg-btn {
   align-items: center;
   justify-content: center;
 }
+/* Extender rows: what each number sends (FlowsPage.tsx). */
+.fl-row.ext {
+  min-height: 32px;
+}
+.fl-ext-target {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--wa-ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.fl-row.ext.empty .fl-ext-target {
+  color: var(--wa-ink-muted);
+  font-style: italic;
+}
 .fl-row input,
 .fl-fields input,
 .fl-list-title {
