@@ -115,6 +115,12 @@ export function BusinessProfilePhonePreview({
 
   const cleanWebsites = websites.filter(Boolean);
   const bizInitial = (businessName.trim()[0] || 'B').toUpperCase();
+  // The tick sits right after the last word, as in WhatsApp: when a long name
+  // wraps, the last word and the tick move to the next line together.
+  const name = businessName.trim().replace(/\s+/g, ' ');
+  const cut = name.lastIndexOf(' ');
+  const nameHead = cut > 0 ? name.slice(0, cut + 1) : '';
+  const nameLast = cut > 0 ? name.slice(cut + 1) : name;
 
   return (
     <div className="bpp-phone-container">
@@ -156,15 +162,20 @@ export function BusinessProfilePhonePreview({
             </div>
 
             <div className="bpp-hero-name-row">
-              <h4 className="bpp-hero-name">{businessName}</h4>
-              <span title="Verified Business" className="bpp-verified-badge-wrap">
-                <svg className="bpp-verified-badge" width="15" height="15" viewBox="-1 -1 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path
-                    d="M51.6083 27.0003L53.2669 21.8803C54.5069 18.0483 52.7816 13.8803 49.1949 12.0483L44.4029 9.60028L41.9549 4.80828C40.1229 1.22161 35.9549 -0.506392 32.1229 0.736275L27.0003 2.39228L21.8803 0.733609C18.0483 -0.506391 13.8803 1.21894 12.0483 4.80561L9.59761 9.59761L4.80561 12.0483C1.21894 13.8803 -0.506391 18.0483 0.733609 21.8803L2.39228 27.0003L0.733609 32.1203C-0.506391 35.9523 1.21894 40.1203 4.80561 41.9523L9.59761 44.4003L12.0456 49.1923C13.8776 52.7789 18.0456 54.5069 21.8776 53.2643L27.0003 51.6083L32.1203 53.2669C35.9523 54.5069 40.1203 52.7816 41.9523 49.1949L44.4003 44.4029L49.1923 41.9549C52.7789 40.1229 54.5069 35.9549 53.2643 32.1229L51.6083 27.0003ZM22.4483 36.8856L16.3336 30.7709C15.2936 29.7309 15.2936 28.0403 16.3336 27.0003C17.3736 25.9603 19.0643 25.9603 20.1043 27.0003L24.3336 31.2296L36.5629 19.0003C37.6029 17.9603 39.2936 17.9603 40.3336 19.0003C41.3736 20.0403 41.3736 21.7309 40.3336 22.7709L26.2189 36.8856C25.1789 37.9256 23.4883 37.9256 22.4483 36.8856Z"
-                    fill="#007aff"
-                  />
-                </svg>
-              </span>
+              <h4 className="bpp-hero-name" data-testid="bpp-name">
+                {nameHead}
+                <span className="bpp-hero-name-end">
+                  {nameLast}
+                  <span title="Verified Business" className="bpp-verified-badge-wrap" data-testid="bpp-verified">
+                    <svg className="bpp-verified-badge" width="15" height="15" viewBox="-1 -1 56 56" fill="none" xmlns="http://www.w3.org/2000/svg">
+                      <path
+                        d="M51.6083 27.0003L53.2669 21.8803C54.5069 18.0483 52.7816 13.8803 49.1949 12.0483L44.4029 9.60028L41.9549 4.80828C40.1229 1.22161 35.9549 -0.506392 32.1229 0.736275L27.0003 2.39228L21.8803 0.733609C18.0483 -0.506391 13.8803 1.21894 12.0483 4.80561L9.59761 9.59761L4.80561 12.0483C1.21894 13.8803 -0.506391 18.0483 0.733609 21.8803L2.39228 27.0003L0.733609 32.1203C-0.506391 35.9523 1.21894 40.1203 4.80561 41.9523L9.59761 44.4003L12.0456 49.1923C13.8776 52.7789 18.0456 54.5069 21.8776 53.2643L27.0003 51.6083L32.1203 53.2669C35.9523 54.5069 40.1203 52.7816 41.9523 49.1949L44.4003 44.4029L49.1923 41.9549C52.7789 40.1229 54.5069 35.9549 53.2643 32.1229L51.6083 27.0003ZM22.4483 36.8856L16.3336 30.7709C15.2936 29.7309 15.2936 28.0403 16.3336 27.0003C17.3736 25.9603 19.0643 25.9603 20.1043 27.0003L24.3336 31.2296L36.5629 19.0003C37.6029 17.9603 39.2936 17.9603 40.3336 19.0003C41.3736 20.0403 41.3736 21.7309 40.3336 22.7709L26.2189 36.8856C25.1789 37.9256 23.4883 37.9256 22.4483 36.8856Z"
+                        fill="#007aff"
+                      />
+                    </svg>
+                  </span>
+                </span>
+              </h4>
             </div>
 
             <p className="bpp-hero-phone">{phone}</p>

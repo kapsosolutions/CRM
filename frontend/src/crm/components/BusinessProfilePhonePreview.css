@@ -185,10 +185,7 @@
 }
 
 .bpp-hero-name-row {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
+  max-width: 100%;
 }
 
 .bpp-hero-name {
@@ -197,10 +194,24 @@
   color: #0f172a;
   margin: 0;
   line-height: 1.25;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+/* The last word and the tick never split across lines. */
+.bpp-hero-name-end {
+  white-space: nowrap;
+}
+
+.bpp-verified-badge-wrap {
+  display: inline-block;
+  margin-left: 4px;
+  vertical-align: -2px;
+  line-height: 0;
 }
 
 .bpp-verified-badge {
-  flex-shrink: 0;
+  display: block;
 }
 
 .bpp-hero-phone {

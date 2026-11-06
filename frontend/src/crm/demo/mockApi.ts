@@ -12,6 +12,7 @@ import type { ApiKeyInfo, MessagingLimitUsage, MetaChannelsInfo, MuteFor, QuickM
 import type { CallEvent, CallPermission, CallSettings, CallSettingsUpdate, CallState, LiveCall, EventInput, PollInput } from '../types';
 import type { CommentActivity, CommentRule, SocialOverview, SocialPost } from '../types';
 import type { QuickStarter, WaLibraryResponse, WaLibraryTemplate, WaLibraryUseResult } from '../types';
+import type { TwoStepPinResult } from '../types';
 import { demoChats, demoMessages, demoTemplates, DEMO_FORM, DEMO_COURIER_FORMS } from './mockData';
 import { demoCategories, demoProducts, demoOffers } from './catalogData';
 import { demoFlows, demoJourneys } from './flowData';
@@ -853,7 +854,19 @@ export class MockCrmApi extends CrmApi {
       },
       limit: { tier: 'TIER_10K', limit: 10000, label: '10,000', unlimited: false },
       waba: { id: '100000000000002', name: 'Kapso Demo', accountReviewStatus: 'APPROVED', businessVerificationStatus: 'verified' },
+      activation: { needed: false, hasSavedPin: !!this.demoPinSetAt, pinSetAt: this.demoPinSetAt },
     });
+  }
+
+  // Demo: the two-step verification PIN is only remembered as "set" for the session.
+  private demoPinSetAt: string | null = null;
+  override async setTwoStepPin(pin: string): Promise<TwoStepPinResult> {
+    if (!/^\d{6}$/.test(pin)) {
+      throw Object.assign(new Error('The PIN must be exactly 6 digits.'), { data: { code: 'INVALID_PIN', message: 'The PIN must be exactly 6 digits.' } });
+    }
+    this.demoPinSetAt = new Date().toISOString();
+    const channel = await this.getChannelStatus();
+    return delay({ success: true, pinSetAt: this.demoPinSetAt, message: 'The new two-step verification PIN is set on your number.', channel }, 400);
   }
 
   // ---------- WhatsApp business profile (in memory for the demo) ----------

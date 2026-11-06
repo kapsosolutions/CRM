@@ -146,7 +146,11 @@ function withActivation(biz, data) {
   if (!data?.number) return data;
   return {
     ...data,
-    activation: { needed: needsActivation(data.number), hasSavedPin: !!biz.waConnection?.pin },
+    activation: {
+      needed: needsActivation(data.number),
+      hasSavedPin: !!biz.waConnection?.pin,
+      pinSetAt: biz.waConnection?.pinSetAt || null,
+    },
   };
 }
 

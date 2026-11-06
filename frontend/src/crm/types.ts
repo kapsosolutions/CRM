@@ -1537,7 +1537,22 @@ export interface ChannelStatus {
     businessVerificationStatus: string;
   } | null;
   /** Present with `number`: whether it needs "Activate number", and whether a PIN is stored (never the PIN). */
-  activation?: { needed: boolean; hasSavedPin: boolean };
+  activation?: {
+    needed: boolean;
+    hasSavedPin: boolean;
+    /** When the PIN was last set from Channel Status (ISO), if it was. */
+    pinSetAt?: string | null;
+  };
+}
+
+/** POST /api/channel/two-step-pin. */
+export interface TwoStepPinResult {
+  success: boolean;
+  /** ISO time Meta accepted the new PIN. */
+  pinSetAt: string;
+  message: string;
+  /** Channel Status right after. */
+  channel?: ChannelStatus;
 }
 
 /** Why an activation (or Embedded Signup's register attempt) failed. */

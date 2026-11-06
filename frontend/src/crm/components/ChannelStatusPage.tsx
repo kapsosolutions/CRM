@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type {
   ActivationFailure, ActivationResult, BusinessProfile, ChannelStatus, MetaChannel, MetaChannelConnection,
-  MetaChannelsInfo, MetaPageOption, SignupActivation,
+  MetaChannelsInfo, MetaPageOption, SignupActivation, TwoStepPinResult,
 } from '../types';
 import type { CrmView } from './NavRail';
 import { ConnectWhatsAppButton } from './ConnectWhatsApp';
@@ -13,6 +13,7 @@ import {
 } from './InstagramConnect';
 import { useConfirm, useNotify } from './Dialogs';
 import { ActivateNumberPanel, NumberStateCard } from './ActivateNumberPanel';
+import { TwoStepPinPanel } from './TwoStepPinPanel';
 import {
   numberStatusTone,
   CHANNEL_STATUS_EVENT,
@@ -50,7 +51,7 @@ interface Props {
 }
 
 type ChannelTab = 'whatsapp' | 'instagram' | 'messenger';
-type SubItem = 'connect' | 'limit' | 'approval' | 'display_name' | 'phone_number' | 'quality_rating' | 'calling';
+type SubItem = 'connect' | 'limit' | 'approval' | 'display_name' | 'phone_number' | 'two_step' | 'quality_rating' | 'calling';
 
 // Meta's current tier path (same order as backend services/messagingTier.js
 // TIER_TRACK). Legacy TIER_50 / TIER_1K numbers get their own slot.
@@ -651,6 +652,12 @@ export function ChannelStatusPage({
     else void loadStatus(true);
   };
 
+  // A new two-step PIN: the answer carries the status with "PIN saved".
+  const onPinSaved = (r: TwoStepPinResult) => {
+    if (r.channel?.number) setStatus(r.channel);
+    else void loadStatus();
+  };
+
   // The backend has the final say: no number of its own → the Connect state.
   const isWaConnected = hasOwnNumber && status?.connected !== false;
   // Until the server answers, the flags from /api/auth/me.
@@ -690,6 +697,9 @@ export function ChannelStatusPage({
     phone_number: num?.status ? { label: humanize(num.status), tone: numberTone } : pending(),
     approval: reviewStatus ? { label: humanize(reviewStatus), tone: reviewTone(reviewStatus) } : pending(),
     display_name: num?.nameStatus ? { label: humanize(num.nameStatus), tone: reviewTone(num.nameStatus) } : pending(),
+    two_step: status?.activation
+      ? status.activation.hasSavedPin ? { label: 'PIN saved', tone: 'green' } : { label: 'No PIN saved', tone: 'amber' }
+      : pending(),
   };
 
   // The tier track: Meta's current path, plus the number's own tier if it is
@@ -958,6 +968,22 @@ export function ChannelStatusPage({
                     </div>
                   </button>
 
+                  {/* Two-step verification PIN */}
+                  <button
+                    type="button"
+                    className={`cs-item-btn ${selectedSubItem === 'two_step' ? 'active' : ''}`}
+                    onClick={() => setSelectedSubItem('two_step')}
+                    data-testid="cs-item-two-step"
+                  >
+                    <div className={`cs-item-check ${isConnected && status?.activation?.hasSavedPin ? 'completed' : 'pending'}`}>
+                      {isConnected && status?.activation?.hasSavedPin ? '✓' : '•'}
+                    </div>
+                    <div className="cs-item-info">
+                      <span className="cs-item-title">Two-step verification</span>
+                      <span className="cs-item-desc">Set or change your number&apos;s PIN</span>
+                    </div>
+                  </button>
+
                   {/* Quality Rating (Image 2) */}
                   <button
                     type="button"
@@ -1068,6 +1094,8 @@ export function ChannelStatusPage({
                     ? 'WhatsApp Display Name'
                     : selectedSubItem === 'phone_number'
                     ? 'Phone Number Status'
+                    : selectedSubItem === 'two_step'
+                    ? 'Two-step verification'
                     : selectedSubItem === 'calling'
                     ? 'WhatsApp Calling'
                     : 'Quality Rating'
@@ -1300,6 +1328,15 @@ export function ChannelStatusPage({
                 </div>
               ) : selectedSubItem === 'calling' ? (
                 <CallingSettings api={api} limit={limit} />
+              ) : selectedSubItem === 'two_step' ? (
+                <TwoStepPinPanel
+                  api={api}
+                  displayPhone={displayPhone}
+                  hasSavedPin={!!status?.activation?.hasSavedPin}
+                  pinSetAt={status?.activation?.pinSetAt}
+                  loading={!status?.activation && (statusLoading || !status)}
+                  onSaved={onPinSaved}
+                />
               ) : selectedSubItem === 'limit' ? (
               /* Messaging Limit (Matching user screenshot: 5 horizontal segments with elevated Current card) */
               <div className="cs-two-col-layout">

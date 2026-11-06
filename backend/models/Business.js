@@ -55,6 +55,8 @@ const BusinessSchema = new Schema(
       connectedAt: { type: Date },
       metaBusinessId: { type: String, default: '' },
       pin: { type: String, default: '' },
+      // When the PIN was last set from Channel Status → Two-step verification.
+      pinSetAt: { type: Date },
     },
     catalogId: { type: String, default: '' },
     // How the catalog was connected. 'meta_login' = Catalog → Get started

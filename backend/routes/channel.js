@@ -1,12 +1,14 @@
 // Channel Status page: live state of the business's own WhatsApp number
-// (services/metaAccount.js), and "Activate number" for a number Meta lists
-// as Pending (services/numberActivation.js).
+// (services/metaAccount.js), "Activate number" for a number Meta lists as
+// Pending (services/numberActivation.js), and its two-step verification PIN
+// (services/twoStepPin.js).
 import express from 'express';
 import { requireBusiness } from '../middleware/auth.js';
 import { getNumberStatus } from '../services/metaAccount.js';
 import { getServiceQuota } from '../services/serviceQuota.js';
 import { getMessagingLimit } from '../services/messagingLimit.js';
 import { activateNumber, ActivationError } from '../services/numberActivation.js';
+import { setTwoStepPin } from '../services/twoStepPin.js';
 import { otherSubscribedApps, clearThreadControl } from '../services/otherApps.js';
 import logger from '../services/logger.js';
 
@@ -76,6 +78,27 @@ router.post('/activate', async (req, res) => {
     }
     logger.error('number activation failed', { business: req.business.name, error: err.message });
     return res.status(500).json({ success: false, code: 'ACTIVATION_FAILED', message: 'Activating the number failed. Please try again.' });
+  }
+});
+
+// Set or change the number's two-step verification PIN: { pin: '123456' }.
+// The PIN never comes back in any response.
+router.post('/two-step-pin', async (req, res) => {
+  try {
+    const r = await setTwoStepPin(req.business, (req.body || {}).pin);
+    const status = await getNumberStatus(req.business);
+    return res.json({ ...r, channel: { success: true, ...status } });
+  } catch (err) {
+    if (err instanceof ActivationError) {
+      if (err.meta) {
+        logger.warn('two-step PIN change refused by Meta', {
+          business: req.business.name, code: err.code, metaCode: err.meta.code, error: err.meta.message,
+        });
+      }
+      return res.status(err.status).json(err.toJSON());
+    }
+    logger.error('two-step PIN change failed', { business: req.business.name, error: err.message });
+    return res.status(500).json({ success: false, code: 'PIN_CHANGE_FAILED', message: 'Setting the PIN failed. Please try again.' });
   }
 });
 

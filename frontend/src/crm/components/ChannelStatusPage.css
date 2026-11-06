@@ -1653,6 +1653,11 @@
   color: #64748b;
 }
 
+/* Two-step verification (TwoStepPinPanel.tsx): the PIN fields line up. */
+.cs-two-step-label {
+  min-width: 92px;
+}
+
 .cs-number-status-pill {
   margin-left: 8px;
   font-size: 10.5px;

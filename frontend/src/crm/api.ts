@@ -28,7 +28,7 @@ import type {
   AdsCompareResult, AdsPixelDetails, AdsPixelsList, AdsRuleHistory, AdsRulePreview, AdsRuleSpec, AdsRulesList, AdsRuleWrite, AdsSplitTest, AdsTestDetails,
   AdsTestInput, AdsTestMetric, AdsTestsList,
 } from './types';
-import type { AdLeadsReport, BusinessSettings, PaymentSettings, BusinessProfile, SandboxInfo, ChannelStatus, ActivationResult, SignupActivation, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, FlowTemplate, Order, OrderStatus, Journey, Registration, RegistrationStatus, PlanSummary, BillingSummary, PlanState, PlanQuote, PlanCheckout, CatalogSync, CatalogSyncResult, TemplateSource, TemplateVariable, TriggerEvent, Slot } from './types';
+import type { AdLeadsReport, BusinessSettings, PaymentSettings, BusinessProfile, SandboxInfo, ChannelStatus, ActivationResult, TwoStepPinResult, SignupActivation, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, FlowTemplate, Order, OrderStatus, Journey, Registration, RegistrationStatus, PlanSummary, BillingSummary, PlanState, PlanQuote, PlanCheckout, CatalogSync, CatalogSyncResult, TemplateSource, TemplateVariable, TriggerEvent, Slot } from './types';
 
 /** An offer write: the saved offer plus how the catalog push went. */
 export interface OfferWrite {
@@ -420,6 +420,18 @@ export class CrmApi {
       method: 'POST',
       headers: this.authHeaders({ 'Content-Type': 'application/json' }),
       body: JSON.stringify(body),
+    });
+  }
+
+  /**
+   * Set or change the number's two-step verification PIN. A refusal throws
+   * with the server's readable message; `data` carries `code` and Meta's `metaMessage`.
+   */
+  setTwoStepPin(pin: string): Promise<TwoStepPinResult> {
+    return this.request('/api/channel/two-step-pin', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ pin }),
     });
   }
 
