@@ -7,7 +7,9 @@ import type { Category } from '../types';
 import { verticalConfig, type VerticalConfig } from '../verticals';
 import { useConfirm, useNotify } from './Dialogs';
 
-import { CrmEmptyState } from './CrmEmptyState';
+import { CrmPageHero } from './CrmPageHero';
+import { CategoriesRailSvg } from './NavRail';
+import { categoriesHero } from '../emptyPages';
 import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { BladeSpinner } from './BladeSpinner';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
@@ -80,16 +82,13 @@ export function CategoriesPage({ api, vertical, business, demo, onConnected }: P
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}
         {!loading && categories.length === 0 && (
-          <CrmEmptyState
-            icon="category"
-            iconTone="primary"
-            title={`No ${v.categoryPlural.toLowerCase()} created yet`}
-            description={v.showsPage('catalog')
-              ? `Organize your products into ${v.categoryPlural.toLowerCase()} so ${v.customerPlural.toLowerCase()} can browse them in your WhatsApp catalog and flows.`
-              : `Group your ${v.memberLabel.toLowerCase()} into ${v.categoryPlural.toLowerCase()} so ${v.customerPlural.toLowerCase()} pick a ${v.categoryLabel.toLowerCase()} first in your WhatsApp flows.`}
-            actionLabel={`Add ${v.categoryLabel}`}
+          <CrmPageHero
+            icon={<CategoriesRailSvg />}
+            tone="blue"
+            {...categoriesHero(v)}
             actionIcon="add"
             onAction={() => setModal('new')}
+            testId="categories-hero"
           />
         )}
         {!loading && categories.length > 0 && (

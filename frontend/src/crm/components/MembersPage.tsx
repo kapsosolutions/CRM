@@ -13,6 +13,8 @@ import { verticalConfig } from '../verticals';
 import { useConfirm, useFlash } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { CrmEmptyState } from './CrmEmptyState';
+import { CrmPageHero } from './CrmPageHero';
+import { membersHero } from '../emptyPages';
 import { BladeSpinner } from './BladeSpinner';
 import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
@@ -141,20 +143,6 @@ function ListInput({
   );
 }
 
-/** What an empty Members page says, in the business's words. */
-function membersEmptyText(v: VerticalConfig): string {
-  const list = v.memberLabel.toLowerCase();
-  const one = v.memberSingular.toLowerCase();
-  const who = v.customerPlural.toLowerCase();
-  if (v.archetype === 'lead') {
-    return `Add your ${list} so ${who} can pick a ${one} in your WhatsApp flows, and each enquiry says who it’s for.`;
-  }
-  if (v.archetype === 'unit') {
-    return `Add your ${list} with their price, photos and check-in times, so ${who} can pick a ${one} and book it on WhatsApp.`;
-  }
-  return `Add your ${list} with their price and working hours, so ${who} can pick a ${one} and book a free time on WhatsApp.`;
-}
-
 /** What the server reports back about an absence added by a save. */
 interface MemberSaveNotice {
   date: string;
@@ -275,14 +263,13 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}
         {!loading && members.length === 0 && (
-          <CrmEmptyState
-            icon="people_outline"
-            iconTone="purple"
-            title={`No ${v.memberLabel.toLowerCase()} added yet`}
-            description={membersEmptyText(v)}
-            actionLabel={`Add ${v.memberSingular}`}
+          <CrmPageHero
+            icon={v.memberIcon}
+            tone="purple"
+            {...membersHero(v)}
             actionIcon="add"
             onAction={() => setEditing('new')}
+            testId="members-hero"
           />
         )}
         {!loading && members.length > 0 && shown.length === 0 && (

@@ -1230,6 +1230,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                   onConnected={onConnected}
                   onOpenChat={openChatFor}
                   focusRequest={focusFor('orders')}
+                  onNavigate={(p) => navigate(p)}
                 />
               )
             )}

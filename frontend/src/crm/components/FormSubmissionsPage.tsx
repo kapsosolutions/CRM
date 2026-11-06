@@ -7,6 +7,8 @@ import type { CrmApi } from '../api';
 import type { Registration, RegistrationStatus, WaFlowDef } from '../types';
 import { OTHER_FORMS, presetOfSubmission, type FormPage } from '../flowForms';
 import { REG_STATUS, RegistrationsList } from './OrdersPage';
+import { CrmPageHero } from './CrmPageHero';
+import { formPageHero } from '../emptyPages';
 
 interface Props {
   api: CrmApi;
@@ -96,6 +98,21 @@ export function FormSubmissionsPage({ api, page, onOpenChat, onOpenFlows, onChan
 
   const formName = page.preset?.title || 'form';
   const filtered = mine.length > 0 && shown.length === 0;
+  // Nothing at all yet: the page hero, with Automation one tap away when the
+  // form isn't in a flow.
+  const hero = formPageHero(page.label, page.preset?.title || null, usedIn);
+  const heroAction = !page.preset || !usedIn.length ? onOpenFlows : undefined;
+  const emptyHero = (
+    <CrmPageHero
+      icon={page.icon}
+      tone="purple"
+      {...hero}
+      actionLabel={heroAction ? hero.actionLabel : undefined}
+      actionIcon="auto_awesome"
+      onAction={heroAction}
+      testId="form-page-hero"
+    />
+  );
   const empty = filtered
     ? { icon: 'search_off', title: 'Nothing matches', description: 'Try another status or clear the search.' }
     : page.preset
@@ -156,7 +173,9 @@ export function FormSubmissionsPage({ api, page, onOpenChat, onOpenFlows, onChan
         )}
       </header>
 
-      {!loading && page.preset && (
+      {/* Where the answers come from. On an empty page with the form in no
+          flow, the hero below already says so (and has the button). */}
+      {!loading && page.preset && (mine.length > 0 || usedIn.length > 0) && (
         <div className="form-page-src" data-testid="form-page-src">
           <span className="material-icons">{page.icon}</span>
           {usedIn.length ? (
@@ -184,6 +203,7 @@ export function FormSubmissionsPage({ api, page, onOpenChat, onOpenFlows, onChan
         }}
         setItems={setItems}
         empty={empty}
+        emptyHero={mine.length === 0 ? emptyHero : undefined}
         onOpenChat={onOpenChat}
         pagerKey={`form-page-${page.id}`}
       />

@@ -51,6 +51,9 @@ import { FlowMessageFields, FlowMessageModal, flowMessageOf, type FlowMessage } 
 import { verticalConfig, type VerticalConfig } from '../verticals';
 import { makeBlock, type BlockSpec } from '../flowBlocks';
 import { ReadyTemplates } from './FlowTemplateGallery';
+import { CrmPageHero } from './CrmPageHero';
+import { AutomationRailSvg } from './NavRail';
+import { flowsHero } from '../emptyPages';
 import {
   blockLabel as chipLabel, blockShown, formsFor, payOptions, RATING_OPTIONS, TIME_OPTIONS,
   type BlockId, type FieldSpec, type FormPreset,
@@ -489,7 +492,16 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
       </div>
       {loading && <BladeSpinner center={true} containerHeight={200} />}
       {!loading && flows.length === 0 && (
-        <div className="page-note">No flows yet. Create one and publish it to Meta.</div>
+        <CrmPageHero
+          icon={<AutomationRailSvg />}
+          tone="teal"
+          {...flowsHero(v)}
+          actionIcon="dashboard_customize"
+          onAction={() => setBrowsing(true)}
+          secondaryLabel="Start from scratch"
+          onSecondary={() => setEditing('new')}
+          testId="flows-hero"
+        />
       )}
       {!loading && flows.length > 0 && (
         <div className={`flow-driver-note${flowsActive ? ' on' : ''}`}>

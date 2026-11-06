@@ -1,7 +1,7 @@
 // Orders & bookings: fulfilment records with a status workflow. A filter
 // toggles All / Orders / Bookings; each card shows items, total, customer and a
 // status dropdown to advance the order.
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type { FormRow, Order, OrderStatus, Registration, RegistrationStatus } from '../types';
 import type { VerticalConfig } from '../verticals';
@@ -10,6 +10,9 @@ import { Dropdown, type KOption } from './Dropdown';
 import { OrderDetailsPage } from './OrderDetailsPage';
 import { useConfirm, useNotify } from './Dialogs';
 import { CrmEmptyState } from './CrmEmptyState';
+import { CrmPageHero } from './CrmPageHero';
+import { OrdersRailSvg } from './NavRail';
+import { ordersHero, submissionsHero } from '../emptyPages';
 import { BladeSpinner } from './BladeSpinner';
 import { Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
@@ -31,6 +34,8 @@ interface Props {
    * request). Without an id, the form submissions tab is shown instead.
    */
   focusRequest?: { id: string; n: number } | null;
+  /** Go to another page (the empty page's button opens Automation). */
+  onNavigate?: (view: 'flows') => void;
 }
 
 const money = (n: number) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
@@ -93,7 +98,7 @@ function payMethodOf(o: Order, catalog: boolean): { kind: 'online' | 'offline' |
   return { kind: 'other', label: raw };
 }
 
-export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenChat, focusRequest }: Props) {
+export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenChat, focusRequest, onNavigate }: Props) {
   const v = vertical || verticalConfig('other');
 
   if (!demo && business && !business.whatsappConnected) {
@@ -322,6 +327,16 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
           loading={loading}
           onChanged={load}
           setItems={setRegistrations}
+          emptyHero={(
+            <CrmPageHero
+              icon="assignment"
+              tone="purple"
+              {...submissionsHero()}
+              actionIcon="auto_awesome"
+              onAction={onNavigate ? () => onNavigate('flows') : undefined}
+              testId="submissions-hero"
+            />
+          )}
         />
       ) : (
       <div className="page-body">
@@ -340,7 +355,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
         )}
         {/* Lifecycle tabs. Active is the working list; finished and cancelled
             records move out of it but stay one tap away. */}
-        {!loading && !searching && (
+        {!loading && !searching && orders.length > 0 && (
           <div className="ord-toolbar">
             <div className="ord-life-tabs">
               {(['active', 'today', 'completed', 'cancelled'] as const).map((l) => (
@@ -376,7 +391,17 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
             <button type="button" onClick={() => setQuery('')}>Clear search</button>
           </div>
         )}
-        {!loading && shown.length === 0 && (
+        {!loading && orders.length === 0 && !searching && !apptDate && (
+          <CrmPageHero
+            icon={<OrdersRailSvg />}
+            tone="green"
+            {...ordersHero(v)}
+            actionIcon="auto_awesome"
+            onAction={onNavigate ? () => onNavigate('flows') : undefined}
+            testId="orders-hero"
+          />
+        )}
+        {!loading && shown.length === 0 && !(orders.length === 0 && !searching && !apptDate) && (
           <CrmEmptyState
             icon={searching ? 'search_off' : 'receipt_long'}
             iconTone={searching ? 'slate' : 'primary'}
@@ -574,6 +599,7 @@ export function RegistrationsList({
   empty,
   onOpenChat,
   pagerKey = 'form-submissions',
+  emptyHero,
 }: {
   api: CrmApi;
   items: Registration[];
@@ -586,6 +612,8 @@ export function RegistrationsList({
   onOpenChat?: (phone: string) => void;
   /** Where the page size is remembered. */
   pagerKey?: string;
+  /** Shown instead of the plain empty state when there's nothing at all. */
+  emptyHero?: ReactNode;
 }) {
   const confirm = useConfirm();
   const notify = useNotify();
@@ -626,7 +654,8 @@ export function RegistrationsList({
   return (
     <div className="page-body">
       {loading && <BladeSpinner center={true} containerHeight={200} />}
-      {!loading && items.length === 0 && (
+      {!loading && items.length === 0 && emptyHero}
+      {!loading && items.length === 0 && !emptyHero && (
         <CrmEmptyState
           icon={empty?.icon || 'assignment'}
           iconTone="purple"

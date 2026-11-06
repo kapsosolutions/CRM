@@ -8,7 +8,9 @@ import type { CatalogSyncResult, Offer, OfferItem, Product, ProductVariant } fro
 import { CatalogPhonePreview, deliveryNoteOf, phoneVariantsFromProduct } from './CatalogPhonePreview';
 import { useConfirm, useFlash } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
-import { CrmEmptyState } from './CrmEmptyState';
+import { CrmPageHero } from './CrmPageHero';
+import { OffersRailSvg } from './NavRail';
+import { offersHero } from '../emptyPages';
 import { BladeSpinner } from './BladeSpinner';
 import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
@@ -205,14 +207,14 @@ export function OffersPage({ api, business, demo, onConnected }: Props) {
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}
         {!loading && offers.length === 0 && (
-          <CrmEmptyState
-            icon="local_offer"
-            iconTone="amber"
-            title="No special offers active"
-            description="Create promotional discounts, festive deals, and combo specials. Discounted prices automatically display with strike-through pricing on WhatsApp."
-            actionLabel="Create Offer"
+          <CrmPageHero
+            icon={<OffersRailSvg />}
+            tone="amber"
+            {...offersHero()}
             actionIcon="add"
             onAction={() => setEditing('new')}
+            note={products.length === 0 ? 'Add products on the Catalog page first, so there’s something to put on offer.' : undefined}
+            testId="offers-hero"
           />
         )}
         {!loading && offers.length > 0 && (

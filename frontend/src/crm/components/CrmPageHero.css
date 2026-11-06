@@ -1,0 +1,152 @@
+/* An empty page, laid out like the Catalog "connect" page (CrmPageHero.tsx). */
+.crm-hero {
+  max-width: 640px;
+  width: 100%;
+  margin: 36px auto 48px;
+  padding: 16px 20px 36px;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  animation: crmHeroIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes crmHeroIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.crm-hero-logos {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  margin: 6px 0 24px;
+}
+.crm-hero-tile {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.crm-hero-tile svg {
+  width: 26px;
+  height: 26px;
+}
+.crm-hero-tile .material-icons {
+  font-size: 26px;
+}
+.crm-hero-tile.green { background: rgba(16, 124, 63, 0.12); color: #107c3f; }
+.crm-hero-tile.amber { background: rgba(234, 88, 12, 0.12); color: #ea580c; }
+.crm-hero-tile.blue { background: rgba(0, 115, 230, 0.12); color: #0073e6; }
+.crm-hero-tile.purple { background: rgba(124, 58, 237, 0.12); color: #7c3aed; }
+.crm-hero-tile.teal { background: rgba(13, 148, 136, 0.12); color: #0d9488; }
+.crm-hero-arrow {
+  font-size: 24px;
+  color: #94a3b8;
+  font-weight: 300;
+  line-height: 1;
+  user-select: none;
+}
+.crm-hero-wa {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+  display: block;
+}
+.crm-hero-title {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--wa-ink, #0f172a);
+  margin: 0 0 10px;
+  line-height: 1.25;
+  letter-spacing: -0.5px;
+}
+.crm-hero-sub {
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--wa-ink-muted, #334155);
+  margin: 0 0 28px;
+  line-height: 1.5;
+  max-width: 560px;
+}
+.crm-hero-benefits-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--wa-ink, #0f172a);
+  margin: 0 0 16px;
+}
+.crm-hero-benefits {
+  list-style: none;
+  padding: 0;
+  margin: 0 auto 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+  width: fit-content;
+  max-width: 100%;
+}
+.crm-hero-benefits li {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--wa-ink, #334155);
+  text-align: left;
+}
+.crm-hero-check {
+  flex-shrink: 0;
+  color: #16a34a;
+}
+.crm-hero-actions {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.crm-hero-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: #24d06e;
+  color: #ffffff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  padding: 12px 28px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-shadow: 0 2px 6px rgba(36, 208, 110, 0.35);
+}
+.crm-hero-btn .material-icons {
+  font-size: 18px;
+}
+.crm-hero-btn:hover {
+  background: #1eb861;
+  transform: translateY(-1px);
+}
+.crm-hero-btn.ghost {
+  background: transparent;
+  color: var(--wa-ink, #334155);
+  border: 1px solid var(--wa-hairline, #cbd5e1);
+  box-shadow: none;
+}
+.crm-hero-btn.ghost:hover {
+  background: var(--wa-surface-2, #f8fafc);
+  transform: none;
+}
+.crm-hero-btn:focus-visible {
+  outline: 2px solid #1dbf73;
+  outline-offset: 2px;
+}
+.crm-hero-note {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--wa-ink-muted, #64748b);
+}
