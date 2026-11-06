@@ -226,7 +226,9 @@ export function AdminApp() {
   // Log in / Register on top.
   const businessSignIn = (token: string) => {
     platformApi.setBusinessToken(token);
-    window.location.hash = '#/';
+    // Signed out on a CRM page (an expired session, a refresh after it): back
+    // to that page. Anything else opens Chats.
+    if (!window.location.hash.startsWith('#/app/')) window.location.hash = '#/';
     rerender();
   };
 
@@ -253,7 +255,8 @@ export function AdminApp() {
   if (page === 'contact') return <ContactPage />;
 
   if (!platformApi.businessLoggedIn()) {
-    if (route.startsWith('/login')) return <LoginPage onSignedIn={businessSignIn} />;
+    // A CRM page (#/app/…) while signed out: sign in, then that page opens.
+    if (route.startsWith('/login') || route.startsWith('/app/')) return <LoginPage onSignedIn={businessSignIn} />;
     if (route.startsWith('/register/google')) return <RegisterPage key="google" google onSignedIn={businessSignIn} />;
     if (route.startsWith('/register')) return <RegisterPage key="email" onSignedIn={businessSignIn} />;
     return <LandingPage />;

@@ -3,6 +3,7 @@
 // category needs (a hospital gets Members, not Catalog/Offers), and labels
 // adapt ("Doctors" instead of "Members"). See crm/verticals.ts.
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useCrmPageHash, viewFromHash } from '../pageHash';
 import { CrmApi } from '../api';
 import { CrmSocket } from '../socket';
 import type { AppNotification, PlanFeature, PlanState, PlanTierKey } from '../types';
@@ -462,7 +463,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   useLockWindowScroll();
   // Smooth (Lenis) wheel scrolling inside those page panels, on every page.
   useAppSmoothScroll();
-  const [view, setView] = useState<CrmView>('chats');
+  // A refresh opens the page that was open (it's in the URL hash, pageHash.ts).
+  const [view, setView] = useState<CrmView>(() => viewFromHash(window.location.hash, demo) ?? 'chats');
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [profileDrawerOpen, setProfileDrawerOpen] = useState(false);
   // Chats with unread messages, for the red badge on the Chats icon.
@@ -536,6 +538,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // Back from any other tab returns to Chats (the home tab), the way a phone
   // app's Back returns to its first tab. Open sub-pages close first.
   useBackHandler(view !== 'chats', () => navigate('chats'));
+  // After the Back layer above, so its history entry exists when the hash is written.
+  useCrmPageHash(view, demo);
 
   const handleOpenChannelStatus = useCallback(
     (tab: 'whatsapp' | 'instagram' | 'messenger' = 'whatsapp') => {

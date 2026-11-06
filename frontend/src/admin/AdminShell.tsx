@@ -19,8 +19,12 @@ import {
 } from './AdminIcons';
 import { useLockWindowScroll } from '../crm/useLockWindowScroll';
 import { useBackHandler } from '../crm/useBackHandler';
+import { adminFromHash, useAdminPageHash } from '../crm/pageHash';
 
 export type AdminView = 'dashboard' | 'businesses' | 'demos' | 'freeTier' | 'techPartner';
+const ADMIN_VIEWS: readonly AdminView[] = ['dashboard', 'businesses', 'demos', 'freeTier', 'techPartner'];
+// Pages that can show one business: #/admin/businesses/<id>, #/admin/freeTier/<id>.
+const DETAIL_VIEWS: readonly AdminView[] = ['businesses', 'freeTier'];
 
 // Plans are bought in the CRM (Razorpay); there are no plan requests to handle.
 const GROUPS: { label?: string; items: { key: AdminView; label: string; icon: ReactNode }[] }[] = [
@@ -41,9 +45,11 @@ const COLLAPSED_KEY = 'pa_sidebar_collapsed';
 export function AdminShell({ onLogout }: { onLogout: () => void }) {
   // Full-screen portal: the content pane scrolls, the window never moves.
   useLockWindowScroll();
-  const [view, setView] = useState<AdminView>('dashboard');
+  // A refresh opens the page that was open (it's in the URL hash, crm/pageHash.ts).
+  const [start] = useState(() => adminFromHash(window.location.hash, ADMIN_VIEWS, 'dashboard', DETAIL_VIEWS));
+  const [view, setView] = useState<AdminView>(start.view);
   // When set, we're on the detail page for that business id.
-  const [detailId, setDetailId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(start.detailId);
   // Bumped by Refresh: remounts the open page so it loads its data again.
   const [reloadKey, setReloadKey] = useState(0);
   const [collapsed, setCollapsed] = useState(() => {
@@ -115,6 +121,7 @@ export function AdminShell({ onLogout }: { onLogout: () => void }) {
   useBackHandler(view !== 'dashboard', () => go('dashboard'));
   useBackHandler(!!detailId, () => setDetailId(null));
   useBackHandler(drawer, () => setDrawer(false));
+  useAdminPageHash(view, detailId, 'dashboard');
 
   return (
     <div className={`pa-shell${collapsed ? ' collapsed' : ''}${drawer ? ' drawer-open' : ''}`}>
