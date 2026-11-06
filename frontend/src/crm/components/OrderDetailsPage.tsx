@@ -20,6 +20,8 @@ interface Props {
   statusLabel: Record<OrderStatus, string>;
   /** What this business calls the customer: Customer / Patient / Guest / Client. */
   customerLabel?: string;
+  /** The heading over a booking's PDF: "Appointment slip" / "Booking slip". */
+  slipTitle?: string;
   onBack: () => void;
   onStatusChange: (o: Order, status: OrderStatus) => void;
   /** Open this customer's thread in the CRM's own chat view. */
@@ -72,6 +74,7 @@ export function OrderDetailsPage({
   statusOptions,
   statusLabel,
   customerLabel = 'Customer',
+  slipTitle = 'Appointment slip',
   onBack,
   onStatusChange,
   onOpenChat,
@@ -280,7 +283,7 @@ export function OrderDetailsPage({
               <section className="od-card od-doc">
                 <div className="od-card-head">
                   <span className="material-icons">picture_as_pdf</span>
-                  Appointment slip
+                  {slipTitle}
                 </div>
                 {pdfErr ? (
                   <div className="od-empty">{pdfErr}</div>
@@ -288,7 +291,7 @@ export function OrderDetailsPage({
                   <>
                     <iframe
                       className="od-pdf"
-                      title={`Appointment slip for ${o.reference || 'this booking'}`}
+                      title={`${slipTitle} for ${o.reference || 'this booking'}`}
                       src={pdfUrl}
                     />
                     <div className="od-map-foot">

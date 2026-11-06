@@ -48,6 +48,19 @@ const TRIGGER_EVENTS = [
   },
 ];
 const EVENT_KEYS = new Set(TRIGGER_EVENTS.map((e) => e.key));
+/**
+ * The events in this business's words: a garage marks a service unavailable
+ * and its clients are told, not a doctor and patients.
+ */
+const triggerEventsFor = (v) => TRIGGER_EVENTS.map((e) => (e.key === 'member_unavailable'
+  ? {
+    ...e,
+    label: v.archetype === 'person' || v.archetype === 'unit' || v.archetype === 'lead'
+      ? `${v.memberSingular} unavailable`
+      : e.label,
+    hint: `Sent to every ${String(v.customerLabel || 'customer').toLowerCase()} whose booking is affected when you mark a ${String(v.memberSingular || 'member').toLowerCase()} unavailable`,
+  }
+  : e));
 
 const router = express.Router();
 // Every route here reads or writes one tenant's data, so a business login is
@@ -1087,9 +1100,9 @@ router.get('/template-sources', (req, res) => {
   const v = verticalConfig(req.business?.category, req.business?.labels);
   res.json({
     success: true,
-    data: templateSourcesFor(v.archetype, v.customerLabel),
+    data: templateSourcesFor(v.archetype, v.customerLabel, v.memberSingular),
     statuses: ORDER_STATUSES,
-    events: TRIGGER_EVENTS,
+    events: triggerEventsFor(v),
   });
 });
 

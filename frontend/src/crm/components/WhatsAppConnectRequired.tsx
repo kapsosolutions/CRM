@@ -32,12 +32,12 @@ export const PAGE_CONNECT_DETAILS: Record<
   },
   members: {
     title: 'Connect WhatsApp to unlock Members',
-    subtitle: 'List your specialists, doctors, or team for direct appointment scheduling.\nConnect your WhatsApp account to enable member booking flows.',
+    subtitle: 'List the people, services or rooms your customers book.\nConnect your WhatsApp account to enable booking flows.',
     benefitsTitle: 'Benefits of connecting your own number',
     benefits: [
-      'Showcase member profiles with photos, titles, and specialties',
-      'Let customers select and book appointments with specific members',
-      'Manage member schedules, time windows, and availability on WhatsApp',
+      'Show each one with a photo, price and short description',
+      'Let customers pick one and book a free time on WhatsApp',
+      'Set working hours, breaks and days off in one place',
     ],
   },
   offers: {

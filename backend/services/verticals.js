@@ -50,8 +50,8 @@ export const ARCHETYPES = {
   },
   unit: {
     label: 'Unit booking',
-    pages: [...CORE, 'categories', 'members', 'offers', 'orders'],
-    memberFields: ['fee', 'capacity', 'amenities', 'location'],
+    pages: [...CORE, 'categories', 'members', 'orders'],
+    memberFields: ['fee', 'duration', 'availability', 'capacity', 'amenities', 'location'],
     ordersLabel: 'Bookings',
     confirm: CONFIRM_LABELS.unit,
   },

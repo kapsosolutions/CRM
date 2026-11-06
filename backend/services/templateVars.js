@@ -45,7 +45,7 @@ export const TEMPLATE_SOURCES = [
   // Appointment values. Filled from the customer's booking — the member they
   // chose, the day and the time — so one "your appointment has changed"
   // template works for every doctor and every date. Not shown to a shop.
-  { key: 'member_name', label: 'Doctor / staff name', hint: 'Whoever the appointment is with', archetypes: ['person', 'unit', 'lead'], labelFor: { unit: 'Host / staff name', lead: 'Agent name' } },
+  { key: 'member_name', label: 'Staff name', hint: 'Whoever the appointment is with', archetypes: ['person', 'unit', 'lead'], labelFor: { unit: 'Host / staff name', lead: 'Agent name' } },
   { key: 'appointment_date', label: 'Appointment date', archetypes: ['person', 'unit', 'lead'], labelFor: { unit: 'Booking date', lead: 'Preferred date' } },
   { key: 'appointment_slot', label: 'Appointment time', archetypes: ['person', 'unit', 'lead'], labelFor: { unit: 'Booking time' } },
   { key: 'unavailable_reason', label: 'Reason for the change', hint: 'What you typed when marking them unavailable', archetypes: ['person', 'unit', 'lead'] },
@@ -60,15 +60,19 @@ export const isTemplateSource = (key) => SOURCE_KEYS.has(String(key));
  * gets the order and delivery values. Keys are unchanged — only the list and
  * the labels differ.
  */
-export function templateSourcesFor(archetype, customerLabel = 'Customer') {
+export function templateSourcesFor(archetype, customerLabel = 'Customer', memberSingular = '') {
   const a = String(archetype || 'catalog');
   const cust = String(customerLabel || 'Customer');
+  const member = String(memberSingular || '').trim();
   return TEMPLATE_SOURCES
     .filter((s) => s.archetypes === ALL || s.archetypes.includes(a))
     .map((s) => {
       let label = (s.labelFor && s.labelFor[a]) || s.label;
       // "Customer name" → "Patient name" / "Guest phone" etc.
       if (s.customerKey && cust !== 'Customer') label = label.replace(/^Customer\b/, cust);
+      // Whoever (or whatever) the booking is with, in the business's own word:
+      // "Doctor name", "Service name", "Room type name".
+      if (s.key === 'member_name' && member && member !== 'Member') label = `${member} name`;
       return { key: s.key, label, ...(s.hint ? { hint: s.hint } : {}) };
     });
 }

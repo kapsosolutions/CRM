@@ -63,8 +63,18 @@ interface Props {
 
 const DAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'] as const;
 
+/** A first sub-variant pair to type, in this kind of shop's terms. */
+const SUB_EXAMPLE: Record<string, string> = {
+  restaurant: 'e.g. Mild, then Spicy…',
+  ecommerce: 'e.g. Black, then White…',
+  grocery: 'e.g. Plain, then Masala…',
+};
+
 const UNIT_OPTIONS: KOption[] = [
   { value: 'piece', label: 'Piece' },
+  { value: 'plate', label: 'Plate' },
+  { value: 'portion', label: 'Portion' },
+  { value: 'serving', label: 'Serving' },
   { value: 'pack', label: 'Pack' },
   { value: 'packet', label: 'Packet' },
   { value: 'box', label: 'Box' },
@@ -142,6 +152,9 @@ function CategorySelect({
 
 export function ProductEditorPage({ api, vertical, categories, product, onBack, onSaved }: Props) {
   const v = vertical || verticalConfig('other');
+  // Named apart from `v`, which the variant loops below reuse for a variant.
+  const subExample = SUB_EXAMPLE[v.key] || 'e.g. Red, then Blue…';
+  const defaultUnit = v.defaultUnit || 'piece';
   const editing = !!product;
   // Browser Back / swipe-back closes the editor, like the arrow.
   useBackHandler(true, onBack);
@@ -153,7 +166,7 @@ export function ProductEditorPage({ api, vertical, categories, product, onBack, 
       ? product.variants.map(toEditVariant)
       : [
           {
-            label: '', quantity: undefined, unit: 'g', price: 0, deliveryCharge: 0,
+            label: '', quantity: undefined, unit: defaultUnit, price: 0, deliveryCharge: 0,
             photos: hostedUrl(product?.imageUrl) ? [{ url: hostedUrl(product?.imageUrl) }] : [],
           },
         ],
@@ -179,7 +192,7 @@ export function ProductEditorPage({ api, vertical, categories, product, onBack, 
     setSelected((s) => (s.includes(cat) ? s.filter((c) => c !== cat) : [...s, cat]));
   }
   function addVariant() {
-    setVariants((v) => [...v, { label: '', unit: 'g', price: 0, deliveryCharge: 0, photos: [] }]);
+    setVariants((list) => [...list, { label: '', unit: defaultUnit, price: 0, deliveryCharge: 0, photos: [] }]);
   }
   function updateVariant(i: number, patch: Partial<EditVariant>) {
     setVariants((v) => v.map((x, idx) => (idx === i ? { ...x, ...patch } : x)));
@@ -373,7 +386,7 @@ export function ProductEditorPage({ api, vertical, categories, product, onBack, 
 
           <div className="k-field">
             <label className="k-label">Name</label>
-            <input className="k-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Cold Pressed Groundnut Oil" />
+            <input className="k-input" value={name} onChange={(e) => setName(e.target.value)} placeholder={`e.g. ${v.productExample}`} />
           </div>
 
           <div className="k-field">
@@ -446,7 +459,7 @@ export function ProductEditorPage({ api, vertical, categories, product, onBack, 
                     </div>
                     <div className="vf">
                       <label>Unit</label>
-                      <Dropdown options={UNIT_OPTIONS} value={v.unit || 'g'} onChange={(u) => updateVariant(i, { unit: u })} />
+                      <Dropdown options={UNIT_OPTIONS} value={v.unit || defaultUnit} onChange={(u) => updateVariant(i, { unit: u })} />
                     </div>
                     <div className="vf">
                       <label>Price ₹</label>
@@ -483,7 +496,7 @@ export function ProductEditorPage({ api, vertical, categories, product, onBack, 
                       )}
                       <input
                         className="k-input"
-                        placeholder="e.g. Spicy, then Hot…"
+                        placeholder={subExample}
                         value={subDraft[i] ?? ''}
                         onChange={(e) => {
                           const val = e.target.value;
@@ -535,7 +548,7 @@ export function ProductEditorPage({ api, vertical, categories, product, onBack, 
                 <label>Name this option group</label>
                 <input
                   className="k-input"
-                  placeholder="e.g. Spice level, Colour, Flavour"
+                  placeholder={`e.g. ${v.variantExample}`}
                   value={subLabel}
                   onChange={(e) => setSubLabel(e.target.value)}
                 />

@@ -141,6 +141,20 @@ function ListInput({
   );
 }
 
+/** What an empty Members page says, in the business's words. */
+function membersEmptyText(v: VerticalConfig): string {
+  const list = v.memberLabel.toLowerCase();
+  const one = v.memberSingular.toLowerCase();
+  const who = v.customerPlural.toLowerCase();
+  if (v.archetype === 'lead') {
+    return `Add your ${list} so ${who} can pick a ${one} in your WhatsApp flows, and each enquiry says who it’s for.`;
+  }
+  if (v.archetype === 'unit') {
+    return `Add your ${list} with their price, photos and check-in times, so ${who} can pick a ${one} and book it on WhatsApp.`;
+  }
+  return `Add your ${list} with their price and working hours, so ${who} can pick a ${one} and book a free time on WhatsApp.`;
+}
+
 /** What the server reports back about an absence added by a save. */
 interface MemberSaveNotice {
   date: string;
@@ -265,7 +279,7 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
             icon="people_outline"
             iconTone="purple"
             title={`No ${v.memberLabel.toLowerCase()} added yet`}
-            description={`Add your ${v.memberLabel.toLowerCase()} so customers can view specialist profiles, check slot availability, and book appointments directly on WhatsApp.`}
+            description={membersEmptyText(v)}
             actionLabel={`Add ${v.memberSingular}`}
             actionIcon="add"
             onAction={() => setEditing('new')}
@@ -309,7 +323,7 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
                       <img className="cat-card-img" src={m.imageUrl} alt="" />
                     ) : (
                       <div className="cat-card-img ph">
-                        <span className="material-icons">person</span>
+                        <span className="material-icons">{v.memberIcon}</span>
                       </div>
                     )}
                     <div className="cat-card-name">{m.name}</div>
@@ -527,16 +541,18 @@ function MemberEditor({
     req
       .then((r) => {
         // Report what the absence actually did. "Saved" alone would leave the
-        // business assuming their patients were told when they may not have been.
+        // business assuming their customers were told when they may not have been.
         const notices: MemberSaveNotice[] =
           (r as { notices?: MemberSaveNotice[] }).notices || [];
         const affected = notices.reduce((n, x) => n + (x.affected || 0), 0);
         const sent = notices.reduce((n, x) => n + (x.sent || 0), 0);
         const blocked = notices.find((x) => x.reason);
         let msg = '';
-        if (affected > 0 && sent > 0) msg = `${sent} of ${affected} affected patient(s) messaged.`;
-        else if (affected > 0) msg = `${affected} appointment(s) affected, but nobody was messaged — ${blocked?.reason || 'no template is set up'}.`;
-        else if (notices.length) msg = 'Date blocked. No appointments were affected.';
+        const who = v.customerPlural.toLowerCase();
+        const booking = v.archetype === 'person' ? 'appointment' : 'booking';
+        if (affected > 0 && sent > 0) msg = `${sent} of ${affected} affected ${who} messaged.`;
+        else if (affected > 0) msg = `${affected} ${booking}${affected === 1 ? '' : 's'} affected, but nobody was messaged — ${blocked?.reason || 'no template is set up'}.`;
+        else if (notices.length) msg = `Date blocked. No ${booking}s were affected.`;
         onSaved(msg);
       })
       .catch((e) => setError(e instanceof Error ? e.message : 'Save failed'))
@@ -593,7 +609,7 @@ function MemberEditor({
                 )}
               </div>
               <div className="k-field">
-                <label className="k-label">Role / label</label>
+                <label className="k-label">{v.memberTitleLabel}</label>
                 <input
                   className="k-input"
                   value={form.title || ''}
@@ -659,10 +675,11 @@ function MemberEditor({
           {v.has('availability') && (
             <>
               <div className="mem-section">
-                <div className="mem-section-title">Availability</div>
+                <div className="mem-section-title">{v.archetype === 'unit' ? 'Bookable times' : 'Availability'}</div>
                 <p className="k-hint">
-                  Tap a day to open it, then add one time range per sitting. Two ranges on a day
-                  leave the gap between them free — that&apos;s the break.
+                  {v.archetype === 'unit'
+                    ? `Tap a day to open it, then add the hours ${v.customerPlural.toLowerCase()} can book or check in. Each slot is one time they can pick.`
+                    : 'Tap a day to open it, then add one time range per sitting. Two ranges on a day leave the gap between them free — that’s the break.'}
                 </p>
                 <div className="mem-days">
                   {DAYS.map((d) => {
@@ -682,7 +699,7 @@ function MemberEditor({
                 </div>
 
                 {schedule.length === 0 && (
-                  <p className="page-note">No working days yet — tap a day above.</p>
+                  <p className="page-note">{v.archetype === 'unit' ? 'No bookable days yet' : 'No working days yet'} — tap a day above.</p>
                 )}
 
                 {schedule.map((d) => (
@@ -734,18 +751,16 @@ function MemberEditor({
 
                 <div className="mem-row">
                   <div className="k-field">
-                    <label className="k-label">Patients per slot</label>
+                    <label className="k-label">{v.perSlotLabel}</label>
                     <input
                       className="k-input"
                       type="number"
                       min={1}
                       value={form.slotCapacity ?? 1}
                       onChange={(e) => set({ slotCapacity: Math.max(1, Number(e.target.value) || 1) })}
+                      data-testid="mem-per-slot"
                     />
-                    <p className="k-hint">
-                      1 means a time disappears once it&apos;s booked. Raise it to let more than one
-                      patient share a time.
-                    </p>
+                    <p className="k-hint">{v.perSlotHint}</p>
                   </div>
                 </div>
               </div>
@@ -811,7 +826,7 @@ function MemberEditor({
                     />
                     {u.notifiedAt && (
                       <span className="k-hint inline">
-                        Patients already notified — editing this won&apos;t message them again.
+                        {v.customerPlural} already notified — editing this won&apos;t message them again.
                       </span>
                     )}
                   </div>
@@ -846,7 +861,7 @@ function MemberEditor({
               )}
               {v.has('capacity') && (
                 <div className="k-field">
-                  <label className="k-label">Capacity / occupancy</label>
+                  <label className="k-label">{v.capacityLabel}</label>
                   <input className="k-input" type="number" min={0} value={form.capacity || 0} onChange={(e) => set({ capacity: Number(e.target.value) || 0 })} />
                 </div>
               )}
@@ -942,7 +957,7 @@ function MemberPreview({ form, vertical: v }: { form: Member; vertical: Vertical
           <img className="mem-pcard-img" src={form.imageUrl} alt="" />
         ) : (
           <div className="mem-pcard-img ph">
-            <span className="material-icons">person</span>
+            <span className="material-icons">{v.memberIcon}</span>
           </div>
         )}
         <div className="mem-pcard-name">{form.name || `New ${v.memberSingular.toLowerCase()}`}</div>
@@ -966,7 +981,7 @@ function MemberPreview({ form, vertical: v }: { form: Member; vertical: Vertical
             <div className="mem-pcard-row"><span className="material-icons">workspace_premium</span>{form.experience} years experience</div>
           )}
           {v.has('capacity') && !!form.capacity && (
-            <div className="mem-pcard-row"><span className="material-icons">group</span>Up to {form.capacity} guests</div>
+            <div className="mem-pcard-row"><span className="material-icons">group</span>Up to {form.capacity} {v.capacityUnit}</div>
           )}
           {mins && <div className="mem-pcard-row"><span className="material-icons">schedule</span>{mins} per slot</div>}
           {v.has('availability') && dayLines.map((line) => (
@@ -1016,7 +1031,7 @@ function MemberPreview({ form, vertical: v }: { form: Member; vertical: Vertical
           <img className="mem-flowrow-img" src={form.imageUrl} alt="" />
         ) : (
           <div className="mem-flowrow-img ph">
-            <span className="material-icons">person</span>
+            <span className="material-icons">{v.memberIcon}</span>
           </div>
         )}
         <div className="mem-flowrow-text">
@@ -1026,7 +1041,7 @@ function MemberPreview({ form, vertical: v }: { form: Member; vertical: Vertical
         <span className="mem-flowrow-radio" />
       </div>
       <p className="mem-preview-hint">
-        This is the row a customer taps when a flow screen uses a <strong>Members list</strong>.
+        This is the row a {v.customerLabel.toLowerCase()} taps when a flow screen uses a <strong>{v.memberLabel} list</strong>.
       </p>
     </div>
   );

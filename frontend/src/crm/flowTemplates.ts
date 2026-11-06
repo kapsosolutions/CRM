@@ -880,7 +880,7 @@ function buildBooking(d: Draft): Part {
     d.membersList(),
     d.footer('Continue', { screen: details.id }),
   ]);
-  d.need(`Add your ${lower(v.memberLabel)} and their working hours on the ${v.memberLabel} page`);
+  d.need(`Add your ${lower(v.memberLabel)} and their ${v.archetype === 'unit' ? 'bookable times' : 'working hours'} on the ${v.memberLabel} page`);
 
   let entry: Target = { screen: member.id };
   if (o.categoryStep && v.showsPage('categories')) {

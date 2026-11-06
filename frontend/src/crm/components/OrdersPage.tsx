@@ -267,6 +267,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
         statusOptions={optionsFor(open.status)}
         statusLabel={statusLabelMap}
         customerLabel={v.customerLabel}
+        slipTitle={v.archetype === 'person' ? 'Appointment slip' : v.archetype === 'lead' ? 'Enquiry slip' : 'Booking slip'}
         onBack={() => setOpenId('')}
         onStatusChange={changeStatus}
         onOpenChat={onOpenChat}

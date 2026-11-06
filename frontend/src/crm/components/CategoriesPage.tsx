@@ -84,7 +84,9 @@ export function CategoriesPage({ api, vertical, business, demo, onConnected }: P
             icon="category"
             iconTone="primary"
             title={`No ${v.categoryPlural.toLowerCase()} created yet`}
-            description={`Organize your items into ${v.categoryPlural.toLowerCase()} so customers can easily browse, filter, and discover products in your WhatsApp catalog.`}
+            description={v.showsPage('catalog')
+              ? `Organize your products into ${v.categoryPlural.toLowerCase()} so ${v.customerPlural.toLowerCase()} can browse them in your WhatsApp catalog and flows.`
+              : `Group your ${v.memberLabel.toLowerCase()} into ${v.categoryPlural.toLowerCase()} so ${v.customerPlural.toLowerCase()} pick a ${v.categoryLabel.toLowerCase()} first in your WhatsApp flows.`}
             actionLabel={`Add ${v.categoryLabel}`}
             actionIcon="add"
             onAction={() => setModal('new')}

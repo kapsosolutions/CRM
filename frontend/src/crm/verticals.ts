@@ -270,8 +270,12 @@ export const ARCHETYPES: Record<
   },
   unit: {
     label: 'Unit booking',
-    pages: [...CORE, 'categories', 'members', 'offers', 'orders'],
-    memberFields: ['fee', 'capacity', 'amenities', 'location'],
+    // No Offers: an offer is a sale price on catalog products, and a hotel or
+    // venue has no catalog, so the page could never offer anything.
+    pages: [...CORE, 'categories', 'members', 'orders'],
+    // Hours (and a slot length) make a room type bookable: the booking flow
+    // offers its free check-in times, like a doctor's appointments.
+    memberFields: ['fee', 'duration', 'availability', 'capacity', 'amenities', 'location'],
     ordersLabel: 'Bookings',
     orderStatuses: STATUS_FLOWS.unit,
     formsTab: true,
@@ -453,6 +457,28 @@ export interface Vertical {
   /** Example qualifications, only shown for verticals that ask for them. */
   qualificationsExample?: string;
   allPages?: boolean;
+  /**
+   * The member fields this business type asks, when its archetype's set doesn't
+   * fit: a garage's "members" are services, so no experience, qualifications
+   * or languages; a hotel's room types need check-in times to be bookable.
+   */
+  memberFields?: MemberField[];
+  /** Icon for a member without a photo (a doctor, a service, a room). */
+  memberIcon?: string;
+  /** The label of the member's short "title" line ("Designation", "What it covers"). */
+  memberTitleLabel?: string;
+  /** How many bookings one time can take, in this business's words ("Vehicles per slot"). */
+  perSlotLabel?: string;
+  perSlotHint?: string;
+  /** What `capacity` means here ("Guests per room") and its unit in the preview ("guests"). */
+  capacityLabel?: string;
+  capacityUnit?: string;
+  /** Product editor examples (shops only): a product name, the second option, the usual unit. */
+  productExample?: string;
+  variantExample?: string;
+  defaultUnit?: string;
+  /** The closing line of the appointment confirmation and its slip, when "arrive early" doesn't fit. */
+  confirmNote?: string;
 }
 
 export const VERTICALS: Record<string, Vertical> = {
@@ -461,18 +487,21 @@ export const VERTICALS: Record<string, Vertical> = {
     memberLabel: 'Stores', memberSingular: 'Store', feeLabel: 'Price',
     categoryLabel: 'Category', categoryPlural: 'Categories', categoryExample: 'Footwear',
     memberExample: 'Banjara Hills store', memberTitleExample: 'Flagship store',
+    productExample: 'Cotton crew-neck T-shirt', variantExample: 'Colour', defaultUnit: 'piece',
   },
   restaurant: {
     label: 'Restaurant & Food', archetype: 'catalog',
     memberLabel: 'Outlets', memberSingular: 'Outlet', feeLabel: 'Price',
     categoryLabel: 'Menu category', categoryPlural: 'Menu categories', categoryExample: 'Biryani',
     memberExample: 'Jubilee Hills outlet', memberTitleExample: 'Dine-in & takeaway',
+    productExample: 'Chicken Dum Biryani', variantExample: 'Spice level', defaultUnit: 'plate',
   },
   grocery: {
     label: 'Grocery & Pharmacy', archetype: 'catalog',
     memberLabel: 'Stores', memberSingular: 'Store', feeLabel: 'Price',
     categoryLabel: 'Category', categoryPlural: 'Categories', categoryExample: 'Fresh produce',
     memberExample: 'MG Road store', memberTitleExample: 'Pharmacy counter',
+    productExample: 'Cold Pressed Groundnut Oil', variantExample: 'Flavour', defaultUnit: 'g',
   },
   hospital: {
     label: 'Hospital & Clinic', archetype: 'person',
@@ -480,6 +509,7 @@ export const VERTICALS: Record<string, Vertical> = {
     categoryLabel: 'Specialisation', categoryPlural: 'Specialisations', categoryExample: 'Cardiology',
     memberExample: 'Dr. Asha Rao', memberTitleExample: 'Cardiologist',
     qualificationsExample: 'MBBS, MD (Cardiology)',
+    memberIcon: 'medical_services', memberTitleLabel: 'Designation',
   },
   salon: {
     label: 'Salon, Spa & Wellness', archetype: 'person',
@@ -487,6 +517,7 @@ export const VERTICALS: Record<string, Vertical> = {
     categoryLabel: 'Service type', categoryPlural: 'Service types', categoryExample: 'Hair & styling',
     memberExample: 'Meera Nair', memberTitleExample: 'Senior stylist',
     qualificationsExample: 'Certified in advanced colouring',
+    memberIcon: 'content_cut', memberTitleLabel: 'Role',
   },
   gym: {
     label: 'Gym & Fitness', archetype: 'person',
@@ -494,6 +525,9 @@ export const VERTICALS: Record<string, Vertical> = {
     categoryLabel: 'Programme', categoryPlural: 'Programmes', categoryExample: 'Strength training',
     memberExample: 'Arjun Mehta', memberTitleExample: 'Strength coach',
     qualificationsExample: 'ACE Certified Personal Trainer',
+    memberIcon: 'fitness_center', memberTitleLabel: 'Speciality',
+    perSlotLabel: 'People per slot',
+    perSlotHint: '1 is a one-to-one session. Raise it for a group class: the time stays open until that many have booked.',
   },
   automobile: {
     label: 'Automobile & Service Centre', archetype: 'person',
@@ -501,6 +535,11 @@ export const VERTICALS: Record<string, Vertical> = {
     categoryLabel: 'Service type', categoryPlural: 'Service types', categoryExample: 'Oil change',
     memberExample: 'Periodic service', memberTitleExample: 'Scheduled maintenance',
     qualificationsExample: 'Manufacturer-trained technician',
+    // A service isn't a person: no experience, qualifications, languages or email.
+    memberFields: ['fee', 'duration', 'availability', 'location'],
+    memberIcon: 'car_repair', memberTitleLabel: 'What it covers',
+    perSlotLabel: 'Vehicles per slot',
+    perSlotHint: 'How many vehicles your workshop can take in at the same time. 1 means a time disappears once one vehicle is booked.',
   },
   professional: {
     label: 'Professional Services (CA / Legal / Consulting)', archetype: 'person',
@@ -508,6 +547,7 @@ export const VERTICALS: Record<string, Vertical> = {
     categoryLabel: 'Practice area', categoryPlural: 'Practice areas', categoryExample: 'Tax & GST',
     memberExample: 'Ravi Kumar', memberTitleExample: 'Chartered Accountant',
     qualificationsExample: 'CA, LLB',
+    memberIcon: 'work', memberTitleLabel: 'Designation',
   },
   homeservices: {
     label: 'Home & Local Services', archetype: 'person',
@@ -515,36 +555,58 @@ export const VERTICALS: Record<string, Vertical> = {
     categoryLabel: 'Service type', categoryPlural: 'Service types', categoryExample: 'Plumbing',
     memberExample: 'Suresh Kumar', memberTitleExample: 'Plumber',
     qualificationsExample: 'ITI Plumbing, 8 years on site',
+    memberIcon: 'handyman', memberTitleLabel: 'Trade',
+    perSlotLabel: 'Visits per slot',
+    perSlotHint: 'How many homes this professional can visit at the same time (with a crew). 1 means a time disappears once it’s booked.',
+    confirmNote: 'Our professional will reach you at the booked time. Reply here to change or cancel.',
   },
   hotel: {
     label: 'Hotels & Resorts', archetype: 'unit',
     memberLabel: 'Room types', memberSingular: 'Room type', feeLabel: 'Price per night',
     categoryLabel: 'Room category', categoryPlural: 'Room categories', categoryExample: 'Deluxe rooms',
     memberExample: 'Deluxe Double Room', memberTitleExample: 'Sea view',
+    memberIcon: 'king_bed', memberTitleLabel: 'Highlight',
+    perSlotLabel: 'Rooms of this type',
+    perSlotHint: 'How many rooms of this type can be booked for the same check-in time. 1 means it’s taken once booked.',
+    capacityLabel: 'Guests per room', capacityUnit: 'guests',
   },
   rooms: {
     label: 'Rooms, PG & Co-working', archetype: 'unit',
     memberLabel: 'Rooms & Spaces', memberSingular: 'Space', feeLabel: 'Rent',
     categoryLabel: 'Space type', categoryPlural: 'Space types', categoryExample: 'Private cabins',
     memberExample: 'Cabin 4A', memberTitleExample: '4-seater cabin',
+    memberIcon: 'meeting_room', memberTitleLabel: 'Highlight',
+    perSlotLabel: 'Spaces of this kind',
+    perSlotHint: 'How many identical spaces can be booked for the same time. 1 means it’s taken once booked.',
+    capacityLabel: 'Seats / occupancy', capacityUnit: 'people',
   },
   events: {
     label: 'Events & Venues', archetype: 'unit',
     memberLabel: 'Venues', memberSingular: 'Venue', feeLabel: 'Package price',
     categoryLabel: 'Venue type', categoryPlural: 'Venue types', categoryExample: 'Banquet halls',
     memberExample: 'Grand Ballroom', memberTitleExample: 'Up to 500 guests',
+    memberIcon: 'celebration', memberTitleLabel: 'Highlight',
+    perSlotLabel: 'Bookings per slot',
+    perSlotHint: '1 means the venue is taken once a time is booked. Raise it for visits or tours several groups can join.',
+    capacityLabel: 'Guests (max)', capacityUnit: 'guests',
   },
   realestate: {
     label: 'Real Estate', archetype: 'lead',
     memberLabel: 'Agents', memberSingular: 'Agent', feeLabel: 'Price',
     categoryLabel: 'Property type', categoryPlural: 'Property types', categoryExample: '3 BHK apartments',
     memberExample: 'Priya Sharma', memberTitleExample: 'Senior agent',
+    // An agent has no price of their own.
+    memberFields: ['experience', 'languages', 'location', 'email'],
+    memberIcon: 'support_agent', memberTitleLabel: 'Designation',
   },
   education: {
     label: 'Education & Coaching', archetype: 'lead',
     memberLabel: 'Courses & Faculty', memberSingular: 'Course', feeLabel: 'Course fee',
     categoryLabel: 'Stream', categoryPlural: 'Streams', categoryExample: 'Science',
     memberExample: 'NEET Crash Course', memberTitleExample: '6-month programme',
+    // A course has a fee, a medium and a campus; years of experience don't apply.
+    memberFields: ['fee', 'languages', 'location', 'email'],
+    memberIcon: 'school', memberTitleLabel: 'Format',
   },
   logistics: {
     label: 'Logistics & Delivery', archetype: 'notify',
@@ -564,6 +626,9 @@ export const VERTICALS: Record<string, Vertical> = {
     categoryLabel: 'Category', categoryPlural: 'Categories', categoryExample: 'Category name',
     memberExample: 'Member name', memberTitleExample: 'Role',
     allPages: true,
+    // Every page, so its members can be booked too: they need hours.
+    memberFields: ['fee', 'duration', 'availability', 'experience', 'qualifications', 'languages', 'location', 'email'],
+    productExample: 'Product name', variantExample: 'Colour, Flavour', defaultUnit: 'piece',
   },
 };
 
@@ -604,6 +669,17 @@ export interface VerticalConfig {
   has: (f: MemberField) => boolean;
   /** True when this sidebar page applies to the tenant's vertical. */
   showsPage: (p: CrmView) => boolean;
+  /** Members page wording (see Vertical). */
+  memberIcon: string;
+  memberTitleLabel: string;
+  perSlotLabel: string;
+  perSlotHint: string;
+  capacityLabel: string;
+  capacityUnit: string;
+  /** Product editor examples (see Vertical). */
+  productExample: string;
+  variantExample: string;
+  defaultUnit: string;
 }
 
 // What each vertical calls the person it serves. Anything not listed is a
@@ -649,6 +725,21 @@ export function verticalConfig(key?: string, overrides?: LabelOverrides | null):
   // An override wins only when it's a non-blank string.
   const ov = (val?: string) => (typeof val === 'string' && val.trim() ? val.trim() : undefined);
   const o = overrides || {};
+  const memberFields = v.memberFields || a.memberFields;
+  const customerLabel = ov(o.customerLabel) ?? cust.one;
+  const customerPlural = ov(o.customerPlural) ?? cust.many;
+  // The slip says who it's for in this business's word (PATIENT, CLIENT,
+  // GUEST), and a vertical can replace the "arrive early" closing line.
+  const swapNote = (text: string) => (v.confirmNote ? text.replace(/Please arrive 10 minutes early[^\n]*/, v.confirmNote) : text);
+  const confirm: ConfirmWording = {
+    ...a.confirm,
+    body: swapNote(a.confirm.body),
+    pdf: {
+      ...a.confirm.pdf,
+      customerLabel: v.archetype === 'catalog' ? a.confirm.pdf.customerLabel : customerLabel.toUpperCase(),
+      note: v.confirmNote || a.confirm.pdf.note,
+    },
+  };
   return {
     key: k,
     label: v.label,
@@ -663,16 +754,26 @@ export function verticalConfig(key?: string, overrides?: LabelOverrides | null):
     memberExample: v.memberExample,
     memberTitleExample: v.memberTitleExample,
     qualificationsExample: v.qualificationsExample || 'Qualifications',
-    customerLabel: ov(o.customerLabel) ?? cust.one,
-    customerPlural: ov(o.customerPlural) ?? cust.many,
+    customerLabel,
+    customerPlural,
     ordersLabel: a.ordersLabel,
     orderStatuses: a.orderStatuses,
     // "Other / Generic" opts into every page, so it keeps the forms tab too.
     formsTab: v.allPages ? true : a.formsTab,
-    confirm: a.confirm,
+    confirm,
     pages,
-    memberFields: a.memberFields,
-    has: (f) => a.memberFields.includes(f),
+    memberFields,
+    has: (f) => memberFields.includes(f),
     showsPage: (p) => pages.includes(p),
+    memberIcon: v.memberIcon || 'person',
+    memberTitleLabel: v.memberTitleLabel || 'Role / label',
+    perSlotLabel: v.perSlotLabel || `${customerPlural} per slot`,
+    perSlotHint: v.perSlotHint
+      || `1 means a time disappears once it’s booked. Raise it to let more than one ${customerLabel.toLowerCase()} share a time.`,
+    capacityLabel: v.capacityLabel || 'Capacity / occupancy',
+    capacityUnit: v.capacityUnit || 'people',
+    productExample: v.productExample || 'Product name',
+    variantExample: v.variantExample || 'Colour, Flavour',
+    defaultUnit: v.defaultUnit || 'piece',
   };
 }
