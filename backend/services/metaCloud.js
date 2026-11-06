@@ -396,6 +396,37 @@ export function createMetaClient(creds = {}) {
       return data;
     },
 
+    /**
+     * Meta's interactive media carousel (no template, inside the 24-hour
+     * window): the body text, then 2 to 10 cards side by side. Each card has
+     * an image or video, optional text (160 characters), and either one link
+     * button ({ url, urlText }) or the same number of quick replies
+     * ([{ id, title }]) as every other card.
+     */
+    async sendCarousel(phone, { body, cards = [] }, logExtra = null) {
+      const interactive = {
+        type: 'carousel',
+        body: { text: String(body || ' ').slice(0, 1024) },
+        action: {
+          cards: cards.slice(0, 10).map((c, i) => {
+            const kind = c.mediaType === 'video' ? 'video' : 'image';
+            return {
+              card_index: i,
+              // Meta's examples use "cta_url" for both kinds of card.
+              type: 'cta_url',
+              header: { type: kind, [kind]: { link: kind === 'image' ? originalUrl(c.mediaUrl) : c.mediaUrl } },
+              ...(c.body ? { body: { text: String(c.body).slice(0, 160) } } : {}),
+              action: c.url
+                ? { name: 'cta_url', parameters: { display_text: String(c.urlText || 'Open').slice(0, 20), url: c.url } }
+                : { buttons: (c.buttons || []).map((b) => ({ type: 'quick_reply', quick_reply: { id: b.id, title: String(b.title || 'Choose').slice(0, 20) } })) },
+            };
+          }),
+        },
+      };
+      const { data } = await post({ messaging_product: 'whatsapp', to: clean(phone), type: 'interactive', interactive }, logExtra);
+      return data;
+    },
+
     async sendLocationRequest(phone, body) {
       const { data } = await post({
         messaging_product: 'whatsapp',

@@ -57,6 +57,73 @@ const mediaHeader = (d) => {
   return null;
 };
 
+// ---- WhatsApp carousel (Meta's interactive media carousel, no template) ----
+// 2 to 10 cards, each with a photo or video; every card has either one link
+// button or the same number (1 or 2) of quick replies, which branch from the
+// block's card-<c>-<b> ports like reply buttons.
+const WA_CARDS_MIN = 2;
+const WA_CARDS_MAX = 10;
+const WA_CARD_REPLIES = 2;
+const https = (u) => /^https:\/\/\S+$/i.test(String(u || '').trim());
+
+/** 'link' (one link button per card) or 'reply' (quick replies). */
+export function waCarouselMode(d) {
+  if (d?.waButtons === 'link' || d?.waButtons === 'reply') return d.waButtons;
+  return (d?.cards || []).some((c) => (c?.buttons || []).some((b) => b?.url)) ? 'link' : 'reply';
+}
+
+/** A card's text: the title in bold, then its line (WhatsApp allows 160 characters). */
+export function waCardText(c, tokens = {}) {
+  const title = fillTokens(String(c?.title || ''), tokens).trim();
+  const sub = fillTokens(String(c?.subtitle || ''), tokens).trim();
+  return [title ? `*${title}*` : '', sub].filter(Boolean).join('\n').slice(0, 160);
+}
+
+/**
+ * What the carousel block sends: { body, cards, chatCards, wait }, or null
+ * when WhatsApp would refuse it (fewer than 2 cards, a card without its
+ * photo / video, a link that isn't https).
+ */
+export function waCarousel(node, tokens = {}) {
+  const d = node?.data || {};
+  const cards = (d.cards || []).slice(0, WA_CARDS_MAX);
+  if (cards.length < WA_CARDS_MIN || cards.some((c) => !https(c?.imageUrl))) return null;
+  const mode = waCarouselMode(d);
+  const replies = Math.min(WA_CARD_REPLIES, Math.max(1, ...cards.map((c) => (c.buttons || []).filter((b) => !b.url).length)));
+  const out = [];
+  for (const [ci, c] of cards.entries()) {
+    const card = { mediaUrl: c.imageUrl, mediaType: c.mediaType === 'video' ? 'video' : 'image', body: waCardText(c, tokens) };
+    if (mode === 'link') {
+      const b = (c.buttons || []).find((x) => x?.url) || (c.buttons || [])[0] || {};
+      if (!https(b.url)) return null;
+      card.url = String(b.url).trim();
+      card.urlText = fillTokens(String(b.title || 'Open'), tokens).trim().slice(0, 20) || 'Open';
+    } else {
+      // Same count on every card (Meta's rule); a repeated title gets a number.
+      const seen = new Set();
+      card.buttons = Array.from({ length: replies }, (_, bi) => {
+        let title = fillTokens(String(c.buttons?.[bi]?.title || ''), tokens).trim().slice(0, 20) || (bi ? 'More' : 'Choose');
+        if (seen.has(title.toLowerCase())) title = `${title.slice(0, 18)} ${bi + 1}`;
+        seen.add(title.toLowerCase());
+        return { id: `n:${node.id}:card:${ci}:${bi}`, title };
+      });
+    }
+    out.push(card);
+  }
+  return {
+    body: fillTokens(String(d.text || ''), tokens).trim() || ' ',
+    cards: out,
+    // The CRM's chat bubble (MessageItem draws raw.template.cards).
+    chatCards: out.map((c) => ({
+      mediaUrl: c.mediaUrl,
+      mediaFormat: c.mediaType,
+      body: c.body.replace(/\*/g, ''),
+      buttons: c.url ? [{ text: c.urlText, kind: 'cta', url: c.url }] : c.buttons.map((b) => ({ text: b.title, kind: 'reply' })),
+    })),
+    wait: mode === 'reply',
+  };
+}
+
 // Send a single node. Returns 'wait' if it expects a reply, else 'continue'.
 // `tokens` carries the live values ({{name}} etc.) substituted into any text.
 async function sendNode(meta, phone, node, tokens = {}) {
@@ -105,6 +172,17 @@ async function sendNode(meta, phone, node, tokens = {}) {
     case 'location': {
       await meta.sendLocationRequest(phone, body || 'Please share your location.');
       return 'wait';
+    }
+    case 'carousel': {
+      const c = waCarousel(node, tokens);
+      if (!c) {
+        // WhatsApp would refuse it: the text still goes, so the journey carries on.
+        logger.warn('journey carousel not sendable (needs 2+ cards, each with a photo or video)', { node: node.id });
+        if (body) await meta.sendText(phone, body);
+        return 'continue';
+      }
+      await meta.sendCarousel(phone, { body: c.body, cards: c.cards }, { template: { cards: c.chatCards } });
+      return c.wait ? 'wait' : 'continue';
     }
     case 'template': {
       try {
@@ -272,10 +350,11 @@ export async function runJourney(meta, businessId, msg, convo) {
 
   // 1) Interactive reply → advance from the encoded source node + handle.
   const sel = msg.selectedId || '';
-  const m = sel.match(/^n:([^:]+):(btn|opt):(\d+)$/);
+  // A carousel card's quick reply is n:<node>:card:<card>:<button>.
+  const m = sel.match(/^n:([^:]+):(?:(btn|opt):(\d+)|card:(\d+):(\d+))$/);
   if (m) {
-    const [, srcNodeId, kind, idx] = m;
-    const handle = kind === 'btn' ? `btn-${idx}` : `opt-${idx}`;
+    const [, srcNodeId, kind, idx, card, btn] = m;
+    const handle = card !== undefined ? `card-${card}-${btn}` : kind === 'btn' ? `btn-${idx}` : `opt-${idx}`;
     const next = edgeTarget(journey, srcNodeId, handle);
     if (next) {
       await sendChain(meta, phone, journey, next, { phone }, tokens);

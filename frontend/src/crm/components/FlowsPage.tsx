@@ -69,6 +69,8 @@ interface CardButton {
 }
 interface CardData {
   imageUrl: string;
+  /** WhatsApp cards can carry a video instead of a photo. */
+  mediaType?: 'image' | 'video';
   title: string;
   subtitle: string;
   buttons: CardButton[];
@@ -92,6 +94,8 @@ interface WaData {
   cards?: CardData[];
   /** Extender: how many numbered outputs it has (each sends its block, in order). */
   slots?: number;
+  /** WhatsApp carousel: every card has quick replies, or one link button. */
+  waButtons?: 'reply' | 'link';
 }
 
 /** The journey's channel, for the blocks (header types, limits, wording). */
@@ -108,6 +112,32 @@ const META_CARD_BUTTONS = 3;
 const EXT_MIN = 2;
 const EXT_MAX = 10;
 const extSlots = (d: WaData) => Math.min(EXT_MAX, Math.max(EXT_MIN, Math.round(Number(d.slots) || EXT_MIN)));
+// WhatsApp carousel (Meta's interactive media carousel, sent without a
+// template): 2 to 10 cards, each with a photo or video, 160 characters of
+// text, and either 1 or 2 quick replies (the same on every card) or one link.
+const WA_CARDS_MIN = 2;
+const WA_CARDS_MAX = 10;
+const WA_CARD_REPLIES = 2;
+const WA_CARD_TITLE = 50;
+const WA_CARD_LINE = 100;
+const WA_BUTTON_TITLE = 20;
+const waMode = (d: WaData): 'reply' | 'link' =>
+  d.waButtons || ((d.cards || []).some((c) => c.buttons.some((b) => b.url)) ? 'link' : 'reply');
+const waReplies = (d: WaData) =>
+  Math.min(WA_CARD_REPLIES, Math.max(1, ...(d.cards || []).map((c) => c.buttons.filter((b) => !b.url).length)));
+const isHttps = (u: string) => /^https:\/\/\S+$/i.test(String(u || '').trim());
+/** What would stop WhatsApp from sending the carousel ('' = fine). */
+function waCarouselProblem(d: WaData, saveable: (url: string) => boolean): string {
+  const cards = d.cards || [];
+  if (!String(d.text || '').trim()) return 'Add the message text above the cards';
+  if (cards.length < WA_CARDS_MIN) return 'A WhatsApp carousel needs at least 2 cards';
+  // An upload still running (its instant preview) doesn't count yet.
+  if (cards.some((c) => !c.imageUrl || !saveable(c.imageUrl))) return 'Every card needs a photo or video';
+  if (waMode(d) === 'link') return cards.some((c) => !isHttps(c.buttons[0]?.url || '')) ? 'Every card needs its link (https://…)' : '';
+  const n = waReplies(d);
+  return cards.some((c) => Array.from({ length: n }, (_, j) => c.buttons[j]?.title || '').some((t) => !t.trim())) ? 'Every button needs a title' : '';
+}
+const waNewCard = (buttons: CardButton[]): CardData => ({ imageUrl: '', mediaType: 'image', title: '', subtitle: '', buttons: buttons.map((b) => ({ ...b })) });
 const newCard = (): CardData => ({ imageUrl: '', title: '', subtitle: '', buttons: [{ title: 'Choose', url: '' }] });
 
 const KINDS: Record<Kind, { title: string; icon: string; color: string }> = {
@@ -127,6 +157,9 @@ const KINDS: Record<Kind, { title: string; icon: string; color: string }> = {
   // Like the Flows builder's "Start over": back to Start, as if the customer said "hi".
   restart: { title: 'Start again', icon: 'restart_alt', color: '#25d366' },
 };
+
+/** A block's name: on WhatsApp the cards block is called a carousel (as in WhatsApp). */
+const titleOf = (kind: Kind, channel: JourneyChannel) => (kind === 'carousel' && channel === 'whatsapp' ? 'Carousel' : KINDS[kind].title);
 
 const HEADER_KINDS = new Set<Kind>(['message', 'reply', 'cta', 'call']);
 const BODY_KINDS = new Set<Kind>(['message', 'reply', 'cta', 'call', 'location', 'list', 'quick', 'carousel']);
@@ -152,11 +185,15 @@ function tmplBtnIcon(type: string): string {
   return type === 'URL' ? 'open_in_new' : type === 'PHONE_NUMBER' ? 'call' : 'reply';
 }
 
-function makeData(kind: Kind, count = 1, header: HeaderType = 'none'): WaData {
+function makeData(kind: Kind, count = 1, header: HeaderType = 'none', channel: JourneyChannel = 'whatsapp'): WaData {
   switch (kind) {
     case 'quick':
       return { kind, text: '', options: ['Option 1', 'Option 2'] };
     case 'carousel':
+      // WhatsApp: at least 2 cards, each with one quick reply to start with.
+      if (channel === 'whatsapp') {
+        return { kind, text: '', waButtons: 'reply', cards: Array.from({ length: Math.max(WA_CARDS_MIN, count) }, () => waNewCard([{ title: 'Choose', url: '' }])) };
+      }
       return { kind, text: '', cards: Array.from({ length: count }, newCard) };
     case 'reply':
       return {
@@ -266,10 +303,11 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
     const i = cardTarget.current;
     if (!f || i < 0) return;
     const previous = (rf.getNode(id)?.data as WaData | undefined)?.cards?.[i]?.imageUrl || '';
+    const mediaType: CardData['mediaType'] = f.type.startsWith('video/') ? 'video' : 'image';
     const setImage = (url: string) =>
       rf.setNodes((nds) => nds.map((n) => {
         if (n.id !== id) return n;
-        const list = ((n.data as WaData).cards || []).map((c, idx) => (idx === i ? { ...c, imageUrl: url } : c));
+        const list = ((n.data as WaData).cards || []).map((c, idx) => (idx === i ? { ...c, imageUrl: url, mediaType } : c));
         return { ...n, data: { ...n.data, cards: list } };
       }));
     setImage(URL.createObjectURL(f));
@@ -285,6 +323,39 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
     patch({ cards: cards.filter((_, idx) => idx !== i) });
     // Its reply ports go with it; later cards' ports keep their old index, so drop their edges too.
     rf.setEdges((es) => es.filter((e) => !(e.source === id && /^card-(\d+)-/.test(e.sourceHandle || '') && Number(/^card-(\d+)-/.exec(e.sourceHandle || '')![1]) >= i)));
+  };
+
+  // WhatsApp carousel: one button layout for every card (Meta's rule).
+  const wa = channel === 'whatsapp';
+  const mode = waMode(data);
+  const replies = waReplies(data);
+  const dropCardEdges = (keep: (card: number, btn: number) => boolean) =>
+    rf.setEdges((es) => es.filter((e) => {
+      const m = e.source === id ? /^card-(\d+)-(\d+)$/.exec(e.sourceHandle || '') : null;
+      return !m || keep(Number(m[1]), Number(m[2]));
+    }));
+  const setWaMode = (next: 'reply' | 'link') => {
+    if (next === mode && data.waButtons) return;
+    patch({
+      waButtons: next,
+      cards: cards.map((c) => ({
+        ...c,
+        buttons: next === 'link'
+          ? [{ title: c.buttons.find((b) => b.url)?.title || 'Open', url: c.buttons.find((b) => b.url)?.url || '' }]
+          : Array.from({ length: replies }, (_, j) => ({ title: c.buttons[j] && !c.buttons[j].url ? c.buttons[j].title : j ? 'More' : 'Choose', url: '' })),
+      })),
+    });
+    // Links don't branch: the quick replies' connections go.
+    if (next === 'link') dropCardEdges(() => false);
+  };
+  const setWaReplies = (n: number) => {
+    patch({ cards: cards.map((c) => ({ ...c, buttons: Array.from({ length: n }, (_, j) => c.buttons[j] && !c.buttons[j].url ? c.buttons[j] : { title: j ? 'More' : 'Choose', url: '' }) })) });
+    dropCardEdges((_c, b) => b < n);
+  };
+  const addWaCard = () => {
+    if (cards.length >= WA_CARDS_MAX) return;
+    const first = cards[0]?.buttons || [{ title: 'Choose', url: '' }];
+    patch({ cards: [...cards, waNewCard(mode === 'link' ? [{ title: first[0]?.title || 'Open', url: '' }] : first.map((b) => ({ title: b.title, url: '' })))] });
   };
 
   // Extender: what each numbered output leads to, live from the canvas.
@@ -466,7 +537,7 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
               <div className={`fl-row ext${t ? '' : ' empty'}`} key={i} data-testid={`fl-ext-row-${i}`}>
                 <span className="fl-row-num">{i + 1}</span>
                 <span className="fl-ext-target" title={t ? summaryOf(t.data, channel) : undefined}>
-                  {t ? `${KINDS[t.data.kind]?.title || 'Block'} · ${summaryOf(t.data, channel)}` : 'Not connected yet'}
+                  {t ? `${KINDS[t.data.kind] ? titleOf(t.data.kind, channel) : 'Block'} · ${summaryOf(t.data, channel)}` : 'Not connected yet'}
                 </span>
                 {slots > EXT_MIN && (
                   <button className="fl-row-del" onClick={() => removeSlot(i)} title="Remove this number" data-testid={`fl-ext-del-${i}`}>
@@ -503,7 +574,88 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
         </div>
       )}
 
-      {data.kind === 'carousel' && (
+      {data.kind === 'carousel' && wa && (
+        <div className="fl-cards" data-testid="fl-cards">
+          <div className="fl-restart jn-start-note">
+            <span className="material-icons">view_carousel</span>
+            <div>
+              Your message, then the cards side by side. WhatsApp needs 2 to 10 cards, each with a photo or video, and the
+              same buttons on every card.
+            </div>
+          </div>
+          <div className="fl-seg-row">
+            <span className="fl-seg-label">Card buttons</span>
+            <div className="fl-seg" role="radiogroup" aria-label="Card buttons">
+              <button type="button" className={`fl-seg-btn${mode === 'reply' ? ' on' : ''}`} onClick={() => setWaMode('reply')} aria-pressed={mode === 'reply'} data-testid="fl-wa-mode-reply">
+                <span className="material-icons">reply</span> Quick replies
+              </button>
+              <button type="button" className={`fl-seg-btn${mode === 'link' ? ' on' : ''}`} onClick={() => setWaMode('link')} aria-pressed={mode === 'link'} data-testid="fl-wa-mode-link">
+                <span className="material-icons">open_in_new</span> Link
+              </button>
+            </div>
+          </div>
+          {mode === 'reply' && (
+            <div className="fl-seg-row">
+              <span className="fl-seg-label">On every card</span>
+              <div className="fl-seg" role="radiogroup" aria-label="Quick replies on every card">
+                {Array.from({ length: WA_CARD_REPLIES }, (_, j) => j + 1).map((n) => (
+                  <button type="button" key={n} className={`fl-seg-btn${replies === n ? ' on' : ''}`} onClick={() => setWaReplies(n)} aria-pressed={replies === n} data-testid={`fl-wa-replies-${n}`}>
+                    {n} {n === 1 ? 'button' : 'buttons'}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+          {cards.map((c, i) => (
+            <div className="fl-card" key={i} data-testid={`fl-card-${i}`}>
+              <div className="fl-card-head">
+                <span>Card {i + 1}</span>
+                {cards.length > WA_CARDS_MIN && (
+                  <button className="fl-row-del" onClick={() => removeCard(i)} title="Remove card" data-testid={`fl-card-del-${i}`}>
+                    <span className="material-icons">close</span>
+                  </button>
+                )}
+              </div>
+              <div className={`fl-header-tile fl-card-img${c.imageUrl ? '' : ' need'}`} onClick={() => pickCardImage(i)} title="Upload / replace the photo or video">
+                {c.imageUrl ? (
+                  c.mediaType === 'video' ? <video src={c.imageUrl} muted /> : <img src={c.imageUrl} alt="" />
+                ) : (
+                  <div className="fl-upload-hint">
+                    <span className="material-icons">upload</span>
+                    <span>Photo or video (required)</span>
+                  </div>
+                )}
+              </div>
+              <input className="fl-card-in" value={c.title} onChange={(e) => setCard(i, { title: e.target.value })} placeholder="Title (shown in bold)" maxLength={WA_CARD_TITLE} data-testid={`fl-card-title-${i}`} />
+              <input className="fl-card-in" value={c.subtitle} onChange={(e) => setCard(i, { subtitle: e.target.value })} placeholder="Short text (optional)" maxLength={WA_CARD_LINE} />
+              {mode === 'link' ? (
+                <div className="fl-row card-btn">
+                  <span className="material-icons fl-row-ic">open_in_new</span>
+                  <div className="fl-card-btn-fields">
+                    <input value={c.buttons[0]?.title || ''} onChange={(e) => setCardButton(i, 0, { title: e.target.value })} placeholder="Button" maxLength={WA_BUTTON_TITLE} />
+                    <input value={c.buttons[0]?.url || ''} onChange={(e) => setCardButton(i, 0, { url: e.target.value })} placeholder="https://…" data-testid={`fl-card-url-${i}`} />
+                  </div>
+                </div>
+              ) : (
+                c.buttons.slice(0, replies).map((b, j) => (
+                  <div className="fl-row card-btn" key={j}>
+                    <span className="material-icons fl-row-ic">reply</span>
+                    <input value={b.title} onChange={(e) => setCardButton(i, j, { title: e.target.value })} placeholder="Button" maxLength={WA_BUTTON_TITLE} data-testid={`fl-card-btn-${i}-${j}`} />
+                  </div>
+                ))
+              )}
+            </div>
+          ))}
+          {cards.length < WA_CARDS_MAX && (
+            <button className="fl-add-opt" onClick={addWaCard} data-testid="fl-card-add">
+              <span className="material-icons">add</span> Add card ({cards.length}/{WA_CARDS_MAX})
+            </button>
+          )}
+          <input ref={cardFileRef} type="file" hidden accept="image/png,image/jpeg,video/mp4" onChange={onCardFile} />
+        </div>
+      )}
+
+      {data.kind === 'carousel' && !wa && (
         <div className="fl-cards" data-testid="fl-cards">
           {cards.map((c, i) => (
             <div className="fl-card" key={i} data-testid={`fl-card-${i}`}>
@@ -650,7 +802,14 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
             </>
           );
         })()}
-      {OUTPUT_HINT[data.kind] && <p className="jn-out-hint">{OUTPUT_HINT[data.kind]}</p>}
+      {(() => {
+        const hint = data.kind === 'carousel' && wa
+          ? mode === 'link'
+            ? 'Link buttons open the website; the block continues to the next one straight away.'
+            : 'Each card’s buttons get their own output on the block: connect what happens when the customer taps one.'
+          : OUTPUT_HINT[data.kind];
+        return hint ? <p className="jn-out-hint">{hint}</p> : null;
+      })()}
     </div>
   );
 }
@@ -697,6 +856,17 @@ function outputsOf(data: WaData, templates: TemplateItem[]): Output[] {
     case 'location':
       return [{ id: 'loc-yes', label: 'Valid' }, { id: 'loc-no', label: 'Not valid' }];
     case 'carousel': {
+      // WhatsApp: quick replies branch (the chat waits for a tap), links don't.
+      if (data.waButtons === 'link') return [{ id: '', label: '' }];
+      if (data.waButtons === 'reply') {
+        const n = waReplies(data);
+        const many = (data.cards || []).length > 1;
+        return (data.cards || []).flatMap((c, i) => Array.from({ length: n }, (_, j) => ({
+          id: `card-${i}-${j}`,
+          label: `${many ? `Card ${i + 1} · ` : ''}${c.buttons[j]?.title || 'Button'}`,
+          bad: !String(c.buttons[j]?.title || '').trim(),
+        })));
+      }
       const out: Output[] = [];
       (data.cards || []).forEach((c, i) => c.buttons.forEach((b, j) => {
         if (!b.url) out.push({ id: `card-${i}-${j}`, label: `${(data.cards || []).length > 1 ? `Card ${i + 1} · ` : ''}${b.title || 'Button'}` });
@@ -743,7 +913,7 @@ function summaryOf(data: WaData, channel: JourneyChannel): string {
     case 'list': return `${data.listTitle || 'Menu'} · ${count((data.options || []).length, 'option', 'options')}`;
     case 'template': return data.templateName || 'Template not chosen';
     case 'quick': return count((data.options || []).length, 'quick reply', 'quick replies');
-    case 'carousel': return count((data.cards || []).length, 'card', 'cards');
+    case 'carousel': return `${count((data.cards || []).length, 'card', 'cards')}${data.waButtons ? ` · ${data.waButtons === 'link' ? 'links' : 'quick replies'}` : ''}`;
     case 'extender': return `Sends ${extSlots(data)} messages in order`;
     case 'end': return 'Ends the journey';
     case 'restart': return 'Back to Start';
@@ -844,9 +1014,12 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
   // A port turns from "+" into a dot when connected (and back): React Flow
   // must measure the block's ports again, or the line starts from the old spot.
   const { connected, inUsed } = useContext(CanvasCtx);
+  const { saveable } = useMedia();
   const problem = data.kind === 'extender' && !outputs.some((o) => connected.has(`${id}|${o.id}`))
     ? 'Connect a block to number 1'
-    : problemOf(data, outputs);
+    : data.kind === 'carousel' && channel === 'whatsapp'
+      ? waCarouselProblem(data, saveable)
+      : problemOf(data, outputs);
   const portsKey = outputs.map((o) => `${o.id}:${connected.has(`${id}|${o.id}`) ? 1 : 0}`).join(',');
   const updateInternals = useUpdateNodeInternals();
   useEffect(() => {
@@ -871,7 +1044,7 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
       <div className="jn-main">
         <span className="jn-ic"><span className="material-icons">{k.icon}</span></span>
         <div className="jn-txt">
-          <div className="jn-title">{k.title}</div>
+          <div className="jn-title">{titleOf(data.kind, channel)}</div>
           <div className="jn-sub" data-testid="jn-sub">{summaryOf(data, channel)}</div>
         </div>
         {problem && (
@@ -933,6 +1106,7 @@ const WHATSAPP_PALETTE: PaletteItem[] = [
   { kind: 'call', label: 'Call button' },
   { kind: 'location', label: 'Ask location' },
   { kind: 'list', label: 'List menu' },
+  { kind: 'carousel', count: 2, label: 'Carousel' },
   { kind: 'template', label: 'Template' },
   { kind: 'extender', count: 3, label: 'Extender' },
   { kind: 'restart', label: 'Start again' },
@@ -1021,11 +1195,11 @@ function BlockEditor({ node, onClose, onDelete }: { node: Node<WaData>; onClose:
   }, [onClose]);
   return (
     <div className="jn-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="jn-editor-backdrop">
-      <div className="jn-modal" role="dialog" aria-modal="true" aria-label={`${k.title} block`} data-testid="jn-editor" style={{ ['--k' as string]: k.color }}>
+      <div className="jn-modal" role="dialog" aria-modal="true" aria-label={`${titleOf(node.data.kind, channel)} block`} data-testid="jn-editor" style={{ ['--k' as string]: k.color }}>
         <header className="jn-modal-head">
           <span className="jn-ic"><span className="material-icons">{k.icon}</span></span>
           <div className="jn-modal-titles">
-            <h3>{k.title}</h3>
+            <h3>{titleOf(node.data.kind, channel)}</h3>
             <p>{summaryOf(node.data, channel)}</p>
           </div>
           <button type="button" className="jn-modal-x" onClick={onClose} aria-label="Close">
@@ -1157,7 +1331,7 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
     let newId = '';
     setNodes((nds) => {
       newId = nextId(nds);
-      return [...nds, { id: newId, type: 'wa', position, data: makeData(p.kind, p.count, p.header) }];
+      return [...nds, { id: newId, type: 'wa', position, data: makeData(p.kind, p.count, p.header, channel) }];
     });
     setEdges((eds) => [
       ...eds,
@@ -1194,10 +1368,10 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         if (kind === 'start' && nds.some((n) => n.data?.kind === 'start')) return nds;
         // Ids already on the canvas (a saved journey) are never reused.
         const id = nextId(nds);
-        return [...nds, { id, type: 'wa', position, data: makeData(kind, count, header) }];
+        return [...nds, { id, type: 'wa', position, data: makeData(kind, count, header, channel) }];
       });
     },
-    [rf, setNodes],
+    [rf, setNodes, channel],
   );
 
   function onPaletteDragStart(e: React.DragEvent, p: PaletteItem) {
