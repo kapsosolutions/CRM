@@ -11,6 +11,9 @@ import { ProductEditorPage } from './ProductEditorPage';
 import { ProductDetailsPage } from './ProductDetailsPage';
 import { PhotoCarousel } from './PhotoCarousel';
 import { verticalConfig, type VerticalConfig } from '../verticals';
+import { CrmPageHero } from './CrmPageHero';
+import { CatalogRailSvg } from './NavRail';
+import { catalogHero } from '../emptyPages';
 import { useConfirm, useFlash, useNotify } from './Dialogs';
 import { BladeSpinner } from './BladeSpinner';
 import { AppIcon } from './AppIcons';
@@ -827,8 +830,8 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
   return (
     <div className="page cat-page">
       <header className="page-head">
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <h2>Catalog</h2>
+        {/* The top bar names the page; this side keeps the linked catalog. */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, minWidth: 0 }}>
           {catalogId && (
             <div className="crm-cat-status-badge" title={`Meta Catalog ID: ${catalogId}`}>
               <CatalogCartSvg width={14} height={14} />
@@ -861,18 +864,30 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
           )}
         </div>
 
-        <button className="k-btn ghost sm" onClick={sync} disabled={syncing}>
-          <span className="material-icons">sync</span> {syncing ? 'Syncing…' : 'Sync to Meta'}
-        </button>
-        <button className="page-add" onClick={() => setEditing('new')} title="Add product">
-          <span className="material-icons">add</span>
-        </button>
+        {/* Sync and + once there are products; an empty catalog has its own button. */}
+        {!loading && products.length > 0 && (
+          <>
+            <button className="k-btn ghost sm" onClick={sync} disabled={syncing}>
+              <span className="material-icons">sync</span> {syncing ? 'Syncing…' : 'Sync to Meta'}
+            </button>
+            <button className="page-add" onClick={() => setEditing('new')} title="Add product">
+              <span className="material-icons">add</span>
+            </button>
+          </>
+        )}
       </header>
 
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}
         {!loading && products.length === 0 && (
-          <div className="page-note">No products yet. Tap + to add one.</div>
+          <CrmPageHero
+            icon={<CatalogRailSvg />}
+            tone="teal"
+            {...catalogHero(v)}
+            actionIcon="add"
+            onAction={() => setEditing('new')}
+            testId="catalog-hero"
+          />
         )}
         <div className="prod-grid">
           {productsPaged.items.map((p) => {

@@ -131,66 +131,47 @@ export function FormSubmissionsPage({ api, page, onOpenChat, onOpenFlows, onChan
 
   return (
     <div className="page form-page" data-testid="form-page" data-form={page.id}>
-      <header className="page-head">
-        <h2>
-          {page.label}
-          {mine.length > 0 && <span className="ord-count">{mine.length}</span>}
-        </h2>
-        {mine.length > 0 && (
-          <div className="flow-tabs ord-filter" data-testid="form-status-tabs">
-            {[{ value: '', label: 'All' }, ...REG_STATUS].map((s) => (
-              <button
-                key={s.value}
-                type="button"
-                className={`flow-tab${status === s.value ? ' on' : ''}`}
-                onClick={() => setStatus(s.value as StatusFilter)}
-                data-status={s.value || 'all'}
-              >
-                {s.label}
-                {(s.value ? counts[s.value] : mine.length) > 0 && (
-                  <span className="ord-count">{s.value ? counts[s.value] : mine.length}</span>
-                )}
-              </button>
-            ))}
-          </div>
-        )}
-        {mine.length > 0 && (
-          <div className="ord-search">
-            <span className="material-icons">search</span>
-            <input
-              className="ord-search-input"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search name, phone or answer"
-              data-testid="form-search"
-            />
-            {query && (
-              <button type="button" className="ord-search-clear" onClick={() => setQuery('')} aria-label="Clear search">
-                <span className="material-icons">close</span>
-              </button>
-            )}
-          </div>
-        )}
-      </header>
-
-      {/* Where the answers come from. On an empty page with the form in no
-          flow, the hero below already says so (and has the button). */}
-      {!loading && page.preset && (mine.length > 0 || usedIn.length > 0) && (
-        <div className="form-page-src" data-testid="form-page-src">
-          <span className="material-icons">{page.icon}</span>
-          {usedIn.length ? (
-            <span>
-              From the “{formName}” form in {usedIn.length === 1 ? 'your flow' : 'your flows'} <b>{usedIn.join(', ')}</b>.
-            </span>
-          ) : (
-            <span>The “{formName}” form isn’t in any of your WhatsApp flows yet.</span>
+      {/* The top bar names the page. Its status tabs and search appear once
+          answers have come in; until then the page shows how to start. */}
+      {mine.length > 0 && (
+        <header className="page-head">
+          <span className="page-head-fill" />
+          {mine.length > 0 && (
+            <div className="flow-tabs ord-filter" data-testid="form-status-tabs">
+              {[{ value: '', label: 'All' }, ...REG_STATUS].map((s) => (
+                <button
+                  key={s.value}
+                  type="button"
+                  className={`flow-tab${status === s.value ? ' on' : ''}`}
+                  onClick={() => setStatus(s.value as StatusFilter)}
+                  data-status={s.value || 'all'}
+                >
+                  {s.label}
+                  {(s.value ? counts[s.value] : mine.length) > 0 && (
+                    <span className="ord-count">{s.value ? counts[s.value] : mine.length}</span>
+                  )}
+                </button>
+              ))}
+            </div>
           )}
-          {!usedIn.length && onOpenFlows && (
-            <button type="button" className="form-page-src-btn" onClick={onOpenFlows}>
-              Add it in Automation
-            </button>
+          {mine.length > 0 && (
+            <div className="ord-search">
+              <span className="material-icons">search</span>
+              <input
+                className="ord-search-input"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Search name, phone or answer"
+                data-testid="form-search"
+              />
+              {query && (
+                <button type="button" className="ord-search-clear" onClick={() => setQuery('')} aria-label="Clear search">
+                  <span className="material-icons">close</span>
+                </button>
+              )}
+            </div>
           )}
-        </div>
+        </header>
       )}
 
       <RegistrationsList

@@ -72,12 +72,16 @@ export function CategoriesPage({ api, vertical, business, demo, onConnected }: P
 
   return (
     <div className="page">
-      <header className="page-head">
-        <h2>{v.categoryPlural}</h2>
-        <button className="page-add" onClick={() => setModal('new')} title={`Add ${lowerSingular}`}>
-          <span className="material-icons">add</span>
-        </button>
-      </header>
+      {/* The top bar names the page. The + appears once there's something
+          listed; an empty page has its own button. */}
+      {!loading && categories.length > 0 && (
+        <header className="page-head">
+          <span className="page-head-fill" />
+          <button className="page-add" onClick={() => setModal('new')} title={`Add ${lowerSingular}`}>
+            <span className="material-icons">add</span>
+          </button>
+        </header>
+      )}
 
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}

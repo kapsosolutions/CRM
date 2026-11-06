@@ -6413,6 +6413,11 @@ a.msg-btn {
   font-weight: 600;
   flex: 1;
 }
+/* Takes the place of the page title (the top bar already shows it), so the
+   page's own controls keep to the right. */
+.page-head-fill {
+  flex: 1;
+}
 
 /* ---------- SaaS polish: elevate panels, soften cards ---------- */
 .od-card,

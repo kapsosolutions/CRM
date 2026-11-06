@@ -16,6 +16,21 @@ const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
 /** "a doctor", "an agent". */
 const an = (word: string) => `${/^[aeiou]/i.test(word) ? 'an' : 'a'} ${word}`;
 
+export function catalogHero(v: VerticalConfig): HeroCopy {
+  const what = v.key === 'restaurant' ? 'menu' : 'products';
+  return {
+    title: v.key === 'restaurant' ? 'Put your menu on WhatsApp' : 'Sell your products on WhatsApp',
+    subtitle: `Add your ${what === 'menu' ? 'dishes' : 'products'} with photos, sizes and prices. They sync to your WhatsApp catalog so ${low(v.customerPlural)} can order in the chat.`,
+    benefitsTitle: 'What you get',
+    benefits: [
+      'Up to 10 photos per size, shown as a carousel in WhatsApp',
+      `Sizes and options (${low(v.variantExample)}) with their own prices`,
+      'Customers add to cart and order without leaving the chat',
+    ],
+    actionLabel: v.key === 'restaurant' ? 'Add a dish' : 'Add product',
+  };
+}
+
 export function offersHero(): HeroCopy {
   return {
     title: 'Run offers your customers see on WhatsApp',

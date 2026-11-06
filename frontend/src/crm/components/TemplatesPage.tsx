@@ -323,9 +323,6 @@ export function TemplatesPage({
   if (tab === 'library') {
     return withSidebar(
       <div className="page tl-page">
-        <header className="page-head">
-          <h2>Template Library</h2>
-        </header>
         <div className="page-body tl-body tpl-library-body">
           <TemplateLibrary
             api={api}
@@ -349,9 +346,6 @@ export function TemplatesPage({
   if ((tab === 'messenger' || tab === 'instagram') && isShownTab(tab)) {
     return withSidebar(
       <div className="page tl-page">
-        <header className="page-head">
-          <h2>Templates</h2>
-        </header>
         <div className="page-body tl-body">
           <MetaTemplatesPanel key={tab} api={api} channel={tab} onNavigate={onNavigate} />
         </div>
@@ -362,7 +356,7 @@ export function TemplatesPage({
   return withSidebar(
     <div className="page tl-page">
       <header className="page-head">
-        <h2>Templates</h2>
+        <span className="page-head-fill" />
         <button type="button" className="k-btn ghost tl-api-keys" onClick={() => setApiFor({ template: null })} data-testid="tl-api-keys">
           <span className="material-icons" aria-hidden="true">key</span> API keys
         </button>

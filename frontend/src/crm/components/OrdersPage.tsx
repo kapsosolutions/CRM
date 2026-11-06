@@ -284,10 +284,11 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
 
   return (
     <div className={`page${hasNoOrders ? ' ord-empty-bg' : ''}`}>
+      {/* The top bar names the page ("Appointments", "Bookings"). The header
+          holds the tabs and the search, so it's left out while there's
+          neither to show. */}
+      {(showForms || (tab !== 'forms' && orders.length > 0)) && (
       <header className="page-head">
-        {/* Title comes from the business vertical — a clinic sees "Appointments",
-            a hotel "Bookings", a shop "Orders". */}
-        <h2>{v.ordersLabel}</h2>
         {/* With one tab there's nothing to switch between, so the toggle only
             appears for verticals that collect form submissions. */}
         {showForms && (
@@ -302,7 +303,8 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
             </button>
           </div>
         )}
-        {tab !== 'forms' && (
+        {!showForms && <span className="page-head-fill" />}
+        {tab !== 'forms' && orders.length > 0 && (
           <div className="ord-search">
             <span className="material-icons">search</span>
             <input
@@ -319,6 +321,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
           </div>
         )}
       </header>
+      )}
 
       {showForms && tab === 'forms' ? (
         <RegistrationsList

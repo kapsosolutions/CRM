@@ -1016,7 +1016,6 @@ export function MetaAdsDashboard({
     <div className="page" data-testid="ads-dashboard">
       <header className="page-head ads-head">
         <div className="crm-ads-header-left">
-          <h2>Ads</h2>
           <div className="crm-ads-status-badge" title={`Connected: ${conn.adAccountId}`}>
             <span className="crm-ads-status-dot" />
             <span className="crm-ads-status-text" data-testid="ads-account">

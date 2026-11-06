@@ -197,12 +197,15 @@ export function OffersPage({ api, business, demo, onConnected }: Props) {
 
   return (
     <div className="page">
-      <header className="page-head">
-        <h2>Offers</h2>
-        <button className="page-add" onClick={() => setEditing('new')} title="Create offer">
-          <span className="material-icons">add</span>
-        </button>
-      </header>
+      {/* The top bar names the page; the + only once there are offers. */}
+      {!loading && offers.length > 0 && (
+        <header className="page-head">
+          <span className="page-head-fill" />
+          <button className="page-add" onClick={() => setEditing('new')} title="Create offer">
+            <span className="material-icons">add</span>
+          </button>
+        </header>
+      )}
 
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}

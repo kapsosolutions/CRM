@@ -155,7 +155,6 @@ export function CreatePage({ api, demo, onNavigate, focusRequest }: Props) {
 
   const head = (
     <header className="page-head cr-head">
-      <h2>Create</h2>
       <nav className="cr-tabs" role="tablist" aria-label="Create">
         {([['compose', 'New post', 'add_photo_alternate'], ['posts', 'Posts', 'grid_view'], ['comments', 'Comment auto-DM', 'forum']] as const).map(([k, label, icon]) => (
           <button

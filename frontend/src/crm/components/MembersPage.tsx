@@ -243,22 +243,26 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
 
   return (
     <div className="page">
-      <header className="page-head">
-        <h2>{v.memberLabel}</h2>
-        {categories.length > 0 && (
-          <select className="k-input sm mem-filter" value={filter} onChange={(e) => setFilter(e.target.value)}>
-            <option value="">All {v.categoryLabel.toLowerCase()}s</option>
-            {categories.map((c) => (
-              <option key={c._id} value={c.name}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        )}
-        <button className="page-add" onClick={() => setEditing('new')} title={`Add ${v.memberSingular.toLowerCase()}`}>
-          <span className="material-icons">add</span>
-        </button>
-      </header>
+      {/* The top bar names the page. The filter and the + appear once there
+          are members; an empty page has its own button. */}
+      {!loading && members.length > 0 && (
+        <header className="page-head">
+          <span className="page-head-fill" />
+          {categories.length > 0 && (
+            <select className="k-input sm mem-filter" value={filter} onChange={(e) => setFilter(e.target.value)}>
+              <option value="">All {v.categoryPlural.toLowerCase()}</option>
+              {categories.map((c) => (
+                <option key={c._id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          )}
+          <button className="page-add" onClick={() => setEditing('new')} title={`Add ${v.memberSingular.toLowerCase()}`}>
+            <span className="material-icons">add</span>
+          </button>
+        </header>
+      )}
 
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}
