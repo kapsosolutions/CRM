@@ -211,7 +211,7 @@ curl -X POST ${BASE}/bookings \\
     faqs: [
       { q: 'Why does booking need a secret key?', a: 'A booking writes to your account and uses a customer’s phone number, so it must come from your server, where you can add your own checks (a captcha, a login, a payment).' },
       { q: 'Is the customer messaged on WhatsApp?', a: 'The booking is saved in Appointments and your team is notified. Send a confirmation with the Messaging API if you want one on WhatsApp.' },
-      { q: 'Which plans include it?', a: 'Members, bookings and the API are in Basic, Pro and Premium.' },
+      { q: 'Which plans include it?', a: 'Reading members and free slots is in Basic, Pro and Premium. Booking through the API (and the Appointments page) needs Pro or Premium.' },
     ],
   },
   {

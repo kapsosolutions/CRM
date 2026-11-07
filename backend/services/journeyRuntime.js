@@ -9,12 +9,37 @@
 //   • An Extender block sends what is connected to its numbered outputs
 //     (ext-0, ext-1, …) one after another, in that order: each output's block
 //     and the plain blocks after it, then the next output (walkJourney).
+//   • Template, Catalog, Categories, Members, Date & time, Book, Place order
+//     and Offers blocks are sent by journeyBlocks.js. Their choices are saved
+//     with the chat (context.journey.tokens) while it waits for the next tap.
 import Journey from '../models/Journey.js';
 import Conversation from '../models/Conversation.js';
 import Business from '../models/Business.js';
 import { fillTokens } from './tokens.js';
 import { resolveCustomerName } from './templateVars.js';
 import logger from './logger.js';
+
+// Template and business-data blocks (catalog, categories, members, free
+// times, booking, order, offers) live in journeyBlocks.js, loaded the first
+// time one of them runs.
+const BUSINESS_KINDS = new Set(['catalog', 'categories', 'members', 'slots', 'book', 'order', 'offers']);
+let blocksModule = null;
+const blocks = async () => {
+  blocksModule ||= await import('./journeyBlocks.js');
+  return blocksModule;
+};
+
+// Live values worked out for every message; never saved with the chat.
+const LIVE_TOKENS = ['name', 'customer_name', 'business_name', 'customer_phone', 'today'];
+/** The choices to keep with the chat (category, member, day, time, cart, order…). */
+function carried(tokens = {}) {
+  const out = {};
+  for (const [k, v] of Object.entries(tokens || {})) {
+    if (LIVE_TOKENS.includes(k) || v === undefined || v === null || v === '') continue;
+    out[k] = v instanceof Date ? v.toISOString() : v;
+  }
+  return out;
+}
 
 /**
  * The live values a journey message can use: {{name}} / {{customer_name}}
@@ -46,6 +71,12 @@ function edgeTarget(journey, sourceId, handle) {
   const edges = edgesFrom(journey, sourceId);
   const match = handle ? edges.find((e) => (e.sourceHandle || '') === handle) : edges[0];
   const e = match || edges[0];
+  return e ? nodeById(journey, e.target) : null;
+}
+
+/** The block on exactly this output ('' = the plain "Next"), or null: no fallback. */
+function exactTarget(journey, sourceId, handle) {
+  const e = edgesFrom(journey, sourceId).find((x) => (x.sourceHandle || '') === (handle || ''));
   return e ? nodeById(journey, e.target) : null;
 }
 
@@ -124,11 +155,15 @@ export function waCarousel(node, tokens = {}) {
   };
 }
 
-// Send a single node. Returns 'wait' if it expects a reply, else 'continue'.
-// `tokens` carries the live values ({{name}} etc.) substituted into any text.
-async function sendNode(meta, phone, node, tokens = {}) {
+// Send a single node. Returns 'wait' if it expects a reply, else 'continue'
+// (or 'stop', or { handle } to follow one output: see journeyBlocks.js).
+// `tokens` carries the live values ({{name}} etc.) substituted into any text,
+// and the choices made so far; `ctx` is { businessId, journey }.
+async function sendNode(meta, phone, node, tokens = {}, ctx = {}) {
   const d = node.data || {};
   const kind = d.kind;
+  if (kind === 'template') return (await blocks()).sendTemplateBlock(meta, phone, node, tokens, ctx);
+  if (BUSINESS_KINDS.has(kind)) return (await blocks()).sendBusinessBlock(meta, phone, node, tokens, ctx);
   const header = mediaHeader(d);
   const body = fillTokens(d.text || '', tokens);
 
@@ -183,17 +218,6 @@ async function sendNode(meta, phone, node, tokens = {}) {
       }
       await meta.sendCarousel(phone, { body: c.body, cards: c.cards }, { template: { cards: c.chatCards } });
       return c.wait ? 'wait' : 'continue';
-    }
-    case 'template': {
-      try {
-        if (d.templateName) await meta.sendTemplate(phone, d.templateName, {});
-      } catch (err) {
-        // The shared test number has no templates: skip the step and carry on
-        // with the rest of the journey.
-        if (err.code !== 'SANDBOX_UNSUPPORTED') throw err;
-        logger.info('journey template step skipped on the shared test number', { template: d.templateName });
-      }
-      return 'continue';
     }
     default:
       return 'continue';
@@ -286,6 +310,11 @@ async function walkFrom(journey, node, sendOne, ctx, depth) {
       return;
     }
     if (status === 'stop') return;
+    // One named output (a booking's "Booked" / "Not booked"…), exactly.
+    if (status && typeof status === 'object') {
+      current = exactTarget(journey, current.id, status.handle);
+      continue;
+    }
     // plain node: follow its default edge if present, else stop.
     current = edgeTarget(journey, current.id, null);
   }
@@ -297,8 +326,16 @@ async function sendChain(meta, phone, journey, node, convo, tokens = {}) {
   // The journey carries its owner, so state writes land on the right tenant's
   // chat even when two tenants are talking to the same customer.
   const businessId = journey?.businessId || null;
-  const parked = await walkJourney(journey, node, (n) => sendNode(meta, phone, n, tokens));
-  await setState(convo.phone, parked ? { nodeId: parked } : { nodeId: null, done: true }, businessId);
+  const ctx = { businessId, journey };
+  const parked = await walkJourney(journey, node, (n) => sendNode(meta, phone, n, tokens, ctx));
+  await setState(convo.phone, parkedState(parked, tokens), businessId);
+}
+
+/** What's saved with the chat: the block waiting for a tap, and the choices so far. */
+function parkedState(nodeId, tokens) {
+  if (!nodeId) return { nodeId: null, done: true };
+  const keep = carried(tokens);
+  return Object.keys(keep).length ? { nodeId, tokens: keep } : { nodeId };
 }
 
 async function setState(phone, journeyState, businessId) {
@@ -346,21 +383,77 @@ export async function runJourney(meta, businessId, msg, convo) {
 
   const phone = msg.phone;
   // Live values ({{name}} etc.), resolved once for this message.
-  const tokens = await journeyTokens(businessId, msg);
+  const live = await journeyTokens(businessId, msg);
+  // An answer continues with the choices made so far (category, member, day…);
+  // a fresh start (step 3) begins without them.
+  const saved = convo?.context?.journey?.tokens;
+  const tokens = { ...(saved && typeof saved === 'object' ? saved : {}), ...live };
+  const ctx = { businessId: journey.businessId || businessId, journey };
 
   // 1) Interactive reply → advance from the encoded source node + handle.
   const sel = msg.selectedId || '';
-  // A carousel card's quick reply is n:<node>:card:<card>:<button>.
-  const m = sel.match(/^n:([^:]+):(?:(btn|opt):(\d+)|card:(\d+):(\d+))$/);
+  // A carousel card's quick reply is n:<node>:card:<card>:<button>; a
+  // template's quick reply is n:<node>:tbtn:<button>.
+  const m = sel.match(/^n:([^:]+):(?:(btn|opt|tbtn):(\d+)|card:(\d+):(\d+))$/);
   if (m) {
     const [, srcNodeId, kind, idx, card, btn] = m;
-    const handle = card !== undefined ? `card-${card}-${btn}` : kind === 'btn' ? `btn-${idx}` : `opt-${idx}`;
-    const next = edgeTarget(journey, srcNodeId, handle);
+    const handle = card !== undefined ? `card-${card}-${btn}` : `${kind}-${idx}`;
+    // A template button is exact: its "Next" is not where a tap goes.
+    const next = kind === 'tbtn' ? exactTarget(journey, srcNodeId, handle) : edgeTarget(journey, srcNodeId, handle);
     if (next) {
-      await sendChain(meta, phone, journey, next, { phone }, tokens);
+      await sendChain(meta, phone, journey, next, { phone }, kind === 'tbtn' ? { ...tokens, last_choice: msg.text || '' } : tokens);
       return true;
     }
     return false;
+  }
+
+  // 1b) A row of a categories / members / date & time list.
+  const row = sel.match(/^n:([^:]+):(cat|mem|day|more|slot):([A-Za-z0-9_.-]{1,80})$/);
+  if (row) {
+    const [, srcNodeId, what, value] = row;
+    const src = nodeById(journey, srcNodeId);
+    if (!src || !BUSINESS_KINDS.has(src.data?.kind)) return false;
+    const B = await blocks();
+    const res = await B.onBusinessReply(meta, phone, src, what, value, tokens, ctx);
+    if (res === 'wait') {
+      await setState(phone, parkedState(src.id, tokens), ctx.businessId);
+      return true;
+    }
+    const next = res && typeof res === 'object' ? exactTarget(journey, src.id, res.handle) : null;
+    if (next) await sendChain(meta, phone, journey, next, { phone }, tokens);
+    else await setState(phone, parkedState(null, tokens), ctx.businessId);
+    return true;
+  }
+
+  // 1c) A template quick reply that came back without our id (sent before
+  //     journeys tagged them): matched by its text, on the template the chat
+  //     is waiting at.
+  if (msg.templateReply && !sel) {
+    const cur = nodeById(journey, convo?.context?.journey?.nodeId);
+    if (cur?.data?.kind === 'template') {
+      const i = await (await blocks()).templateButtonIndex(cur, msg.text, ctx.businessId);
+      const next = i >= 0 ? exactTarget(journey, cur.id, `tbtn-${i}`) : null;
+      if (next) {
+        await sendChain(meta, phone, journey, next, { phone }, { ...tokens, last_choice: msg.text || '' });
+        return true;
+      }
+    }
+  }
+
+  // 1d) The customer sent their cart from a Catalog block → its "Cart sent"
+  //     output. The chat normally waits at that block; if it doesn't (an
+  //     older catalog message), the first Catalog block with "Cart sent"
+  //     wired takes it. No such block: the journey starts again (step 3).
+  if (msg.type === 'order' && msg.cart) {
+    const cur = nodeById(journey, convo?.context?.journey?.nodeId);
+    const from = cur?.data?.kind === 'catalog' && exactTarget(journey, cur.id, 'cart')
+      ? cur
+      : (journey.nodes || []).find((n) => n.data?.kind === 'catalog' && exactTarget(journey, n.id, 'cart'));
+    if (from) {
+      const cartTokens = await (await blocks()).cartTokensFor(msg.cart, ctx.businessId).catch(() => ({}));
+      await sendChain(meta, phone, journey, exactTarget(journey, from.id, 'cart'), { phone }, { ...tokens, ...cartTokens });
+      return true;
+    }
   }
 
   // 2) Shared location → advance via the "valid" branch of the current node.
@@ -395,7 +488,8 @@ export async function runJourney(meta, businessId, msg, convo) {
   const start = startNode(journey);
   const first = start ? edgeTarget(journey, start.id, null) : journey.nodes.find((n) => n.data?.kind !== 'start');
   if (first) {
-    await sendChain(meta, phone, journey, first, { phone }, tokens);
+    // From the top: earlier choices don't carry into a new conversation.
+    await sendChain(meta, phone, journey, first, { phone }, { ...live });
     return true;
   }
   return false;

@@ -8,8 +8,8 @@
 //            journeys (no native WhatsApp Flows).
 //   Basic    100 templates (standard + carousel, Authentication too), 25
 //            campaigns at 10/s, journeys + WhatsApp Flows, calls, polls,
-//            events, API keys, catalog, orders, payments, Instagram and
-//            Messenger. No Ads or Create.
+//            events, API keys, catalog, payments, Instagram and
+//            Messenger. No Orders / Appointments page, Ads or Create.
 //   Pro      Every feature and template format, 300 templates, 50
 //            campaigns at 20/s, Ads and Create.
 //   Premium  Everything, no template or campaign limits, 40/s.
@@ -47,7 +47,7 @@ export const LIMITS: Record<PlanTierKey, PlanLimits> = {
     campaignsPerMonth: 10, sendRate: 5, carousel: false, authTemplates: false,
   },
   basic: {
-    features: without('ads', 'create'), contacts: null, templates: 100, templateKinds: ['standard', 'carousel'],
+    features: without('orders', 'ads', 'create'), contacts: null, templates: 100, templateKinds: ['standard', 'carousel'],
     campaignsPerMonth: 25, sendRate: 10, carousel: true, authTemplates: true,
   },
   pro: {
@@ -130,12 +130,12 @@ export const PLANS: PlanTier[] = [
       'Advanced automation: journeys + native WhatsApp Flows',
       'WhatsApp calls, polls & events in chats',
       'Template API keys (send from your website or app)',
-      'Catalog, offers, orders & bookings',
+      'Catalog, categories, members & offers',
       'WhatsApp Pay configuration',
       'Instagram & Messenger accounts',
       FREE_SERVICE,
     ],
-    excludes: ['Limited-time offer templates', 'Ads', 'Create: Facebook & Instagram posts'],
+    excludes: ['Limited-time offer templates', 'Orders & appointments (bookings)', 'Ads', 'Create: Facebook & Instagram posts'],
     buttonColor: '#38bdf8',
   },
   {

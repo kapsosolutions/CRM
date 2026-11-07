@@ -11,8 +11,9 @@
 //            Instagram, Messenger, Ads or Create.
 //   basic    100 templates (standard + carousel; Authentication too), 25
 //            campaigns a month at 10/s, journeys + native WhatsApp Flows,
-//            calls, polls, events, API keys, catalog, orders, payment
-//            configuration, Instagram and Messenger. No Ads or Create.
+//            calls, polls, events, API keys, catalog, payment
+//            configuration, Instagram and Messenger. No Orders /
+//            Appointments page (or bookings API), Ads or Create.
 //   pro      Every feature and template format (limited-time offers too),
 //            300 templates, 50 campaigns a month at 20/s, Ads and Create.
 //   premium  Everything, with no template or campaign limits, at 40/s.
@@ -84,7 +85,7 @@ export const LIMITS = {
     authTemplates: false,
   },
   basic: {
-    features: without('ads', 'create'),
+    features: without('orders', 'ads', 'create'),
     contacts: null,
     templates: 100,
     templateKinds: ['standard', 'carousel'],

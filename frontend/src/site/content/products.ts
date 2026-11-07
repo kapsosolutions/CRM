@@ -242,9 +242,9 @@ export const PRODUCTS: ProductContent[] = [
     ],
     faqs: [
       { q: 'Can two people book the same slot?', a: 'Only if you allow it: set how many people fit in one slot. Once it’s full, the time disappears for everyone.' },
-      { q: 'Which plan includes appointments?', a: 'Members and orders (appointments) are part of Basic, Pro and Premium.' },
+      { q: 'Which plan includes appointments?', a: 'Members and their slots are in Basic, Pro and Premium. The Appointments page (and bookings) is part of Pro and Premium.' },
     ],
-    plan: 'members',
+    plan: 'orders',
     related: ['whatsapp-flows', 'notifications', 'payments'],
   },
   {

@@ -701,13 +701,14 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   }), [planState, loadMe]);
 
   /** The plan feature a rail page needs (null = part of every plan). */
-  // A form page lists form submissions, which the plan opens with Orders
-  // (the same records as Orders → Form submissions; /api/registrations).
+  // A form page lists form submissions (the answers to native WhatsApp
+  // Flows; /api/registrations), so the plan opens it with 'flows': Basic has
+  // form pages even though Orders / Appointments needs Pro.
   // Automation opens with journeys (every plan); its WhatsApp Flows tab
   // needs 'flows' (FlowsPage).
   const featureOf = (v: CrmView): PlanFeature | null =>
     isFormView(v)
-      ? 'orders'
+      ? 'flows'
       : v === 'flows'
         ? 'journeys'
         : ['templates', 'campaigns', 'catalog', 'categories', 'members', 'offers', 'orders', 'ads', 'create', 'payment-config'].includes(v)
@@ -741,7 +742,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
       api.getRegistrations().then((r) => r.data || []).catch(() => [] as Registration[]),
     ]).then(([flows, regs]) => setFormIndex({ flows, regs }));
   }, [api]);
-  const formsAllowed = !!planState && hasFeature(planState, 'orders');
+  const formsAllowed = !!planState && hasFeature(planState, 'flows');
   useEffect(() => {
     if (ready && formsAllowed) loadFormIndex();
   }, [ready, formsAllowed, loadFormIndex]);
@@ -758,19 +759,19 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     () => formPages.map((p) => ({ key: `form:${p.id}`, label: p.label, icon: p.icon })),
     [formPages],
   );
-  // Outside the plan, the form pages carry the same lock as Orders.
+  // Outside the plan (no WhatsApp Flows), the form pages carry its lock.
   const railLocks = useMemo(() => {
-    if (!lockedRail.orders) return lockedRail;
+    if (hasFeature(planState, 'flows')) return lockedRail;
     const out = { ...lockedRail };
-    for (const f of formRail) out[f.key] = lockedRail.orders;
+    for (const f of formRail) out[f.key] = TIER_NAMES[tierFor('flows')];
     return out;
-  }, [lockedRail, formRail]);
+  }, [lockedRail, formRail, planState]);
 
   // ---- Count badges on Orders and the form pages ---------------------------
   // Like the Chats badge: how many records arrived since the page was last
   // opened (the server remembers when, per page, so every device agrees).
   // Finished and cancelled ones don't count. Opening the page clears it.
-  const ordersShown = vertical.showsPage('orders') && formsAllowed;
+  const ordersShown = vertical.showsPage('orders') && formsAllowed && hasFeature(planState, 'orders');
   const [seenAt, setSeenAt] = useState<Record<string, string> | null>(null);
   const [badgeOrders, setBadgeOrders] = useState<Order[]>([]);
   const loadSeen = useCallback(() => {

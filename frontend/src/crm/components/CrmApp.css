@@ -22409,3 +22409,99 @@ label.k-label,
 .mic-btn svg {
   display: block;
 }
+
+/* ---- Journeys: the business's data blocks and the template block ---- */
+.fp-group {
+  margin: 16px 0 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--wa-hairline);
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--wa-ink-muted);
+}
+.jn-add-group {
+  grid-column: 1 / -1;
+  margin-top: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--wa-ink-muted, #64748b);
+}
+.pal-item.locked,
+.jn-add-item.locked {
+  opacity: 0.75;
+  cursor: pointer;
+}
+.jn-pal-crown {
+  margin-left: auto;
+  display: inline-flex;
+}
+.jn-tpl-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+.jn-tpl-meta > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--wa-chat-bg, #f0f2f5);
+  color: var(--wa-ink-muted, #64748b);
+  font-size: 12px;
+}
+.jn-tpl-meta .material-icons {
+  font-size: 14px;
+}
+.jn-tpl-media-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.jn-tpl-warn {
+  font-size: 12px;
+  color: #b45309;
+}
+.jn-tpl-vars {
+  margin-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.jn-tpl-vars-head {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--wa-ink-muted, #64748b);
+}
+.jn-tpl-var {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.jn-tpl-var code {
+  flex-shrink: 0;
+  min-width: 44px;
+  font-size: 12px;
+}
+.jn-tpl-var input {
+  flex: 1;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--wa-hairline-strong, #d1d5db);
+  border-radius: 8px;
+  background: var(--wa-surface, #fff);
+  color: var(--wa-ink, #0f172a);
+  font: inherit;
+  font-size: 13px;
+}
+.jn-tpl-var input:focus {
+  outline: none;
+  border-color: var(--k, #107c3f);
+}

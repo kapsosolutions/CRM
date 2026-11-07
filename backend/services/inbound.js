@@ -271,6 +271,21 @@ export function parseIncoming(message) {
       }
       break;
     }
+    // A tap on a template's quick-reply button. Meta sends its text and the
+    // payload given at send time (a journey's is n:<block>:tbtn:<i>; Meta
+    // defaults the payload to the button text). Without this case the tap
+    // had no content and was dropped, so it never even showed in the chat.
+    case 'button': {
+      const b = message.button || {};
+      out.type = 'button';
+      out.templateReply = true;
+      out.text = String(b.text || b.payload || '');
+      const payload = String(b.payload || '');
+      // Only our own encoded ids are routed by id; anything else is matched by text.
+      out.selectedId = /^[nf]:/.test(payload) ? payload : null;
+      out.logBody = out.text;
+      break;
+    }
     // The other shape a payment outcome takes: its own top-level message type.
     // Missing this is why a payment could succeed and the conversation still
     // never reach the confirmation block.

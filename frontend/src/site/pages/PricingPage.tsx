@@ -62,8 +62,8 @@ const ROWS: { group: string; rows: Row[] }[] = [
     rows: [
       { label: 'Catalog & categories', cell: has('catalog') },
       { label: 'Offers', cell: has('offers') },
-      { label: 'Members (doctors, stylists, rooms…) & bookings', cell: has('members') },
-      { label: 'Orders & appointments', cell: has('orders') },
+      { label: 'Members (doctors, stylists, rooms…) & their slots', cell: has('members') },
+      { label: 'Orders & appointments (bookings)', cell: has('orders') },
       { label: 'WhatsApp Pay configuration', cell: has('payment-config') },
     ],
   },
@@ -78,7 +78,8 @@ const ROWS: { group: string; rows: Row[] }[] = [
   {
     group: 'Developers',
     rows: [
-      { label: 'API keys: messaging, OTP, catalog, members & bookings', cell: has('api') },
+      { label: 'API keys: messaging, OTP, catalog & members', cell: has('api') },
+      { label: 'Bookings API (book & cancel slots)', cell: (t) => has('api')(t) && has('orders')(t) },
       { label: 'Website keys for your web pages', cell: has('api') },
     ],
   },

@@ -271,7 +271,7 @@ app.use('/api/flows', requireFeature('flows'), flowsRouter); // native WhatsApp 
 app.use('/api/orders', requireFeature('orders'), ordersRouter);
 app.use('/api/journeys', requireFeature('journeys'), journeysRouter); // basic automation (every plan)
 app.use('/api/members', requireFeature('members'), membersRouter);
-app.use('/api/registrations', requireFeature('orders'), registrationsRouter);
+app.use('/api/registrations', requireFeature('flows'), registrationsRouter); // form submissions (the Forms pages; Basic and up)
 app.use('/api/media', mediaRouter);
 app.use('/api/onboarding', onboardingRouter);
 // Only the WhatsApp Pay / catalog settings (PUT /api/settings); the business

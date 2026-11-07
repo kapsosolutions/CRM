@@ -3,6 +3,9 @@
 // its own output port for branching), CTA URL, Call, Ask location, List menu
 // (each row branches), and an approved-Template block.
 import { PlanCrown, useFeatureLock } from './PlanLocked';
+import { TIER_NAMES } from '../plans';
+import { waLanguageLabel } from '../waLanguages';
+import type { CrmView } from './NavRail';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { UndoIcon, RedoIcon } from './AppIcons';
 import ReactFlow, {
@@ -31,7 +34,7 @@ import ReactFlow, {
 import 'reactflow/dist/style.css';
 import type { Dispatch, SetStateAction } from 'react';
 import type { CrmApi } from '../api';
-import type { BusinessProfile, TemplateItem, Journey } from '../types';
+import type { BusinessProfile, TemplateItem, Journey, PlanFeature, PlanTierKey } from '../types';
 import type { VerticalConfig } from '../verticals';
 import { FlowBuilderPage } from './FlowBuilderPage';
 import { MediaCtx, useLeaveCleanup, useMedia, useMediaApi } from './uploadCtx';
@@ -56,7 +59,15 @@ type Kind =
   | 'carousel'
   | 'extender'
   | 'end'
-  | 'restart';
+  | 'restart'
+  // WhatsApp blocks that use the business's own data (journeyBlocks.js).
+  | 'catalog'
+  | 'categories'
+  | 'members'
+  | 'slots'
+  | 'book'
+  | 'order'
+  | 'offers';
 
 type HeaderType = 'none' | 'image' | 'video' | 'audio' | 'pdf';
 
@@ -97,6 +108,17 @@ interface WaData {
   slots?: number;
   /** WhatsApp carousel: every card has quick replies, or one link button. */
   waButtons?: 'reply' | 'link';
+  /** Template: the block's own values for {{1}}, {{2}}… ('' = the template's mapping). */
+  templateVars?: Record<string, string>;
+  /** Template: header media for this journey (replaces the template's own). */
+  templateMediaUrl?: string;
+  templateFileName?: string;
+  /** Catalog: '' = the category the customer chose (else all), '*' = all, else a category name. */
+  catalogCategory?: string;
+  /** Date & time: how many days ahead to offer. */
+  days?: number;
+  /** Book: what the customer is told when the time can't be booked. */
+  failText?: string;
 }
 
 /** The journey's channel, for the blocks (header types, limits, wording). */
@@ -157,13 +179,56 @@ const KINDS: Record<Kind, { title: string; icon: string; color: string }> = {
   end: { title: 'End', icon: 'stop', color: '#ea4335' },
   // Like the Flows builder's "Start over": back to Start, as if the customer said "hi".
   restart: { title: 'Start again', icon: 'restart_alt', color: '#25d366' },
+  catalog: { title: 'Catalog', icon: 'storefront', color: '#f97316' },
+  categories: { title: 'Categories', icon: 'category', color: '#14b8a6' },
+  members: { title: 'Members', icon: 'groups', color: '#7c3aed' },
+  slots: { title: 'Date & time', icon: 'event', color: '#0284c7' },
+  book: { title: 'Book', icon: 'event_available', color: '#16a34a' },
+  order: { title: 'Place order', icon: 'receipt_long', color: '#15803d' },
+  offers: { title: 'Offers', icon: 'local_offer', color: '#e11d48' },
 };
 
-/** A block's name: on WhatsApp the cards block is called a carousel (as in WhatsApp). */
-const titleOf = (kind: Kind, channel: JourneyChannel) => (kind === 'carousel' && channel === 'whatsapp' ? 'Carousel' : KINDS[kind].title);
+/** The business's category, for the blocks' wording ("Doctors", "Specialisations"). */
+const VerticalCtx = createContext<VerticalConfig | undefined>(undefined);
+/** The business's category names (Catalog block: which products). */
+const CategoryNamesCtx = createContext<string[]>([]);
+
+/** What a booking is called: an appointment, a booking, a visit. */
+const bookTitle = (v?: VerticalConfig) =>
+  v?.archetype === 'unit' ? 'Confirm booking' : v?.archetype === 'lead' ? 'Book a visit' : 'Book appointment';
+
+/** A block's name: on WhatsApp the cards block is called a carousel (as in WhatsApp); data blocks use the business's words. */
+const titleOf = (kind: Kind, channel: JourneyChannel, v?: VerticalConfig) => {
+  if (kind === 'carousel' && channel === 'whatsapp') return 'Carousel';
+  if (kind === 'categories' && v) return v.categoryPlural;
+  if (kind === 'members' && v) return v.memberLabel;
+  if (kind === 'book') return bookTitle(v);
+  return KINDS[kind].title;
+};
 
 const HEADER_KINDS = new Set<Kind>(['message', 'reply', 'cta', 'call']);
-const BODY_KINDS = new Set<Kind>(['message', 'reply', 'cta', 'call', 'location', 'list', 'quick', 'carousel']);
+const BODY_KINDS = new Set<Kind>(['message', 'reply', 'cta', 'call', 'location', 'list', 'quick', 'carousel', 'catalog', 'categories', 'members', 'slots', 'book', 'order', 'offers']);
+/** Blocks that use the business's data; WhatsApp only. */
+const DATA_KINDS = new Set<Kind>(['catalog', 'categories', 'members', 'slots', 'book', 'order', 'offers']);
+const BODY_PLACEHOLDER: Partial<Record<Kind, string>> = {
+  catalog: 'Text above the products…',
+  categories: 'The question above the list…',
+  members: 'The question above the list…',
+  slots: 'The question above the days…',
+  book: 'The confirmation the customer gets…',
+  order: 'The confirmation the customer gets…',
+  offers: 'Text above the offers (optional)…',
+};
+/** The live values each data block's text can use (choices made earlier in the journey). */
+const DATA_TOKENS: Partial<Record<Kind, string[]>> = {
+  catalog: ['name', 'category'],
+  categories: ['name'],
+  members: ['name', 'category'],
+  slots: ['name', 'category', 'member'],
+  book: ['name', 'member', 'member_fee', 'appointment_date', 'appointment_slot', 'order_id'],
+  order: ['name', 'order_id', 'cart_items', 'items_total', 'total_payable'],
+  offers: ['name'],
+};
 // A block's outputs (its ports on the right) come from outputsOf(): one for a
 // plain block, one per button / option for the branching ones, none for End
 // and Start again.
@@ -186,8 +251,27 @@ function tmplBtnIcon(type: string): string {
   return type === 'URL' ? 'open_in_new' : type === 'PHONE_NUMBER' ? 'call' : 'reply';
 }
 
-function makeData(kind: Kind, count = 1, header: HeaderType = 'none', channel: JourneyChannel = 'whatsapp'): WaData {
+function makeData(kind: Kind, count = 1, header: HeaderType = 'none', channel: JourneyChannel = 'whatsapp', v?: VerticalConfig): WaData {
+  const lower = (s: string | undefined, d: string) => (s || d).toLowerCase();
   switch (kind) {
+    case 'catalog':
+      return { kind, text: 'Browse our products and send us your cart 🛒', catalogCategory: '' };
+    case 'categories':
+      return { kind, text: `Please choose a ${lower(v?.categoryLabel, 'category')}:`, listTitle: 'Choose' };
+    case 'members':
+      return { kind, text: `Please choose a ${lower(v?.memberSingular, 'member')}:`, listTitle: 'Choose' };
+    case 'slots':
+      return { kind, text: 'Pick a day for {{member}}:', listTitle: 'Pick a day', days: 7 };
+    case 'book':
+      return {
+        kind,
+        text: '✅ Booked: {{member}} on {{appointment_date}} at {{appointment_slot}}.\nYour reference: {{order_id}}',
+        failText: 'Sorry, that time was just taken. Please pick another time.',
+      };
+    case 'order':
+      return { kind, text: '✅ Order {{order_id}} placed!\n{{cart_items}}\nTotal: {{total_payable}}\nWe’ll message you when it’s on its way.' };
+    case 'offers':
+      return { kind, text: '🎉 Our offers right now:' };
     case 'quick':
       return { kind, text: '', options: ['Option 1', 'Option 2'] };
     case 'carousel':
@@ -212,7 +296,7 @@ function makeData(kind: Kind, count = 1, header: HeaderType = 'none', channel: J
     case 'location':
       return { kind, text: 'Please share your delivery location.' };
     case 'template':
-      return { kind, templateName: '' };
+      return { kind, templateName: '', templateVars: {} };
     case 'extender':
       return { kind, slots: Math.min(EXT_MAX, Math.max(EXT_MIN, count > 1 ? count : 3)) };
     case 'message':
@@ -235,10 +319,13 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
   const rf = useReactFlow();
   const templates = useContext(TemplatesCtx);
   const channel = useContext(ChannelCtx);
+  const v = useContext(VerticalCtx);
+  const categoryNames = useContext(CategoryNamesCtx);
   const meta = channel !== 'whatsapp';
   const titleMax = meta ? META_BUTTON_TITLE : undefined;
   const { upload, discard } = useMedia();
   const fileRef = useRef<HTMLInputElement>(null);
+  const tplFileRef = useRef<HTMLInputElement>(null);
   const cardFileRef = useRef<HTMLInputElement>(null);
   const cardTarget = useRef(-1);
   // WhatsApp carousel: the row of cards (scrolled to a card that was just added).
@@ -266,6 +353,26 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
         discard(previous); // replaced → reclaim the old upload
       })
       .catch(() => {});
+  };
+  // Template: this journey's own header media (replaces the template's).
+  const onTemplateFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    e.target.value = '';
+    if (!f) return;
+    const previous = data.templateMediaUrl;
+    patch({ templateMediaUrl: URL.createObjectURL(f), templateFileName: f.name });
+    upload(f)
+      .then((url) => {
+        patch({ templateMediaUrl: url });
+        discard(previous);
+      })
+      .catch(() => {});
+  };
+  const pickTemplate = (name: string) => {
+    discard(data.templateMediaUrl);
+    patch({ templateName: name, templateVars: {}, templateMediaUrl: '', templateFileName: '' });
+    // The old template's quick-reply outputs go with it.
+    rf.setEdges((es) => es.filter((e) => !(e.source === id && /^tbtn-/.test(e.sourceHandle || ''))));
   };
   const setButton = (i: number, v: string) =>
     patch({ buttons: (data.buttons || []).map((b, idx) => (idx === i ? v : b)) });
@@ -465,12 +572,24 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
         <textarea
           className="fl-node-text"
           value={data.text || ''}
-          placeholder={data.kind === 'location' ? 'Prompt text…' : data.kind === 'carousel' ? (channel === 'whatsapp' ? 'Message above the cards (required)…' : 'Text before the cards (optional)…') : 'Type the message… use {{name}} to greet them'}
+          placeholder={BODY_PLACEHOLDER[data.kind] || (data.kind === 'location' ? 'Prompt text…' : data.kind === 'carousel' ? (channel === 'whatsapp' ? 'Message above the cards (required)…' : 'Text before the cards (optional)…') : 'Type the message… use {{name}} to greet them')}
           onChange={(e) => patch({ text: e.target.value })}
-          rows={2}
+          rows={data.kind === 'book' || data.kind === 'order' ? 4 : 2}
+          data-testid="jn-body"
         />
       )}
-      {BODY_KINDS.has(data.kind) && /\{\{/.test(data.text || '') && (
+      {DATA_KINDS.has(data.kind) && (
+        <div className="fl-node-tokens" data-testid="jn-tokens">
+          <span className="material-icons">bolt</span>
+          <span>
+            Live values:{' '}
+            {(DATA_TOKENS[data.kind] || []).map((t, i) => (
+              <span key={t}>{i ? ' · ' : ''}<code>{`{{${t}}}`}</code></span>
+            ))}
+          </span>
+        </div>
+      )}
+      {BODY_KINDS.has(data.kind) && !DATA_KINDS.has(data.kind) && /\{\{/.test(data.text || '') && (
         <div className="fl-node-tokens">
           <span className="material-icons">bolt</span>
           <span>
@@ -543,8 +662,8 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
             return (
               <div className={`fl-row ext${t ? '' : ' empty'}`} key={i} data-testid={`fl-ext-row-${i}`}>
                 <span className="fl-row-num">{i + 1}</span>
-                <span className="fl-ext-target" title={t ? summaryOf(t.data, channel) : undefined}>
-                  {t ? `${KINDS[t.data.kind] ? titleOf(t.data.kind, channel) : 'Block'} · ${summaryOf(t.data, channel)}` : 'Not connected yet'}
+                <span className="fl-ext-target" title={t ? summaryOf(t.data, channel, v) : undefined}>
+                  {t ? `${KINDS[t.data.kind] ? titleOf(t.data.kind, channel, v) : 'Block'} · ${summaryOf(t.data, channel, v)}` : 'Not connected yet'}
                 </span>
                 {slots > EXT_MIN && (
                   <button className="fl-row-del" onClick={() => removeSlot(i)} title="Remove this number" data-testid={`fl-ext-del-${i}`}>
@@ -757,16 +876,23 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
         (() => {
           const tpl = templates.find((t) => t.name === data.templateName);
           const comps = tpl?.components || [];
-          const body = comps.find((c) => c.type === 'BODY')?.text || '';
+          const body = comps.find((c) => c.type === 'BODY')?.text || tpl?.bodyText || '';
           const footer = comps.find((c) => c.type === 'FOOTER')?.text || '';
           const header = comps.find((c) => c.type === 'HEADER');
           const tbtns = comps.find((c) => c.type === 'BUTTONS')?.buttons || [];
+          const fmt = String(header?.format || '').toUpperCase();
+          const mediaHeader = fmt === 'IMAGE' || fmt === 'VIDEO' || fmt === 'DOCUMENT';
+          const media = data.templateMediaUrl || tpl?.headerMediaUrl || '';
+          const vars = placeholdersOf(body);
+          const own = data.templateVars || {};
+          const mapped = (n: number) => tpl?.variables?.find((x) => Number(x.index) === n);
           return (
             <>
               <select
                 className="fl-select"
                 value={data.templateName || ''}
-                onChange={(e) => patch({ templateName: e.target.value })}
+                onChange={(e) => pickTemplate(e.target.value)}
+                data-testid="jn-tpl-select"
               >
                 <option value="">Choose approved template…</option>
                 {templates.map((t) => (
@@ -775,22 +901,99 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
                   </option>
                 ))}
               </select>
+              {!templates.length && (
+                <p className="jn-out-hint" data-testid="jn-tpl-none">
+                  No approved templates yet. Create one on the Templates page: it can be used here once Meta approves it.
+                </p>
+              )}
+
+              {tpl && (
+                <div className="jn-tpl-meta" data-testid="jn-tpl-meta">
+                  <span><span className="material-icons">translate</span>{waLanguageLabel(tpl.language)}</span>
+                  {tpl.category && <span><span className="material-icons">sell</span>{tpl.category.charAt(0) + tpl.category.slice(1).toLowerCase()}</span>}
+                  {tpl.kind && tpl.kind !== 'standard' && <span><span className="material-icons">view_carousel</span>{tpl.kind === 'lto' ? 'Limited-time offer' : 'Carousel'}</span>}
+                </div>
+              )}
 
               {tpl && (
                 <div className="fl-tpl-preview">
-                  {header?.format === 'IMAGE' &&
-                    (tpl.headerMediaUrl ? (
-                      <img className="fl-tpl-media" src={tpl.headerMediaUrl} alt="" />
+                  {mediaHeader &&
+                    (media ? (
+                      fmt === 'IMAGE' ? (
+                        <img className="fl-tpl-media" src={media} alt="" />
+                      ) : fmt === 'VIDEO' ? (
+                        <video className="fl-tpl-media" src={media} muted />
+                      ) : (
+                        <div className="fl-pdf-chip">
+                          <span className="material-icons">picture_as_pdf</span>
+                          <span className="fl-pdf-name">{data.templateFileName || tpl.headerFileName || 'Document.pdf'}</span>
+                        </div>
+                      )
                     ) : (
                       <div className="fl-tpl-mediaph">
-                        <span className="material-icons">image</span>
+                        <span className="material-icons">{fmt === 'VIDEO' ? 'videocam' : fmt === 'DOCUMENT' ? 'picture_as_pdf' : 'image'}</span>
                       </div>
                     ))}
-                  {header?.format === 'TEXT' && header.text && (
+                  {fmt === 'TEXT' && header?.text && (
                     <div className="fl-tpl-htext">{header.text}</div>
                   )}
                   <div className="fl-tpl-body">{body}</div>
                   {footer && <div className="fl-tpl-footer">{footer}</div>}
+                </div>
+              )}
+
+              {tpl && mediaHeader && (
+                <div className="jn-tpl-media-row">
+                  <button type="button" className="k-btn ghost sm" onClick={() => tplFileRef.current?.click()} data-testid="jn-tpl-media">
+                    <span className="material-icons">upload</span>
+                    {data.templateMediaUrl ? 'Replace' : `Use another ${fmt === 'DOCUMENT' ? 'PDF' : fmt.toLowerCase()} here`}
+                  </button>
+                  {data.templateMediaUrl && (
+                    <button
+                      type="button"
+                      className="k-btn ghost sm"
+                      onClick={() => {
+                        discard(data.templateMediaUrl);
+                        patch({ templateMediaUrl: '', templateFileName: '' });
+                      }}
+                    >
+                      Use the template’s own
+                    </button>
+                  )}
+                  {!media && <span className="jn-tpl-warn">This template has no stored {fmt === 'DOCUMENT' ? 'PDF' : fmt.toLowerCase()}: upload one, or WhatsApp refuses it.</span>}
+                  <input
+                    ref={tplFileRef}
+                    type="file"
+                    hidden
+                    accept={fmt === 'IMAGE' ? 'image/png,image/jpeg' : fmt === 'VIDEO' ? 'video/mp4' : 'application/pdf'}
+                    onChange={onTemplateFile}
+                  />
+                </div>
+              )}
+
+              {tpl && vars.length > 0 && tpl.category !== 'AUTHENTICATION' && (
+                <div className="jn-tpl-vars" data-testid="jn-tpl-vars">
+                  <div className="jn-tpl-vars-head">Values for the template</div>
+                  {vars.map((n) => {
+                    const m = mapped(n);
+                    const hint = m?.source && m.source !== 'other' ? m.source.replace(/_/g, ' ') : m?.name || '';
+                    return (
+                      <label className="jn-tpl-var" key={n}>
+                        <code>{`{{${n}}}`}</code>
+                        <input
+                          value={own[String(n)] || ''}
+                          onChange={(e) => patch({ templateVars: { ...own, [String(n)]: e.target.value } })}
+                          placeholder={hint ? `Template's value: ${hint}` : 'e.g. {{name}}'}
+                          data-testid={`jn-tpl-var-${n}`}
+                        />
+                      </label>
+                    );
+                  })}
+                  <p className="jn-out-hint">
+                    Leave a value empty to use the template’s own (set on the Templates page). You can use{' '}
+                    <code>{'{{name}}'}</code>, <code>{'{{business_name}}'}</code>, <code>{'{{today}}'}</code> and the choices made earlier in the journey
+                    (<code>{'{{category}}'}</code>, <code>{'{{member}}'}</code>, <code>{'{{appointment_date}}'}</code>, <code>{'{{order_id}}'}</code>…).
+                  </p>
                 </div>
               )}
 
@@ -816,6 +1019,116 @@ function NodeFields({ id, data }: { id: string; data: WaData }) {
             </>
           );
         })()}
+
+      {data.kind === 'catalog' && (
+        <div className="fl-fields" data-testid="jn-catalog-fields">
+          <span className="fl-seg-label">Products to show</span>
+          <select className="fl-select" value={data.catalogCategory || ''} onChange={(e) => patch({ catalogCategory: e.target.value })} data-testid="jn-catalog-cat">
+            <option value="">The {(v?.categoryLabel || 'category').toLowerCase()} the customer chose (else all)</option>
+            <option value="*">All products</option>
+            {categoryNames.map((n) => (
+              <option key={n} value={n}>{n}</option>
+            ))}
+          </select>
+          <div className="fl-restart jn-start-note">
+            <span className="material-icons">storefront</span>
+            <div>
+              Sends your WhatsApp catalog. The customer adds products to the cart and sends it: connect <b>Cart sent</b> to{' '}
+              <b>Place order</b>. Without a connected catalog (or on the shared test number) the products go as a text list.
+            </div>
+          </div>
+        </div>
+      )}
+
+      {(data.kind === 'categories' || data.kind === 'members' || data.kind === 'slots') && (
+        <div className="fl-fields">
+          <span className="fl-seg-label">List button</span>
+          <input
+            className="fl-list-title"
+            value={data.listTitle || ''}
+            onChange={(e) => patch({ listTitle: e.target.value })}
+            placeholder={data.kind === 'slots' ? 'Pick a day' : 'Choose'}
+            maxLength={20}
+            data-testid="jn-list-title"
+          />
+        </div>
+      )}
+      {data.kind === 'categories' && (
+        <div className="fl-restart jn-start-note" data-testid="jn-note">
+          <span className="material-icons">category</span>
+          <div>
+            Lists your {(v?.categoryPlural || 'categories').toLowerCase()} (up to 10) from the {v?.categoryPlural || 'Categories'} page. The choice is{' '}
+            <code>{'{{category}}'}</code>; a {(v?.memberLabel || 'members').toLowerCase()} list or a catalog after it shows only that{' '}
+            {(v?.categoryLabel || 'category').toLowerCase()}.
+          </div>
+        </div>
+      )}
+      {data.kind === 'members' && (
+        <div className="fl-restart jn-start-note" data-testid="jn-note">
+          <span className="material-icons">groups</span>
+          <div>
+            Lists your {(v?.memberLabel || 'members').toLowerCase()} (up to 10) from the {v?.memberLabel || 'Members'} page, with their fee. After a{' '}
+            {(v?.categoryPlural || 'categories').toLowerCase()} block, only the chosen {(v?.categoryLabel || 'category').toLowerCase()}. The choice is{' '}
+            <code>{'{{member}}'}</code>.
+          </div>
+        </div>
+      )}
+      {data.kind === 'slots' && (
+        <>
+          <div className="fl-seg-row">
+            <span className="fl-seg-label">Days ahead</span>
+            <div className="fl-seg" role="radiogroup" aria-label="Days ahead">
+              {[3, 7, 14].map((n) => (
+                <button type="button" key={n} className={`fl-seg-btn${(data.days || 7) === n ? ' on' : ''}`} onClick={() => patch({ days: n })} aria-pressed={(data.days || 7) === n} data-testid={`jn-days-${n}`}>
+                  {n} days
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="fl-restart jn-start-note" data-testid="jn-note">
+            <span className="material-icons">event</span>
+            <div>
+              Asks for a day (only days with free times), then a free time, for the {(v?.memberSingular || 'member').toLowerCase()} chosen before (or your only one).
+              Times follow their hours, leave and bookings. The choice is <code>{'{{appointment_date}}'}</code> at <code>{'{{appointment_slot}}'}</code>.
+            </div>
+          </div>
+        </>
+      )}
+      {data.kind === 'book' && (
+        <>
+          <span className="fl-seg-label">If the time can’t be booked</span>
+          <textarea
+            className="fl-node-text"
+            value={data.failText || ''}
+            onChange={(e) => patch({ failText: e.target.value })}
+            placeholder="Sorry, that time was just taken…"
+            rows={2}
+            data-testid="jn-fail-text"
+          />
+          <div className="fl-restart jn-start-note" data-testid="jn-note">
+            <span className="material-icons">event_available</span>
+            <div>
+              Books the chosen time: it appears on {v?.ordersLabel || 'Appointments'} and your team is notified. The time is checked again first, so two
+              customers never get the last place. <b>Booked</b> and <b>Not booked</b> are its outputs.
+            </div>
+          </div>
+        </>
+      )}
+      {data.kind === 'order' && (
+        <div className="fl-restart jn-start-note" data-testid="jn-note">
+          <span className="material-icons">receipt_long</span>
+          <div>
+            Saves the cart the customer sent (after a Catalog block) as an order on {v?.ordersLabel || 'Orders'}, with its reference{' '}
+            <code>{'{{order_id}}'}</code>, then sends this confirmation.
+          </div>
+        </div>
+      )}
+      {data.kind === 'offers' && (
+        <div className="fl-restart jn-start-note" data-testid="jn-note">
+          <span className="material-icons">local_offer</span>
+          <div>Sends your live offers from the Offers page (up to 5), with their offer prices and end dates.</div>
+        </div>
+      )}
       {(() => {
         const hint = data.kind === 'carousel' && wa
           ? mode === 'link'
@@ -837,7 +1150,16 @@ const OUTPUT_HINT: Partial<Record<Kind, string>> = {
   location: 'The block has two outputs: Valid (a location was shared) and Not valid (anything else).',
   carousel: 'Reply buttons (without a link) get their own outputs; “Next” continues after the cards.',
   template: 'Quick-reply buttons of the template get their own outputs; “Next” continues right away.',
+  catalog: '“Cart sent” continues when the customer sends their cart.',
+  categories: '“Chosen” continues after the customer picks one.',
+  members: '“Chosen” continues after the customer picks one.',
+  slots: 'Two outputs: Time chosen, and No free time (nothing free in those days).',
+  book: 'Two outputs: Booked, and Not booked (the time was taken, or nothing was chosen).',
 };
+
+/** The {{n}} placeholders a template body uses, in order. */
+const placeholdersOf = (body: string) =>
+  [...new Set([...String(body || '').matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => Number(m[1])))].sort((a, b) => a - b);
 
 // ---------------------------------------------------------------------------
 // The block on the canvas (n8n style): icon, name and a one-line summary;
@@ -898,6 +1220,15 @@ function outputsOf(data: WaData, templates: TemplateItem[]): Output[] {
     }
     case 'extender':
       return Array.from({ length: extSlots(data) }, (_, i) => ({ id: `ext-${i}`, label: String(i + 1) }));
+    case 'catalog':
+      return [{ id: 'cart', label: 'Cart sent' }];
+    case 'categories':
+    case 'members':
+      return [{ id: 'pick', label: 'Chosen' }];
+    case 'slots':
+      return [{ id: 'pick', label: 'Time chosen' }, { id: 'none', label: 'No free time' }];
+    case 'book':
+      return [{ id: 'ok', label: 'Booked' }, { id: 'full', label: 'Not booked' }];
     case 'end':
     case 'restart':
       return [];
@@ -912,7 +1243,7 @@ const firstLine = (s?: string) =>
 const count = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`;
 
 /** The block's one-line summary under its name. */
-function summaryOf(data: WaData, channel: JourneyChannel): string {
+function summaryOf(data: WaData, channel: JourneyChannel, v?: VerticalConfig): string {
   const media = data.header && data.header !== 'none' ? `${HEADER_LABEL[data.header]}${data.headerMediaUrl ? '' : ' (not uploaded)'}` : '';
   const text = firstLine(data.text);
   switch (data.kind) {
@@ -931,6 +1262,14 @@ function summaryOf(data: WaData, channel: JourneyChannel): string {
     case 'extender': return `Sends ${extSlots(data)} messages in order`;
     case 'end': return 'Ends the journey';
     case 'restart': return 'Back to Start';
+    case 'catalog':
+      return data.catalogCategory === '*' ? 'All products' : data.catalogCategory ? `Products in ${data.catalogCategory}` : `Products of the chosen ${(v?.categoryLabel || 'category').toLowerCase()}`;
+    case 'categories': return `Lists your ${(v?.categoryPlural || 'categories').toLowerCase()}`;
+    case 'members': return `Lists your ${(v?.memberLabel || 'members').toLowerCase()}`;
+    case 'slots': return `Free times, next ${data.days || 7} days`;
+    case 'book': return `Books the chosen time on ${v?.ordersLabel || 'Appointments'}`;
+    case 'order': return `Saves the cart on ${v?.ordersLabel || 'Orders'}`;
+    case 'offers': return 'Sends your live offers';
     default: return '';
   }
 }
@@ -948,6 +1287,8 @@ function problemOf(data: WaData, outputs: Output[]): string {
     case 'cta': return !String(data.ctaUrl || '').trim() ? 'Add the link' : '';
     case 'call': return !String(data.callPhone || '').trim() ? 'Add the phone number' : '';
     case 'template': return !data.templateName ? 'Choose a template' : '';
+    case 'book': return !text ? 'Add the confirmation message' : '';
+    case 'order': return !text ? 'Add the confirmation message' : '';
     default: return '';
   }
 }
@@ -1014,7 +1355,8 @@ function OutPort({ nodeId, handle, side }: { nodeId: string; handle: string; sid
 function WaNode({ id, data, selected }: NodeProps<WaData>) {
   const templates = useContext(TemplatesCtx);
   const channel = useContext(ChannelCtx);
-  const k = KINDS[data.kind];
+  const vertical = useContext(VerticalCtx);
+  const k = KINDS[data.kind] || KINDS.message;
   const outputs = outputsOf(data, templates);
   // Branches (buttons, options, Valid / Not valid) come out of the bottom edge,
   // labelled, like n8n's sub-connections; the plain "next" stays on the right.
@@ -1029,7 +1371,13 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
   // must measure the block's ports again, or the line starts from the old spot.
   const { connected, inUsed } = useContext(CanvasCtx);
   const { saveable } = useMedia();
-  const problem = data.kind === 'extender' && !outputs.some((o) => connected.has(`${id}|${o.id}`))
+  // A data block from a plan the business no longer has (added in the trial).
+  const featureLock = useFeatureLock();
+  const needs = FEATURE_OF_KIND[data.kind];
+  const planLock = needs ? featureLock(needs) : null;
+  const problem = planLock
+    ? `Needs the ${TIER_NAMES[planLock.tier]} plan: this block doesn’t run on your plan`
+    : data.kind === 'extender' && !outputs.some((o) => connected.has(`${id}|${o.id}`))
     ? 'Connect a block to number 1'
     : data.kind === 'carousel' && channel === 'whatsapp'
       ? waCarouselProblem(data, saveable)
@@ -1058,8 +1406,8 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
       <div className="jn-main">
         <span className="jn-ic"><span className="material-icons">{k.icon}</span></span>
         <div className="jn-txt">
-          <div className="jn-title">{titleOf(data.kind, channel)}</div>
-          <div className="jn-sub" data-testid="jn-sub">{summaryOf(data, channel)}</div>
+          <div className="jn-title">{titleOf(data.kind, channel, vertical)}</div>
+          <div className="jn-sub" data-testid="jn-sub">{summaryOf(data, channel, vertical)}</div>
         </div>
         {problem && (
           <span className="jn-warn material-icons" title={problem} aria-label={problem} data-testid="jn-warn">error</span>
@@ -1110,7 +1458,48 @@ const seedNodesFor = (channel: JourneyChannel): Node<WaData>[] => (channel === '
 
 let idCounter = 100;
 
-type PaletteItem = { kind: Kind; count?: number; header?: HeaderType; label: string; icon?: string };
+type PaletteItem = {
+  kind: Kind;
+  count?: number;
+  header?: HeaderType;
+  label: string;
+  icon?: string;
+  /** A heading drawn above this item in the palette. */
+  group?: string;
+};
+
+/** The plan feature a data block needs (its page). */
+const FEATURE_OF_KIND: Partial<Record<Kind, PlanFeature>> = {
+  catalog: 'catalog',
+  order: 'orders',
+  offers: 'offers',
+  categories: 'categories',
+  members: 'members',
+  slots: 'members',
+  book: 'orders',
+};
+
+/**
+ * The blocks for the business's own data, for the pages its category has:
+ * a shop gets Categories, Catalog, Place order and Offers; a clinic gets its
+ * Specialisations, Doctors, Date & time and Book appointment. "Other" (every
+ * page) gets them all.
+ */
+function dataPalette(v?: VerticalConfig): PaletteItem[] {
+  const shows = (p: CrmView) => !v || v.showsPage(p);
+  const out: PaletteItem[] = [];
+  if (shows('categories')) out.push({ kind: 'categories', label: v?.categoryPlural || 'Categories' });
+  if (shows('catalog')) out.push({ kind: 'catalog', label: 'Catalog' });
+  if (shows('catalog') && shows('orders')) out.push({ kind: 'order', label: 'Place order' });
+  if (shows('offers')) out.push({ kind: 'offers', label: 'Offers' });
+  if (shows('members')) {
+    out.push({ kind: 'members', label: v?.memberLabel || 'Members' });
+    out.push({ kind: 'slots', label: 'Date & time' });
+    if (shows('orders')) out.push({ kind: 'book', label: bookTitle(v) });
+  }
+  if (out.length) out[0] = { ...out[0], group: 'Your business' };
+  return out;
+}
 const WHATSAPP_PALETTE: PaletteItem[] = [
   { kind: 'message', label: 'Message' },
   { kind: 'reply', count: 1, label: '1 reply button' },
@@ -1152,10 +1541,12 @@ const metaPalette = (channel: 'instagram' | 'messenger'): PaletteItem[] => [
  * offered here only to put it back if it was removed (e.g. with Backspace).
  */
 const START_ITEM: PaletteItem = { kind: 'start', label: 'Start' };
-const paletteFor = (channel: JourneyChannel, hasStart: boolean): PaletteItem[] => [
+const paletteFor = (channel: JourneyChannel, hasStart: boolean, v?: VerticalConfig): PaletteItem[] => [
   ...(hasStart ? [] : [START_ITEM]),
-  ...(channel === 'whatsapp' ? WHATSAPP_PALETTE : metaPalette(channel)),
+  // The business's data blocks are WhatsApp only (lists, the catalog).
+  ...(channel === 'whatsapp' ? [...WHATSAPP_PALETTE, ...dataPalette(v)] : metaPalette(channel)),
 ];
+const testIdOf = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, '-');
 
 interface FlowCanvasProps {
   nodes: Node<WaData>[];
@@ -1200,6 +1591,7 @@ function organizeJourney(nodes: Node<WaData>[], edges: Edge[], templates: Templa
 function BlockEditor({ node, onClose, onDelete }: { node: Node<WaData>; onClose: () => void; onDelete: () => void }) {
   const k = KINDS[node.data.kind];
   const channel = useContext(ChannelCtx);
+  const vertical = useContext(VerticalCtx);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -1209,12 +1601,12 @@ function BlockEditor({ node, onClose, onDelete }: { node: Node<WaData>; onClose:
   }, [onClose]);
   return (
     <div className="jn-modal-backdrop" onMouseDown={(e) => e.target === e.currentTarget && onClose()} data-testid="jn-editor-backdrop">
-      <div className="jn-modal" role="dialog" aria-modal="true" aria-label={`${titleOf(node.data.kind, channel)} block`} data-testid="jn-editor" style={{ ['--k' as string]: k.color }}>
+      <div className="jn-modal" role="dialog" aria-modal="true" aria-label={`${titleOf(node.data.kind, channel, vertical)} block`} data-testid="jn-editor" style={{ ['--k' as string]: k.color }}>
         <header className="jn-modal-head">
           <span className="jn-ic"><span className="material-icons">{k.icon}</span></span>
           <div className="jn-modal-titles">
-            <h3>{titleOf(node.data.kind, channel)}</h3>
-            <p>{summaryOf(node.data, channel)}</p>
+            <h3>{titleOf(node.data.kind, channel, vertical)}</h3>
+            <p>{summaryOf(node.data, channel, vertical)}</p>
           </div>
           <button type="button" className="jn-modal-x" onClick={onClose} aria-label="Close">
             <span className="material-icons">close</span>
@@ -1238,7 +1630,9 @@ function BlockEditor({ node, onClose, onDelete }: { node: Node<WaData>; onClose:
 }
 
 /** "+" on a free output: choose the next block; it's added to the right, connected. */
-function AddMenu({ palette, onPick, onClose }: { palette: PaletteItem[]; onPick: (p: PaletteItem) => void; onClose: () => void }) {
+type BlockLock = { tier: PlanTierKey; open: () => void } | null;
+
+function AddMenu({ palette, onPick, onClose, lockOf }: { palette: PaletteItem[]; onPick: (p: PaletteItem) => void; onClose: () => void; lockOf: (k: Kind) => BlockLock }) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose();
@@ -1261,12 +1655,24 @@ function AddMenu({ palette, onPick, onClose }: { palette: PaletteItem[]; onPick:
         <div className="jn-add-grid">
           {palette.filter((p) => p.kind !== 'start').map((p) => {
             const k = KINDS[p.kind];
-            return (
-              <button type="button" key={p.label} className="jn-add-item" onClick={() => onPick(p)} style={{ ['--k' as string]: k.color }} data-testid={`jn-add-${p.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}>
+            const lock = lockOf(p.kind);
+            return [
+              p.group ? <div className="jn-add-group" key={`g-${p.group}`}>{p.group}</div> : null,
+              <button
+                type="button"
+                key={p.label}
+                className={`jn-add-item${lock ? ' locked' : ''}`}
+                onClick={() => (lock ? lock.open() : onPick(p))}
+                style={{ ['--k' as string]: k.color }}
+                data-testid={`jn-add-${testIdOf(p.label)}`}
+                data-kind={p.kind}
+                data-plan-locked={lock ? lock.tier : undefined}
+              >
                 <span className="jn-ic"><span className="material-icons">{p.icon || k.icon}</span></span>
                 {p.label}
-              </button>
-            );
+                {lock && <PlanCrown tier={lock.tier} size={14} className="jn-pal-crown" />}
+              </button>,
+            ];
           })}
         </div>
       </div>
@@ -1277,10 +1683,17 @@ function AddMenu({ palette, onPick, onClose }: { palette: PaletteItem[]; onPick:
 function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges }: FlowCanvasProps) {
   const rf = useReactFlow();
   const channel = useContext(ChannelCtx);
+  const vertical = useContext(VerticalCtx);
   const stroke = EDGE_COLOR[channel];
   const hasStart = nodes.some((n) => n.data?.kind === 'start');
-  const palette = paletteFor(channel, hasStart);
+  const palette = paletteFor(channel, hasStart, vertical);
   const templates = useContext(TemplatesCtx);
+  // A data block whose page isn't in the plan: a crown, and the plans dialog instead.
+  const featureLock = useFeatureLock();
+  const lockOf = (kind: Kind): BlockLock => {
+    const f = FEATURE_OF_KIND[kind];
+    return f ? featureLock(f) : null;
+  };
   const { discard } = useMedia();
   // The block whose pop-up is open, and the free output a "+" was clicked on.
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1345,7 +1758,7 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
     let newId = '';
     setNodes((nds) => {
       newId = nextId(nds);
-      return [...nds, { id: newId, type: 'wa', position, data: makeData(p.kind, p.count, p.header, channel) }];
+      return [...nds, { id: newId, type: 'wa', position, data: makeData(p.kind, p.count, p.header, channel, vertical) }];
     });
     setEdges((eds) => [
       ...eds,
@@ -1382,13 +1795,19 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         if (kind === 'start' && nds.some((n) => n.data?.kind === 'start')) return nds;
         // Ids already on the canvas (a saved journey) are never reused.
         const id = nextId(nds);
-        return [...nds, { id, type: 'wa', position, data: makeData(kind, count, header, channel) }];
+        return [...nds, { id, type: 'wa', position, data: makeData(kind, count, header, channel, vertical) }];
       });
     },
-    [rf, setNodes, channel],
+    [rf, setNodes, channel, vertical],
   );
 
   function onPaletteDragStart(e: React.DragEvent, p: PaletteItem) {
+    const lock = lockOf(p.kind);
+    if (lock) {
+      e.preventDefault();
+      lock.open();
+      return;
+    }
     e.dataTransfer.setData('application/reactflow', JSON.stringify({ kind: p.kind, count: p.count, header: p.header }));
     e.dataTransfer.effectAllowed = 'move';
   }
@@ -1400,27 +1819,35 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         <p className="fp-hint">Drag a block onto the canvas, then connect the ports.</p>
         {palette.map((p) => {
           const k = KINDS[p.kind];
-          return (
+          const lock = lockOf(p.kind);
+          return [
+            p.group ? <div className="fp-group" key={`g-${p.group}`} data-testid="pal-group">{p.group}</div> : null,
             <div
               key={p.label}
-              className="pal-item"
+              className={`pal-item${lock ? ' locked' : ''}`}
               draggable
               title={
-                p.kind === 'start'
-                  ? 'This journey has no Start: drop one and connect it to your first message'
-                  : p.kind === 'restart'
-                    ? 'Goes back to Start and runs the journey again, like the customer typing "hi"'
-                    : undefined
+                lock
+                  ? `Needs the ${TIER_NAMES[lock.tier]} plan`
+                  : p.kind === 'start'
+                    ? 'This journey has no Start: drop one and connect it to your first message'
+                    : p.kind === 'restart'
+                      ? 'Goes back to Start and runs the journey again, like the customer typing "hi"'
+                      : undefined
               }
               onDragStart={(e) => onPaletteDragStart(e, p)}
-              data-testid={`pal-${p.label.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`}
+              onClick={lock ? () => lock.open() : undefined}
+              data-testid={`pal-${testIdOf(p.label)}`}
+              data-kind={p.kind}
+              data-plan-locked={lock ? lock.tier : undefined}
             >
               <span className="material-icons" style={{ color: k.color }}>
                 {p.icon || k.icon}
               </span>
               {p.label}
-            </div>
-          );
+              {lock && <PlanCrown tier={lock.tier} size={14} className="jn-pal-crown" />}
+            </div>,
+          ];
         })}
       </aside>
 
@@ -1466,7 +1893,7 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         </CanvasCtx.Provider>
       </div>
       {editingNode && <BlockEditor node={editingNode} onClose={() => setEditingId(null)} onDelete={() => deleteNode(editingNode.id)} />}
-      {addingFrom && <AddMenu palette={palette} onPick={addAfter} onClose={() => setAddingFrom(null)} />}
+      {addingFrom && <AddMenu palette={palette} onPick={addAfter} onClose={() => setAddingFrom(null)} lockOf={lockOf} />}
     </div>
   );
 }
@@ -1483,9 +1910,14 @@ function JourneyEditor({
   onSaved,
   registerDirty,
   onNavigate,
+  vertical,
+  categoryNames = [],
 }: {
   api: CrmApi;
   templates: TemplateItem[];
+  /** The business's category: which data blocks it gets, and their wording. */
+  vertical?: VerticalConfig;
+  categoryNames?: string[];
   journey: Journey | null;
   /** The chats this journey answers. */
   channel?: JourneyChannel;
@@ -1879,16 +2311,20 @@ function JourneyEditor({
         <MediaCtx.Provider value={media}>
           <TemplatesCtx.Provider value={templates}>
             <ChannelCtx.Provider value={channel}>
-              <ReactFlowProvider>
-                <FlowCanvas
-                  nodes={nodes}
-                  edges={edges}
-                  onNodesChange={onNodesChange}
-                  onEdgesChange={onEdgesChange}
-                  setNodes={setNodes}
-                  setEdges={setEdges}
-                />
-              </ReactFlowProvider>
+              <VerticalCtx.Provider value={vertical}>
+                <CategoryNamesCtx.Provider value={categoryNames}>
+                  <ReactFlowProvider>
+                    <FlowCanvas
+                      nodes={nodes}
+                      edges={edges}
+                      onNodesChange={onNodesChange}
+                      onEdgesChange={onEdgesChange}
+                      setNodes={setNodes}
+                      setEdges={setEdges}
+                    />
+                  </ReactFlowProvider>
+                </CategoryNamesCtx.Provider>
+              </VerticalCtx.Provider>
             </ChannelCtx.Provider>
           </TemplatesCtx.Provider>
         </MediaCtx.Provider>
@@ -1922,11 +2358,15 @@ function JourneyManager({
   templates,
   registerDirty,
   onNavigate,
+  vertical,
+  categoryNames,
 }: {
   api: CrmApi;
   templates: TemplateItem[];
   registerDirty?: (fn: (() => boolean) | null) => void;
   onNavigate?: (view: any) => void;
+  vertical?: VerticalConfig;
+  categoryNames?: string[];
 }) {
   // The newest journey of each channel (older ones stay in the database untouched).
   const [byChannel, setByChannel] = useState<Partial<Record<JourneyChannel, Journey>> | null>(null);
@@ -2089,6 +2529,8 @@ function JourneyManager({
         key={`${channel}:${journey?._id || 'new'}`}
         api={api}
         templates={templates}
+        vertical={vertical}
+        categoryNames={categoryNames}
         journey={journey}
         channel={channel}
         connection={channel === 'whatsapp' ? '' : conns[channel]}
@@ -2206,6 +2648,16 @@ export function FlowsPage({
       .then((res) => setTemplates((res.data || []).filter((t) => t.status === 'APPROVED')))
       .catch(() => setTemplates([]));
   }, [api]);
+  // The Catalog block can show one category's products.
+  const [categoryNames, setCategoryNames] = useState<string[]>([]);
+  const wantsCategories = !vertical || vertical.showsPage('catalog');
+  useEffect(() => {
+    if (!wantsCategories) return;
+    api
+      .getCategories()
+      .then((res) => setCategoryNames((res.data || []).map((c) => c.name).filter(Boolean)))
+      .catch(() => setCategoryNames([]));
+  }, [api, wantsCategories]);
 
   // Without the Flow builder there's nothing to switch between, so the tab bar
   // and its wrapper header go away entirely and Journeys owns the page.
@@ -2214,7 +2666,7 @@ export function FlowsPage({
     return (
       <div className="page">
         {/* The top bar already says "Automation". */}
-        <JourneyManager api={api} templates={templates} registerDirty={registerDirty} onNavigate={onNavigate} />
+        <JourneyManager api={api} templates={templates} registerDirty={registerDirty} onNavigate={onNavigate} vertical={vertical} categoryNames={categoryNames} />
       </div>
     );
   }
@@ -2250,7 +2702,7 @@ export function FlowsPage({
           <FlowBuilderPage api={api} registerDirty={registerChildDirty} vertical={vertical} />
         </div>
       ) : (
-        <JourneyManager api={api} templates={templates} registerDirty={registerChildDirty} onNavigate={onNavigate} />
+        <JourneyManager api={api} templates={templates} registerDirty={registerChildDirty} onNavigate={onNavigate} vertical={vertical} categoryNames={categoryNames} />
       )}
 
       {pendingTab && (

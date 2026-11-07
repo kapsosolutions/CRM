@@ -867,6 +867,10 @@ export function createMetaClient(creds = {}) {
       // Drip campaigns: which follow-up this is (1, 2, …), kept on the Message
       // so the main send's counts and each follow-up's are told apart.
       dripStep = null,
+      // What a quick-reply button sends back when tapped: [{ index, payload }]
+      // (index = the button's position in the template). A journey uses it
+      // to know which block and button the tap belongs to.
+      quickReplies = null,
     } = {}) {
       const components = [];
       if (headerImageUrl) {
@@ -899,6 +903,16 @@ export function createMetaClient(creds = {}) {
           type: 'button', sub_type: 'copy_code', index: 0,
           parameters: [{ type: 'coupon_code', coupon_code: String(lto.code).slice(0, 15) }],
         });
+      }
+      if (Array.isArray(quickReplies)) {
+        for (const q of quickReplies) {
+          const payload = String(q?.payload || '').slice(0, 256);
+          if (!payload || !Number.isInteger(Number(q?.index))) continue;
+          components.push({
+            type: 'button', sub_type: 'quick_reply', index: String(Number(q.index)),
+            parameters: [{ type: 'payload', payload }],
+          });
+        }
       }
       // Carousel: every card's header media has to be sent again, in order.
       if (Array.isArray(cards) && cards.length) {
