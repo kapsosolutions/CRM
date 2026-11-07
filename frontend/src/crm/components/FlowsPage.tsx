@@ -6,6 +6,8 @@ import { PlanCrown, useFeatureLock } from './PlanLocked';
 import { TIER_NAMES } from '../plans';
 import { waLanguageLabel } from '../waLanguages';
 import type { CrmView } from './NavRail';
+import { journeyTemplatesFor, kindsOf, type JourneyTemplateCard } from '../journeyTemplates';
+import './FlowTemplateGallery.css';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { UndoIcon, RedoIcon } from './AppIcons';
 import ReactFlow, {
@@ -35,7 +37,7 @@ import 'reactflow/dist/style.css';
 import type { Dispatch, SetStateAction } from 'react';
 import type { CrmApi } from '../api';
 import type { BusinessProfile, TemplateItem, Journey, PlanFeature, PlanTierKey } from '../types';
-import type { VerticalConfig } from '../verticals';
+import { verticalConfig, type VerticalConfig } from '../verticals';
 import { FlowBuilderPage } from './FlowBuilderPage';
 import { MediaCtx, useLeaveCleanup, useMedia, useMediaApi } from './uploadCtx';
 import { useConfirm, useFlash } from './Dialogs';
@@ -1555,6 +1557,8 @@ interface FlowCanvasProps {
   onEdgesChange: OnEdgesChange;
   setNodes: Dispatch<SetStateAction<Node<WaData>[]>>;
   setEdges: Dispatch<SetStateAction<Edge[]>>;
+  /** Changes when a whole journey was put on the canvas (fit it into view). */
+  fitSignal?: number;
 }
 
 /** n8n-style connections: solid curves with an arrow, the channel colour when selected. */
@@ -1680,8 +1684,99 @@ function AddMenu({ palette, onPick, onClose, lockOf }: { palette: PaletteItem[];
   );
 }
 
-function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges }: FlowCanvasProps) {
+/**
+ * Templates: ready-made journeys for the business category (journeyTemplates.ts).
+ * A card that uses a block outside the plan carries its crown and opens the
+ * plans dialog instead.
+ */
+function JourneyTemplatesModal({
+  vertical, onPick, onClose,
+}: {
+  vertical: VerticalConfig;
+  onPick: (card: JourneyTemplateCard) => void;
+  onClose: () => void;
+}) {
+  useBackHandler(true, onClose);
+  const featureLock = useFeatureLock();
+  const cards = useMemo(() => journeyTemplatesFor(vertical), [vertical]);
+  const lockOf = (card: JourneyTemplateCard): BlockLock => {
+    for (const k of kindsOf(card)) {
+      const f = FEATURE_OF_KIND[k as Kind];
+      const lock = f ? featureLock(f) : null;
+      if (lock) return lock;
+    }
+    return null;
+  };
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+  return (
+    <div className="disc-backdrop tpl-backdrop" onClick={onClose}>
+      <div className="disc-box tpl-box lg xl" onClick={(e) => e.stopPropagation()} data-testid="jt-modal" role="dialog" aria-modal="true" aria-label="Journey templates">
+        <div className="tpl-head">
+          <div className="disc-title">Journey templates for {vertical.key === 'other' ? 'your business' : vertical.label}</div>
+          <button type="button" className="tpl-x" onClick={onClose} title="Close" aria-label="Close" data-testid="jt-close">
+            <span className="material-icons">close</span>
+          </button>
+        </div>
+        <p className="tpl-sub">
+          Pick a ready-made journey: its blocks are placed and connected for you, in your business’s words. Change any block, then
+          publish it. Nothing reaches customers until you do.
+        </p>
+        <div className="tpl-body">
+          <div className="ftg" data-testid="jt-gallery">
+            <div className="ftg-grid">
+              {cards.map((c) => {
+                const lock = lockOf(c);
+                return (
+                  <button
+                    type="button"
+                    className={`ftg-card${lock ? ' locked' : ''}`}
+                    key={c.id}
+                    onClick={() => (lock ? lock.open() : onPick(c))}
+                    data-testid={`jt-card-${c.id}`}
+                    data-plan-locked={lock ? lock.tier : undefined}
+                  >
+                    <span className="jt-card-top">
+                      <span className="material-icons ftg-card-ic">{c.icon}</span>
+                      {lock && <PlanCrown tier={lock.tier} size={16} className="jn-pal-crown" />}
+                    </span>
+                    <span className="ftg-card-title">{c.title}</span>
+                    <span className="ftg-card-desc">{c.description}</span>
+                    <span className="ftg-tags">
+                      {c.steps.map((s, i) => <span className="ftg-tag" key={`${i}-${s}`}>{s}</span>)}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setEdges, fitSignal = 0 }: FlowCanvasProps) {
   const rf = useReactFlow();
+  // A template was put on the canvas: lay it out again with the blocks' real
+  // sizes (now measured), then show all of it.
+  const fitEdges = useRef(edges);
+  fitEdges.current = edges;
+  const fitTemplates = useContext(TemplatesCtx);
+  useEffect(() => {
+    if (!fitSignal) return undefined;
+    const a = setTimeout(() => setNodes((nds) => organizeJourney(nds, fitEdges.current, fitTemplates)), 80);
+    const b = setTimeout(() => rf.fitView({ padding: 0.15, maxZoom: 0.9, duration: 300 }), 200);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, [fitSignal, rf]); // eslint-disable-line react-hooks/exhaustive-deps
   const channel = useContext(ChannelCtx);
   const vertical = useContext(VerticalCtx);
   const stroke = EDGE_COLOR[channel];
@@ -1950,6 +2045,10 @@ function JourneyEditor({
   // The live version, for "Discard draft".
   const published = useRef({ name: journey?.name || '', nodes: (journey?.nodes || []) as Node<WaData>[], edges: (journey?.edges || []) as Edge[] });
   const confirm = useConfirm();
+  const flashMsg = useFlash();
+  // Templates: ready-made journeys for the business category (WhatsApp).
+  const [browsing, setBrowsing] = useState(false);
+  const [fitSignal, setFitSignal] = useState(0);
   // The journey always runs (no Bot on / off here any more). Whether Flows
   // take over WhatsApp is the Flows tab's switch; a single chat can still be
   // set to Manual in Chats.
@@ -2177,6 +2276,33 @@ function JourneyEditor({
     }
   }
 
+  /**
+   * Put a ready-made journey on the canvas in place of the current blocks.
+   * Asks first when there's work to lose; Undo brings the old blocks back,
+   * and customers keep the published journey until Publish.
+   */
+  async function applyTemplate(card: JourneyTemplateCard) {
+    const untouched = !savedId && !edited;
+    if (!untouched) {
+      const ok = await confirm({
+        title: `Use “${card.title}”?`,
+        message: 'The blocks on the canvas are replaced by this template. Undo brings them back, and customers keep getting the published journey until you publish.',
+        confirmLabel: 'Use template',
+        tone: 'primary',
+      });
+      if (!ok) return;
+    }
+    const built = card.build();
+    const nds = built.nodes.map((n) => ({ ...n, data: n.data as unknown as WaData })) as Node<WaData>[];
+    const eds: Edge[] = built.edges.map((e) => ({ ...e, animated: false, style: { stroke: EDGE_GREY, strokeWidth: 2 } }));
+    setName(built.name);
+    setNodes(organizeJourney(nds, eds, templates));
+    setEdges(eds);
+    setBrowsing(false);
+    setFitSignal((n) => n + 1);
+    flashMsg(`“${card.title}” is on the canvas. Fill in your details, then save or publish it.`);
+  }
+
   /** Drop the draft (saved and unsaved changes) and go back to the published journey. */
   async function discardDraft() {
     if (!savedId || !hasPublished) return;
@@ -2218,6 +2344,11 @@ function JourneyEditor({
         )}
         <input className="flow-name-input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Journey name" />
         <div className="flow-head-actions">
+          {channel === 'whatsapp' && (
+            <button className="k-btn ghost sm" onClick={() => setBrowsing(true)} data-testid="jr-templates" title="Start from a ready-made journey for your business">
+              <span className="material-icons">dashboard_customize</span> Templates
+            </button>
+          )}
           <button className="k-btn ghost sm icon-only" onClick={undo} disabled={!canUndo} title="Undo (Ctrl+Z)" aria-label="Undo" data-testid="jr-undo">
             <UndoIcon />
           </button>
@@ -2321,7 +2452,15 @@ function JourneyEditor({
                       onEdgesChange={onEdgesChange}
                       setNodes={setNodes}
                       setEdges={setEdges}
+                      fitSignal={fitSignal}
                     />
+                    {browsing && (
+                      <JourneyTemplatesModal
+                        vertical={vertical || verticalConfig('other')}
+                        onPick={applyTemplate}
+                        onClose={() => setBrowsing(false)}
+                      />
+                    )}
                   </ReactFlowProvider>
                 </CategoryNamesCtx.Provider>
               </VerticalCtx.Provider>

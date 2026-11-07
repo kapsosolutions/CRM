@@ -22505,3 +22505,14 @@ label.k-label,
   outline: none;
   border-color: var(--k, #107c3f);
 }
+
+/* Journeys → Templates */
+.jt-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+.ftg-card.locked {
+  opacity: 0.8;
+}
