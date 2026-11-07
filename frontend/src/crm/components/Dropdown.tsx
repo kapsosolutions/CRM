@@ -33,6 +33,9 @@ interface Props {
   disabled?: boolean;
   className?: string;
   size?: 'sm' | 'md';
+  /** A search box on top of the list (long lists such as languages). */
+  searchable?: boolean;
+  searchPlaceholder?: string;
 }
 
 /** Keep the panel inside the viewport: flip above when below won't fit. */
@@ -56,12 +59,34 @@ export function Dropdown({
   disabled,
   className = '',
   size = 'md',
+  searchable = false,
+  searchPlaceholder = 'Search…',
 }: Props) {
   const [open, setOpen] = useState(false);
   const [box, setBox] = useState<PanelBox | null>(null);
+  const [query, setQuery] = useState('');
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLUListElement>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
   const selected = options.find((o) => o.value === value);
+  // Matches the label or the value (a language name or its code).
+  const q = query.trim().toLowerCase();
+  const shown = searchable && q
+    ? options.filter((o) => o.label.toLowerCase().includes(q) || o.value.toLowerCase().includes(q))
+    : options;
+
+  // The panel appears once it has been placed (box): then focus the search
+  // and bring the chosen option into view.
+  const shownPanel = open && box !== null;
+  useEffect(() => {
+    if (!open) {
+      setQuery('');
+      return;
+    }
+    if (!shownPanel) return;
+    if (searchable) searchRef.current?.focus({ preventScroll: true });
+    panelRef.current?.querySelector('.dd-option.active')?.scrollIntoView({ block: 'nearest' });
+  }, [open, shownPanel, searchable]);
 
   const place = useCallback(() => {
     const el = triggerRef.current;
@@ -184,8 +209,28 @@ export function Dropdown({
               maxHeight: box.maxHeight,
             }}
           >
-            {options.length === 0 && <li className="dd-option empty">Nothing to choose</li>}
-            {options.map((o) => (
+            {searchable && (
+              <li className="dd-search" role="presentation">
+                <input
+                  ref={searchRef}
+                  type="search"
+                  value={query}
+                  placeholder={searchPlaceholder}
+                  aria-label={searchPlaceholder}
+                  onChange={(e) => setQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && shown[0]) {
+                      e.preventDefault();
+                      onChange(shown[0].value);
+                      setOpen(false);
+                    }
+                  }}
+                  data-testid="dd-search"
+                />
+              </li>
+            )}
+            {shown.length === 0 && <li className="dd-option empty">{options.length ? 'No match' : 'Nothing to choose'}</li>}
+            {shown.map((o) => (
               <li
                 key={o.value}
                 className={`dd-option${o.value === value ? ' active' : ''}`}

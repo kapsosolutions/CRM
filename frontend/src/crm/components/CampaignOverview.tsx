@@ -19,6 +19,7 @@ import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { isAuthTemplate } from '../authTemplate';
 import { Pager, usePaged } from './Pager';
 import { useMessagingLimit } from './MessagingLimit';
+import { waLanguageLabel } from '../waLanguages';
 
 const NO_RECIPIENTS: CampaignDetail['recipients'] = [];
 
@@ -37,14 +38,6 @@ const TIME_RANGE_OPTIONS: KOption[] = [
   { value: 'Custom', label: 'Custom' },
 ];
 
-const LANGUAGE_LABEL: Record<string, string> = {
-  en_US: 'English (US)',
-  en: 'English',
-  en_GB: 'English (UK)',
-  hi: 'Hindi',
-  te: 'Telugu',
-  ta: 'Tamil',
-};
 
 const STATUS_TONE: Record<string, string> = {
   APPROVED: 'green',
@@ -1440,7 +1433,7 @@ export function CampaignOverview({
                           <td className="c">
                             <span className={`tl-status ${STATUS_TONE[status] || 'amber'}`}>{titleCase(status)}</span>
                           </td>
-                          <td>{LANGUAGE_LABEL[t.language || ''] || t.language || '—'}</td>
+                          <td>{waLanguageLabel(t.language)}</td>
                           <td>{dateStr}</td>
                           <td className="c">
                             <div className="tl-actions" style={{ alignItems: 'center', justifyContent: 'center' }}>

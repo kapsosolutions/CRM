@@ -19,6 +19,7 @@ import { TemplatePhonePreview, previewPropsFromTemplate } from './TemplatePhoneP
 import { TemplateLibrary } from './TemplateLibrary';
 import { TemplateApiDialog } from './TemplateApiDialog';
 import './TemplateLibrary.css';
+import { waLanguageLabel } from '../waLanguages';
 
 // Template Library · WhatsApp · Messenger · Instagram, in a left sidebar like
 // the Campaigns page's (a scrollable tab row on mobile, TemplateLibrary.css).
@@ -57,14 +58,6 @@ const SORT_OPTIONS: KOption[] = [
   { value: 'name', label: 'Name (A–Z)' },
 ];
 
-const LANGUAGE_LABEL: Record<string, string> = {
-  en_US: 'English (US)',
-  en: 'English',
-  en_GB: 'English (UK)',
-  hi: 'Hindi',
-  te: 'Telugu',
-  ta: 'Tamil',
-};
 const STATUS_TONE: Record<string, string> = {
   APPROVED: 'green',
   REJECTED: 'red',
@@ -486,7 +479,7 @@ export function TemplatesPage({
                         </span>
                       )}
                     </td>
-                    <td>{LANGUAGE_LABEL[t.language || ''] || t.language || '—'}</td>
+                    <td>{waLanguageLabel(t.language)}</td>
                     <td>{dateLabel(t)}</td>
                     <td className="c">
                       {t.shared ? (

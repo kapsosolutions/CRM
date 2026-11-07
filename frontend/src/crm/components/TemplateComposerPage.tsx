@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type { BusinessProfile, TemplateItem, TemplateSource, TemplateVariable, TriggerEvent } from '../types';
 import { Dropdown, type KOption } from './Dropdown';
+import { WA_TEMPLATE_LANGUAGES } from '../waLanguages';
 import { usePlan } from '../PlanContext';
 import { KIND_NAMES, TIER_NAMES, kindsOf, tierFor } from '../plans';
 import { CrownIcon } from './PlanLocked';
@@ -77,10 +78,8 @@ const CATEGORY_OPTIONS: KOption[] = [
   { value: 'UTILITY', label: 'Utility' },
   { value: 'AUTHENTICATION', label: 'Authentication (one-time code)' },
 ];
-const LANGUAGE_OPTIONS: KOption[] = [
-  { value: 'en_US', label: 'English (US)' },
-  { value: 'en', label: 'English' },
-];
+// Every language Meta accepts for templates (crm/waLanguages.ts).
+const LANGUAGE_OPTIONS: KOption[] = WA_TEMPLATE_LANGUAGES;
 
 function StandardTemplateSvg() {
   return (
@@ -1065,7 +1064,7 @@ export function TemplateComposerPage({
             </div>
             <div className="k-field">
               <label className="k-label">Language</label>
-              <Dropdown options={languageOptions} value={language} onChange={setLanguage} />
+              <Dropdown options={languageOptions} value={language} onChange={setLanguage} searchable searchPlaceholder="Search languages…" />
             </div>
           </div>
 

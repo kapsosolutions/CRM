@@ -2,6 +2,7 @@
 import { useMemo, useState } from 'react';
 import type { CrmApi } from '../api';
 import { Dropdown, type KOption } from './Dropdown';
+import { WA_TEMPLATE_LANGUAGES } from '../waLanguages';
 import { TemplateBodyEditor } from './TemplateBodyEditor';
 import { TemplatePhonePreview } from './TemplatePhonePreview';
 import { UploadSvg } from './TemplateComposerPage';
@@ -23,10 +24,8 @@ const CATEGORY_OPTIONS: KOption[] = [
   { value: 'MARKETING', label: 'Marketing' },
   { value: 'UTILITY', label: 'Utility' },
 ];
-const LANGUAGE_OPTIONS: KOption[] = [
-  { value: 'en_US', label: 'English (US)' },
-  { value: 'en', label: 'English' },
-];
+// Every language Meta accepts for templates (crm/waLanguages.ts).
+const LANGUAGE_OPTIONS: KOption[] = WA_TEMPLATE_LANGUAGES;
 const HEADER_TYPE_OPTIONS: KOption[] = [
   { value: 'none', label: 'None' },
   { value: 'text', label: 'Text' },
@@ -152,7 +151,7 @@ export function TemplateCreate({ api, onCreated }: Props) {
         </div>
         <div className="k-field">
           <label className="k-label">Language</label>
-          <Dropdown options={LANGUAGE_OPTIONS} value={language} onChange={setLanguage} />
+          <Dropdown options={LANGUAGE_OPTIONS} value={language} onChange={setLanguage} searchable searchPlaceholder="Search languages…" />
         </div>
       </div>
 

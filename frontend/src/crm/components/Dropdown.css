@@ -145,3 +145,36 @@
   color: #24d06e;
 }
 
+
+/* Search box on top of a long list (searchable). Stays while the list scrolls. */
+.dd-search {
+  position: sticky;
+  top: -6px;
+  z-index: 1;
+  margin: -6px -6px 6px;
+  padding: 8px;
+  background: var(--wa-surface);
+  border-bottom: 1px solid var(--wa-hairline);
+  list-style: none;
+}
+.dd-panel-sm .dd-search {
+  top: -4px;
+  margin: -4px -4px 4px;
+  padding: 6px;
+}
+.dd-search input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 34px;
+  padding: 0 10px;
+  border: 1px solid var(--wa-hairline);
+  border-radius: 8px;
+  background: var(--wa-surface);
+  color: var(--wa-ink);
+  font: inherit;
+  font-size: 13.5px;
+  outline: none;
+}
+.dd-search input:focus {
+  border-color: rgb(35, 164, 85);
+}
