@@ -5,7 +5,7 @@
 // written to) localStorage under config.tokenKey.
 // -----------------------------------------------------------------------------
 import type { CrmConfig } from './config';
-import type { ApiKeyInfo, MessagingLimitUsage, MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
+import type { ApiKeyType, ApiKeyInfo, MessagingLimitUsage, MetaChannel, MetaChannelsInfo, MetaPageOption, ServiceQuota } from './types';
 import type { CallPermission, CallSettings, CallSettingsUpdate, LiveCall, PollInput, EventInput, MuteFor } from './types';
 import type {
   CommentActivity, CommentRule, CommentRuleInput, CommentRuleWrite, SocialMedia, SocialOverview, SocialPost, SocialPostInput, SocialRecentPost, SocialTarget,
@@ -387,12 +387,22 @@ export class CrmApi {
     return this.request('/api/developer/keys', { headers: this.authHeaders() });
   }
 
-  /** A new key: `data.key` is the secret, shown this once. */
-  createApiKey(name: string): Promise<{ success: boolean; data: ApiKeyInfo }> {
+  /** A new key: `data.key` is the key itself, shown this once. */
+  createApiKey(opts: string | { name: string; type?: ApiKeyType; allowedOrigins?: string[] }): Promise<{ success: boolean; data: ApiKeyInfo }> {
+    const body = typeof opts === 'string' ? { name: opts } : opts;
     return this.request('/api/developer/keys', {
       method: 'POST',
       headers: this.authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ name }),
+      body: JSON.stringify(body),
+    });
+  }
+
+  /** Rename a key, or change a website key's websites. */
+  updateApiKey(id: string, patch: { name?: string; allowedOrigins?: string[] }): Promise<{ success: boolean; data: ApiKeyInfo }> {
+    return this.request(`/api/developer/keys/${encodeURIComponent(id)}`, {
+      method: 'PATCH',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(patch),
     });
   }
 

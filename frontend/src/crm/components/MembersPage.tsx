@@ -5,6 +5,7 @@
 //
 // Adding/editing happens on a full page: form on the left, live preview on the
 // right (profile card + exactly how the row renders inside a WhatsApp flow).
+import { DataApiButton } from './DataApiDialog';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { Category, DaySchedule, Member, TimeWindow, Unavailability } from '../types';
@@ -258,6 +259,7 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
               ))}
             </select>
           )}
+          <DataApiButton api={api} resource="members" labels={{ many: v.memberLabel, one: v.memberSingular }} />
           <button className="page-add" onClick={() => setEditing('new')} title={`Add ${v.memberSingular.toLowerCase()}`}>
             <span className="material-icons">add</span>
           </button>

@@ -414,3 +414,110 @@
 .tl-api-keys .material-icons {
   font-size: 18px;
 }
+
+/* Key type choice (ApiKeys.tsx): a secret key or a website key. */
+.tad-types {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.tad-type {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #0f172a;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease;
+}
+.tad-type:hover {
+  border-color: #cbd5e1;
+}
+.tad-type.on {
+  border-color: #22c55e;
+  background: #f0fdf4;
+  box-shadow: 0 0 0 1px #22c55e inset;
+}
+.tad-type .material-icons {
+  font-size: 20px;
+  color: #16a34a;
+  margin-top: 1px;
+}
+.tad-type strong {
+  display: block;
+  font-size: 13.5px;
+}
+.tad-type small {
+  display: block;
+  margin-top: 2px;
+  font-size: 12px;
+  color: #64748b;
+  line-height: 1.4;
+}
+.tad-origins {
+  width: 100%;
+  margin-top: 8px;
+  box-sizing: border-box;
+}
+.tad-key-type {
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 999px;
+  padding: 1px 8px;
+  white-space: nowrap;
+}
+.tad-key-type.sec {
+  background: #fef3c7;
+  color: #92400e;
+}
+.tad-key-type.pub {
+  background: #e0f2fe;
+  color: #075985;
+}
+.tad-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  color: #2563eb;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tad-origin-edit {
+  grid-column: 1 / span 2;
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+}
+.tad-origin-edit .k-input {
+  flex: 1;
+  min-width: 0;
+}
+.tad-method.write {
+  background: #2563eb;
+}
+.tad-ref a {
+  color: #15803d;
+  font-weight: 600;
+}
+/* "API" in the header of Catalog / Categories / Members / Offers. */
+.page-api-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.page-api-btn .material-icons {
+  font-size: 18px;
+}
+@media (max-width: 640px) {
+  .tad-types {
+    grid-template-columns: 1fr;
+  }
+}

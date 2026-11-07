@@ -1,5 +1,6 @@
 // Categories management: a 5-column card grid with a top + to add. Adding and
 // editing happen in a popup. Categories feed the product editor's multi-select.
+import { DataApiButton } from './DataApiDialog';
 import { useEffect, useRef, useState } from 'react';
 import { useBackHandler } from '../useBackHandler';
 import type { CrmApi } from '../api';
@@ -77,6 +78,7 @@ export function CategoriesPage({ api, vertical, business, demo, onConnected }: P
       {!loading && categories.length > 0 && (
         <header className="page-head">
           <span className="page-head-fill" />
+          <DataApiButton api={api} resource="categories" labels={{ many: v.categoryPlural, one: v.categoryLabel }} />
           <button className="page-add" onClick={() => setModal('new')} title={`Add ${lowerSingular}`}>
             <span className="material-icons">add</span>
           </button>

@@ -908,14 +908,27 @@ export class MockCrmApi extends CrmApi {
   override listApiKeys(): Promise<{ success: boolean; data: ApiKeyInfo[] }> {
     return delay({ success: true, data: this.demoKeys.map(({ key: _k, ...k }) => k) });
   }
-  override createApiKey(name: string): Promise<{ success: boolean; data: ApiKeyInfo }> {
+  override createApiKey(opts: string | { name: string; type?: 'secret' | 'publishable'; allowedOrigins?: string[] }): Promise<{ success: boolean; data: ApiKeyInfo }> {
+    const o = typeof opts === 'string' ? { name: opts } : opts;
+    const type = o.type === 'publishable' ? 'publishable' : 'secret';
+    if (type === 'publishable' && !(o.allowedOrigins || []).length) return Promise.reject(new Error('Add the website address(es) this key will be used on.'));
     if (this.demoKeys.length >= 10) return Promise.reject(new Error('You can have up to 10 API keys. Revoke one you no longer use first.'));
     const chars = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz';
     const rnd = Array.from(crypto.getRandomValues(new Uint8Array(32)), (b) => chars[b % 62]).join('');
-    const key = `kp_live_${rnd}`;
-    const row: ApiKeyInfo = { id: nextId(), name: name.trim() || 'API key', prefix: key.slice(0, 12), lastFour: key.slice(-4), createdAt: new Date().toISOString(), lastUsedAt: null, requests: 0, key };
+    const prefix = type === 'publishable' ? 'kp_pub_' : 'kp_live_';
+    const key = `${prefix}${rnd}`;
+    const origins = (o.allowedOrigins || []).map((x) => (/^[a-z]+:\/\//i.test(x) ? x : `https://${x}`).toLowerCase().replace(/\/.*$/, (s) => (s.startsWith('//') ? s : '')));
+    const row: ApiKeyInfo = { id: nextId(), name: o.name.trim() || 'API key', type, allowedOrigins: type === 'publishable' ? origins : [], prefix: key.slice(0, prefix.length + 4), lastFour: key.slice(-4), createdAt: new Date().toISOString(), lastUsedAt: null, requests: 0, key };
     this.demoKeys.unshift(row);
     return delay({ success: true, data: { ...row } });
+  }
+  override updateApiKey(id: string, patch: { name?: string; allowedOrigins?: string[] }): Promise<{ success: boolean; data: ApiKeyInfo }> {
+    const k = this.demoKeys.find((x) => x.id === id);
+    if (!k) return Promise.reject(new Error('Key not found'));
+    if (patch.name !== undefined) k.name = patch.name;
+    if (patch.allowedOrigins !== undefined) k.allowedOrigins = patch.allowedOrigins.map((x) => (/^[a-z]+:\/\//i.test(x) ? x : `https://${x}`).toLowerCase());
+    const { key: _k, ...row } = k;
+    return delay({ success: true, data: row });
   }
   override revokeApiKey(id: string): Promise<{ success: boolean }> {
     this.demoKeys = this.demoKeys.filter((k) => k.id !== id);

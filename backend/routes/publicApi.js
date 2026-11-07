@@ -25,9 +25,11 @@ import { isAuthTemplate, generateOtp, checkOtpCode, authSendOptions } from '../s
 import { renderTemplate, renderedPreview } from '../services/templateRender.js';
 import { touchOutbound } from '../services/conversationState.js';
 import { isBlocked } from '../services/chatFlags.js';
-import { assertFeature, PlanLimitError } from '../services/plans.js';
+import { assertFeature } from '../services/plans.js';
 import { storeOtp, verifyOtp } from '../services/apiKeys.js';
 import logger from '../services/logger.js';
+import { ApiFail, respondCommon, requireSecret, once } from './apiShared.js';
+import dataRouter from './publicData.js';
 
 const router = express.Router();
 router.use((req, res, next) => {
@@ -38,14 +40,6 @@ router.use(requireApiKey);
 
 const VAR_RE = /\{\{\s*(\d+)\s*\}\}/g;
 
-class ApiFail extends Error {
-  constructor(status, code, message, extra = {}) {
-    super(message);
-    this.status = status;
-    this.code = code;
-    this.extra = extra;
-  }
-}
 
 /** A WhatsApp number as digits: 8–15 of them (E.164 without the +). */
 function phoneOf(raw) {
@@ -81,7 +75,8 @@ function describe(t) {
   };
 }
 
-function ready(biz) {
+function ready(biz, req) {
+  if (req) requireSecret(req);
   if (!isWhatsAppConnected(biz)) {
     throw new ApiFail(409, 'whatsapp_not_connected', 'Connect your own WhatsApp number in the CRM before using the API.');
   }
@@ -125,47 +120,13 @@ function whatsappFailure(err) {
 }
 
 function respondError(res, err, what) {
-  if (err instanceof ApiFail) return apiError(res, err.status, err.code, err.message, err.extra);
-  if (err instanceof PlanLimitError) return apiError(res, err.status || 402, 'plan_limit', err.message);
-  const wa = whatsappFailure(err);
+  const wa = !(err instanceof ApiFail) && whatsappFailure(err);
   if (wa) {
     logger.info(`api ${what} refused by WhatsApp`, { code: wa.extra?.whatsappCode });
     return apiError(res, wa.status, wa.code, wa.message, wa.extra);
   }
   // Our own checks (e.g. an offer code or end time) carry a 400 and a message.
-  if (err?.status && err.status < 500) return apiError(res, err.status, err.code ? String(err.code).toLowerCase() : 'invalid_request', err.message);
-  logger.error(`api ${what} failed`, { error: err?.message });
-  return apiError(res, 500, 'internal_error', 'Something went wrong on our side. Please retry.');
-}
-
-// ---------------------------------------------------------------- idempotency
-const IDEM_TTL = 24 * 3600_000;
-const idem = new Map(); // `${businessId}|${key}` -> { at, status, body } | { at, pending: true }
-function idemKey(req) {
-  const k = String(req.get('idempotency-key') || '').trim();
-  if (!k) return null;
-  if (k.length > 128) throw new ApiFail(400, 'invalid_idempotency_key', 'Idempotency-Key can be at most 128 characters.');
-  return `${req.business._id}|${k}`;
-}
-async function once(req, res, run) {
-  const k = idemKey(req);
-  if (!k) return run();
-  const hit = idem.get(k);
-  if (hit && Date.now() - hit.at < IDEM_TTL) {
-    if (hit.pending) return apiError(res, 409, 'idempotency_in_progress', 'A request with this Idempotency-Key is still running.');
-    res.set('Idempotent-Replayed', 'true');
-    return res.status(hit.status).json(hit.body);
-  }
-  idem.set(k, { at: Date.now(), pending: true });
-  if (idem.size > 20000) for (const [key, v] of idem) if (Date.now() - v.at > IDEM_TTL) idem.delete(key);
-  const json = res.json.bind(res);
-  res.json = (body) => {
-    // Only a settled answer is replayed; a server error can be retried.
-    if (res.statusCode < 500) idem.set(k, { at: Date.now(), status: res.statusCode, body });
-    else idem.delete(k);
-    return json(body);
-  };
-  return run();
+  return respondCommon(res, err, what);
 }
 
 async function deliver(req, phone, template, opts) {
@@ -183,6 +144,7 @@ async function deliver(req, phone, template, opts) {
 
 router.get('/templates', async (req, res) => {
   try {
+    requireSecret(req);
     const rows = await Template.find({ businessId: req.business._id, status: 'APPROVED' }).sort({ name: 1 }).lean();
     res.json({ data: rows.map(describe) });
   } catch (err) {
@@ -192,7 +154,7 @@ router.get('/templates', async (req, res) => {
 
 router.post('/messages/template', (req, res) => once(req, res, async () => {
   try {
-    ready(req.business);
+    ready(req.business, req);
     const b = req.body || {};
     const phone = phoneOf(b.to);
     const t = await approvedTemplate(req.business._id, b.template);
@@ -233,6 +195,7 @@ router.post('/messages/template', (req, res) => once(req, res, async () => {
 
 router.get('/messages/:id', async (req, res) => {
   try {
+    requireSecret(req);
     const id = String(req.params.id || '');
     if (!/^[\w.=:-]{8,200}$/.test(id)) throw new ApiFail(400, 'invalid_id', 'That isn’t a message id.');
     const m = await Message.findOne({ businessId: req.business._id, metaMessageId: id, direction: 'out' })
@@ -250,7 +213,7 @@ router.get('/messages/:id', async (req, res) => {
 
 router.post('/otp/send', (req, res) => once(req, res, async () => {
   try {
-    ready(req.business);
+    ready(req.business, req);
     const b = req.body || {};
     const phone = phoneOf(b.to);
     let t;
@@ -286,6 +249,7 @@ router.post('/otp/send', (req, res) => once(req, res, async () => {
 
 router.post('/otp/verify', async (req, res) => {
   try {
+    requireSecret(req);
     const b = req.body || {};
     const phone = phoneOf(b.to);
     const code = String(b.code ?? '').trim();
@@ -296,6 +260,9 @@ router.post('/otp/verify', async (req, res) => {
     respondError(res, err, 'otp verify');
   }
 });
+
+// Catalog, categories, members, slots, offers, bookings (routes/publicData.js).
+router.use(dataRouter);
 
 router.use((req, res) => apiError(res, 404, 'not_found', `No API endpoint ${req.method} ${req.baseUrl}${req.path}.`));
 

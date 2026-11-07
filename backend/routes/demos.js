@@ -2,6 +2,7 @@
 // admin panel's Demo Requests list.
 import express from 'express';
 import DemoRequest from '../models/DemoRequest.js';
+import ContactMessage from '../models/ContactMessage.js';
 import { requireSuperAdmin } from '../middleware/auth.js';
 import { VERTICALS } from '../services/verticals.js';
 import { slotsFor, dateProblem, calendarWindow, istToDate, istToday, DEMO_TZ } from '../services/demoSlots.js';
@@ -89,6 +90,52 @@ router.post('/requests', async (req, res) => {
   }
 });
 
+// The website's Contact page. Same per-IP cap as bookings (its own counter).
+const contactHits = new Map();
+function contactLimited(ip) {
+  const now = Date.now();
+  const recent = (contactHits.get(ip) || []).filter((t) => now - t < 60 * 60_000);
+  recent.push(now);
+  contactHits.set(ip, recent);
+  if (contactHits.size > 5000) contactHits.clear();
+  return recent.length > 5;
+}
+const TOPICS = ['sales', 'support', 'partnership', 'api', 'other'];
+
+router.post('/contact', async (req, res) => {
+  const b = req.body || {};
+  // A hidden field people never fill in; bots that fill every field are dropped quietly.
+  if (s(b.website, 200)) return res.status(201).json({ success: true });
+  const form = {
+    name: s(b.name, 120),
+    email: s(b.email, 160).toLowerCase(),
+    phone: String(b.phone || '').replace(/\D/g, '').slice(0, 15),
+    company: s(b.company, 160),
+    topic: TOPICS.includes(s(b.topic, 20)) ? s(b.topic, 20) : 'other',
+    message: s(b.message, 4000),
+    page: s(b.page, 200),
+  };
+  const errors = {};
+  if (!form.name) errors.name = 'Enter your name';
+  if (!EMAIL_RE.test(form.email)) errors.email = 'Enter a valid email';
+  if (form.phone && (form.phone.length < 8 || form.phone.length > 15)) errors.phone = 'Enter a valid phone number with country code';
+  if (form.message.length < 10) errors.message = 'Tell us a little more (at least 10 characters)';
+  if (Object.keys(errors).length) {
+    return res.status(400).json({ success: false, message: Object.values(errors)[0], errors });
+  }
+  if (contactLimited(req.ip)) {
+    return res.status(429).json({ success: false, message: 'Too many messages from this connection. Please try again later, or WhatsApp us.' });
+  }
+  try {
+    const doc = await ContactMessage.create({ ...form, status: 'new', ip: String(req.ip || '').slice(0, 64) });
+    logger.info('contact message received', { topic: form.topic, email: form.email });
+    return res.status(201).json({ success: true, data: { _id: doc._id } });
+  } catch (err) {
+    logger.error('contact message failed', { error: err.message });
+    return res.status(500).json({ success: false, message: 'Could not send your message. Please try again, or WhatsApp us.' });
+  }
+});
+
 // -------------------------------------------------------------- admin --
 
 const admin = express.Router();
@@ -159,6 +206,31 @@ admin.patch('/:id', async (req, res) => {
 admin.delete('/:id', async (req, res) => {
   await DemoRequest.deleteOne({ _id: req.params.id });
   res.json({ success: true, counts: await counts() });
+});
+
+// Website Contact page messages.
+admin.get('/contacts', async (req, res) => {
+  const status = s(req.query.status, 20);
+  const filter = ['new', 'replied', 'closed'].includes(status) ? { status } : {};
+  const data = await ContactMessage.find(filter).sort({ createdAt: -1 }).limit(500).lean();
+  const [newN, all] = await Promise.all([
+    ContactMessage.countDocuments({ status: 'new' }),
+    ContactMessage.countDocuments({}),
+  ]);
+  res.json({ success: true, data, counts: { new: newN, all } });
+});
+
+admin.patch('/contacts/:id', async (req, res) => {
+  const b = req.body || {};
+  const set = {};
+  if (b.status !== undefined) {
+    if (!['new', 'replied', 'closed'].includes(b.status)) return res.status(400).json({ success: false, message: 'Unknown status' });
+    set.status = b.status;
+  }
+  if (b.notes !== undefined) set.notes = s(b.notes, 2000);
+  const r = await ContactMessage.updateOne({ _id: req.params.id }, { $set: set });
+  if (!r.matchedCount) return res.status(404).json({ success: false, message: 'Not found' });
+  res.json({ success: true });
 });
 
 export { admin as demoAdminRouter };

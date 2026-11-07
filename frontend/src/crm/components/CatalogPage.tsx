@@ -2,6 +2,7 @@
 // availability toggle, and a "Sync to Meta" action. When no catalog is
 // connected, displays an onboarding view with catalog.svg, feature benefits,
 // and a connect modal flow ending in a celebratory connection success screen.
+import { DataApiButton } from './DataApiDialog';
 import { useEffect, useMemo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { BusinessProfile, BusinessSettings, Category, MetaCatalogLogin, Offer, OfferItem, Product, ProductVariant } from '../types';
@@ -867,6 +868,7 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
         {/* Sync and + once there are products; an empty catalog has its own button. */}
         {!loading && products.length > 0 && (
           <>
+            <DataApiButton api={api} resource="catalog" labels={{ many: 'Products', one: 'Product' }} />
             <button className="k-btn ghost sm" onClick={sync} disabled={syncing}>
               <span className="material-icons">sync</span> {syncing ? 'Syncing…' : 'Sync to Meta'}
             </button>

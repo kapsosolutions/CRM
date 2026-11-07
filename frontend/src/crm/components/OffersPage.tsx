@@ -2,6 +2,7 @@
 // variant (size) gets its own discount (percent or flat); checking a whole
 // product selects all its sizes. Cards show the original price struck through
 // next to the offer price. Tap + to build a new offer (full-page editor below).
+import { DataApiButton } from './DataApiDialog';
 import { useEffect, useMemo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { CatalogSyncResult, Offer, OfferItem, Product, ProductVariant } from '../types';
@@ -201,6 +202,7 @@ export function OffersPage({ api, business, demo, onConnected }: Props) {
       {!loading && offers.length > 0 && (
         <header className="page-head">
           <span className="page-head-fill" />
+          <DataApiButton api={api} resource="offers" labels={{ many: 'Offers', one: 'Offer' }} />
           <button className="page-add" onClick={() => setEditing('new')} title="Create offer">
             <span className="material-icons">add</span>
           </button>

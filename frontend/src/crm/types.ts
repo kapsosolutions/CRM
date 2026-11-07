@@ -36,10 +36,17 @@ export interface Chat {
 /** How long Mute notifications lasts. */
 export type MuteFor = '8h' | '1w' | 'always';
 
+/** secret: server-side, every endpoint · publishable: a website's pages, read-only. */
+export type ApiKeyType = 'secret' | 'publishable';
+
 /** A key for the public API (/api/v1). `key` is only there right after it's made. */
 export interface ApiKeyInfo {
   id: string;
   name: string;
+  /** Older servers don't say: a secret key. */
+  type?: ApiKeyType;
+  /** Publishable keys: the websites they work on. */
+  allowedOrigins?: string[];
   prefix: string;
   lastFour: string;
   createdAt: string;

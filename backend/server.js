@@ -13,6 +13,7 @@ import logger from './services/logger.js';
 import db from './db/index.js';
 import { setIO, roomFor } from './services/eventBus.js';
 import { businessFromToken } from './middleware/auth.js';
+import { apiCors } from './middleware/apiKey.js';
 import { syncAllWebhooks } from './services/webhookSetup.js';
 import { runTenantMigration } from './services/tenantMigration.js';
 import { backfillJoinCodes } from './services/sandbox.js';
@@ -120,7 +121,11 @@ io.on('connection', (socket) => {
 app.set('trust proxy', 'loopback');
 // Don't advertise the server software.
 app.disable('x-powered-by');
-app.use(cors(corsOptions));
+// The public API (/api/v1) is called from businesses' own websites, so it
+// has its own CORS (middleware/apiKey.js apiCors: the key decides who may
+// use it). Everything else keeps the CRM's own origins.
+app.use('/api/v1', apiCors);
+app.use((req, res, next) => (req.path.startsWith('/api/v1/') || req.path === '/api/v1' ? next() : cors(corsOptions)(req, res, next)));
 // Capture raw body for WhatsApp signature verification.
 app.use(
   express.json({

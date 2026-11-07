@@ -1,12 +1,11 @@
 // "Use from your apps": the API keys for the public API (/api/v1) and, for one
 // template, a ready-to-copy request in cURL, Node.js and Python. Opened from
 // the Templates list (the API column, or "API keys" in the header).
-import { CopyIcon } from './AppIcons';
 import { useEffect, useMemo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { ApiKeyInfo, TemplateItem } from '../types';
-import { useConfirm, useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
+import { API_DOCS_URL, ApiCode, ApiKeysSection } from './ApiKeys';
 import { templateVarCount } from './TemplateDrawer';
 import './TemplateApiDialog.css';
 
@@ -23,8 +22,6 @@ const headerFormat = (t: TemplateItem) => {
   const h = (t.components || []).find((c) => String(c.type).toUpperCase() === 'HEADER');
   return String(h?.format || '').toLowerCase();
 };
-const when = (iso: string | null) =>
-  iso ? new Date(iso).toLocaleString('en-IN', { day: 'numeric', month: 'short', year: 'numeric', hour: 'numeric', minute: '2-digit' }) : 'never';
 
 /** One request as cURL / Node.js / Python. */
 function sample(lang: Lang, url: string, key: string, body: Record<string, unknown>, idempotent: boolean): string {
@@ -67,26 +64,6 @@ function sample(lang: Lang, url: string, key: string, body: Record<string, unkno
   ].join('\n');
 }
 
-function Code({ text, testId }: { text: string; testId?: string }) {
-  const notify = useNotify();
-  const copy = async () => {
-    try {
-      await navigator.clipboard.writeText(text);
-      notify('success', 'Copied', '');
-    } catch {
-      notify('error', 'Could not copy', 'Select the text and copy it.');
-    }
-  };
-  return (
-    <div className="tad-code">
-      <pre data-testid={testId}><code>{text}</code></pre>
-      <button type="button" className="tad-copy" onClick={copy} aria-label="Copy">
-        <CopyIcon />
-      </button>
-    </div>
-  );
-}
-
 export function TemplateApiDialog({
   api, template, connected, onClose,
 }: {
@@ -97,11 +74,6 @@ export function TemplateApiDialog({
   connected: boolean;
   onClose: () => void;
 }) {
-  const confirm = useConfirm();
-  const notify = useNotify();
-  const [keys, setKeys] = useState<ApiKeyInfo[] | null>(null);
-  const [name, setName] = useState('');
-  const [busy, setBusy] = useState(false);
   const [fresh, setFresh] = useState<ApiKeyInfo | null>(null);
   const [lang, setLang] = useState<Lang>('curl');
 
@@ -111,44 +83,8 @@ export function TemplateApiDialog({
     window.addEventListener('keydown', k);
     return () => window.removeEventListener('keydown', k);
   }, [onClose]);
-  useEffect(() => {
-    api.listApiKeys().then((r) => setKeys(r.data || [])).catch(() => setKeys([]));
-  }, [api]);
-
-  async function create() {
-    setBusy(true);
-    try {
-      const r = await api.createApiKey(name.trim() || 'API key');
-      setFresh(r.data);
-      setName('');
-      const { key: _secret, ...row } = r.data;
-      setKeys((list) => [row, ...(list || [])]);
-    } catch (e) {
-      notify('error', 'Couldn’t create the key', (e as Error).message || 'Please try again.');
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  async function revoke(k: ApiKeyInfo) {
-    const ok = await confirm({
-      title: `Revoke “${k.name}”?`,
-      message: 'Apps using this key stop working at once. This can’t be undone; you can make a new key any time.',
-      confirmLabel: 'Revoke',
-    });
-    if (!ok) return;
-    try {
-      await api.revokeApiKey(k.id);
-      setKeys((list) => (list || []).filter((x) => x.id !== k.id));
-      if (fresh?.id === k.id) setFresh(null);
-      notify('success', 'Key revoked', '');
-    } catch (e) {
-      notify('error', 'Couldn’t revoke the key', (e as Error).message || 'Please try again.');
-    }
-  }
-
   const origin = api.apiOrigin();
-  const key = fresh?.key || KEY_PLACEHOLDER;
+  const key = (fresh?.type !== 'publishable' && fresh?.key) || KEY_PLACEHOLDER;
   const approved = String(template?.status || '').toUpperCase() === 'APPROVED';
   const auth = isAuth(template);
   const requests = useMemo(() => {
@@ -224,55 +160,7 @@ export function TemplateApiDialog({
             </div>
           )}
 
-          <section className="tad-sec">
-            <h4>{template ? '1. Your API key' : 'Your API keys'}</h4>
-            {fresh?.key && (
-              <div className="tad-fresh" data-testid="tad-fresh-key">
-                <div className="tad-fresh-head">
-                  <span className="material-icons" aria-hidden="true">key</span>
-                  <strong>Copy your new key now.</strong> You won’t see it again.
-                </div>
-                <Code text={fresh.key} testId="tad-secret" />
-                <p className="tad-hint">Keep it on your server (an environment variable), never in a website’s or app’s code.</p>
-              </div>
-            )}
-            <div className="tad-new">
-              <input
-                className="k-input"
-                placeholder="Key name, e.g. Website or Booking app"
-                value={name}
-                maxLength={60}
-                onChange={(e) => setName(e.target.value)}
-                onKeyDown={(e) => e.key === 'Enter' && !busy && create()}
-                aria-label="Key name"
-                data-testid="tad-key-name"
-              />
-              <button type="button" className="k-btn tad-create" onClick={create} disabled={busy} data-testid="tad-create-key">
-                <span className="material-icons" aria-hidden="true">add</span>
-                {busy ? 'Creating…' : 'Create key'}
-              </button>
-            </div>
-            {keys === null ? (
-              <p className="tad-hint">Loading…</p>
-            ) : keys.length === 0 ? (
-              <p className="tad-hint" data-testid="tad-no-keys">No keys yet. Create one to start.</p>
-            ) : (
-              <ul className="tad-keys" data-testid="tad-keys">
-                {keys.map((k) => (
-                  <li key={k.id} className="tad-key">
-                    <div className="tad-key-main">
-                      <span className="tad-key-name">{k.name}</span>
-                      <code className="tad-key-mask">{k.prefix}…{k.lastFour}</code>
-                    </div>
-                    <span className="tad-key-meta">
-                      Created {when(k.createdAt)} · last used {when(k.lastUsedAt)}
-                    </span>
-                    <button type="button" className="tad-revoke" onClick={() => revoke(k)} data-testid="tad-revoke">Revoke</button>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <ApiKeysSection api={api} heading={template ? '1. Your API key (a secret key, on your server)' : 'Your API keys'} onFresh={setFresh} />
 
           {template && (
             <section className="tad-sec">
@@ -302,10 +190,10 @@ export function TemplateApiDialog({
                     <span className="tad-req-label">{r.title}</span>
                   </div>
                   <p className="tad-hint">{r.note}</p>
-                  <Code text={sample(lang, r.url, key, r.body, r.idempotent)} testId="tad-sample" />
+                  <ApiCode text={sample(lang, r.url, key, r.body, r.idempotent)} testId="tad-sample" />
                   <details className="tad-resp">
                     <summary>Response</summary>
-                    <Code text={JSON.stringify(r.response, null, 2)} />
+                    <ApiCode text={JSON.stringify(r.response, null, 2)} />
                   </details>
                 </div>
               ))}
@@ -321,6 +209,10 @@ export function TemplateApiDialog({
               <li>Add an <code>Idempotency-Key</code> header to retry a send safely: the same key within 24 hours won’t send twice.</li>
               <li>Up to 120 requests a minute per key. Errors come back as <code>{'{ "error": { "code", "message" } }'}</code>.</li>
               <li>Messages sent through the API appear in your Chats, and count like any other template.</li>
+              <li>
+                Full reference, every endpoint and error:{' '}
+                <a href={API_DOCS_URL} target="_blank" rel="noopener noreferrer">kapsosolutions.com/docs</a>
+              </li>
             </ul>
           </section>
         </div>
