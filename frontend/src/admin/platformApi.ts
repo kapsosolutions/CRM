@@ -190,6 +190,21 @@ export interface DashboardStats {
 export type DemoStatus = 'scheduled' | 'completed' | 'not_answered' | 'not_interested' | 'cancelled';
 export type DemoView = 'today' | 'upcoming' | 'missed' | DemoStatus | 'all';
 
+export type ContactStatus = 'new' | 'replied' | 'closed';
+export interface ContactMessage {
+  _id: string;
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  topic: 'sales' | 'support' | 'partnership' | 'api' | 'other';
+  message: string;
+  status: ContactStatus;
+  notes: string;
+  page: string;
+  createdAt?: string;
+}
+
 export interface DemoRequest {
   _id: string;
   name: string;
@@ -440,6 +455,18 @@ export const platformApi = {
   },
   deleteDemo(id: string) {
     return req<{ success: boolean; counts: DemoCounts }>(`/api/admin/demos/${id}`, { method: 'DELETE' }, adminToken());
+  },
+
+  // ---- Contact page messages (kapsosolutions.com/contact) ----
+  listContacts(status: ContactStatus | 'all' = 'all') {
+    return req<{ success: boolean; data: ContactMessage[]; counts: { new: number; all: number } }>(
+      `/api/admin/demos/contacts${status === 'all' ? '' : `?status=${status}`}`,
+      {},
+      adminToken(),
+    );
+  },
+  updateContact(id: string, body: Partial<Pick<ContactMessage, 'status' | 'notes'>>) {
+    return req<{ success: boolean }>(`/api/admin/demos/contacts/${id}`, { method: 'PATCH', body: JSON.stringify(body) }, adminToken());
   },
 
   // ---- Business session (sign-in itself lives in site/siteApi.ts) ----

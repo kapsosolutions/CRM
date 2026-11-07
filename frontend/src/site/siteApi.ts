@@ -53,6 +53,20 @@ export interface DemoBooking {
   slot: string;
 }
 
+export type ContactTopic = 'sales' | 'support' | 'partnership' | 'api' | 'other';
+export interface ContactForm {
+  name: string;
+  email: string;
+  phone: string;
+  company: string;
+  topic: ContactTopic;
+  message: string;
+  /** The page it was sent from. */
+  page: string;
+  /** Hidden from people; a bot that fills it is ignored. */
+  website: string;
+}
+
 /** A failed request, with per-field messages when the server sent them. */
 export class FormError extends Error {
   constructor(message: string, public fields: Record<string, string> = {}, public code = '') {
@@ -94,6 +108,8 @@ export const siteApi = {
       '/api/demo/requests',
       body,
     ),
+  // ---- Contact page ----
+  contact: (body: ContactForm) => post<{ success: boolean }>('/api/demo/contact', body),
   googleComplete: (accessToken: string, form: Pick<RegisterForm, 'firstName' | 'lastName' | 'phone' | 'category'>) =>
     post<SessionResult>('/api/auth/google/complete', { accessToken, ...form }),
 };

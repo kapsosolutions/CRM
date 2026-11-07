@@ -9,6 +9,7 @@ import {
 import { verticalConfig } from '../crm/verticals';
 import { useConfirm, useNotify } from '../crm/components/Dialogs';
 import { Pager, usePaged } from '../crm/components/Pager';
+import { ContactMessagesPanel } from './ContactMessagesPanel';
 
 const TABS: { key: DemoView; label: string; icon: ReactNode; count?: keyof DemoCounts }[] = [
   { key: 'today', label: 'Today', icon: <CalendarIcon />, count: 'today' },
@@ -49,6 +50,13 @@ export function DemoRequestsPage() {
   const [today, setToday] = useState('');
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<DemoRequest | null>(null);
+  const [section, setSection] = useState<'demos' | 'messages'>('demos');
+  const [newMessages, setNewMessages] = useState(0);
+
+  // How many Contact page messages wait for a reply (shown on the tab).
+  useEffect(() => {
+    platformApi.listContacts('new').then((r) => setNewMessages(r.counts?.new || 0)).catch(() => {});
+  }, []);
 
   const load = useCallback(() => {
     setLoading(true);
@@ -93,14 +101,38 @@ export function DemoRequestsPage() {
     load();
   }
 
+  const head = (
+    <header className="pa-page-head">
+      <div>
+        <h1>Demo Requests</h1>
+        <p className="pa-page-sub">
+          {section === 'demos' ? 'Demos booked from the website. Times are India Standard Time.' : 'Messages sent from the website’s Contact page.'}
+        </p>
+      </div>
+      <div className="pa-segments" role="tablist" aria-label="Section">
+        <button role="tab" aria-selected={section === 'demos'} className={`pa-seg${section === 'demos' ? ' on' : ''}`} onClick={() => setSection('demos')}>
+          Demos
+        </button>
+        <button role="tab" aria-selected={section === 'messages'} className={`pa-seg${section === 'messages' ? ' on' : ''}`} onClick={() => setSection('messages')} data-testid="admin-contact-tab">
+          Messages
+          {newMessages > 0 && <span className="dr-count">{newMessages}</span>}
+        </button>
+      </div>
+    </header>
+  );
+
+  if (section === 'messages') {
+    return (
+      <div className="pa-page">
+        {head}
+        <ContactMessagesPanel onCount={setNewMessages} />
+      </div>
+    );
+  }
+
   return (
     <div className="pa-page">
-      <header className="pa-page-head">
-        <div>
-          <h1>Demo Requests</h1>
-          <p className="pa-page-sub">Demos booked from the website. Times are India Standard Time.</p>
-        </div>
-      </header>
+      {head}
 
       {/* ---------- Summary cards ---------- */}
       <div className="pa-stat-grid">

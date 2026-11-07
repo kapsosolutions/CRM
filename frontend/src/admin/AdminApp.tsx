@@ -1,17 +1,21 @@
-// Top-level router (hash based) for the multi-tenant host:
+// Top-level router for the multi-tenant host. Hash routes come first:
 //   #/admin            → super-admin panel (admin login gate)
 //   #/demo             → demo CRM (in-memory, no backend)
+//   #/login, #/register, #/app/…, #/privacy …  as before
+// Then the path: the website's pages (/pricing, /product/…, /docs …, see
+// site/SiteRoutes.tsx) show for everyone, signed in or not. At "/":
 //   signed-in business → the CRM
-//   otherwise          → public site: landing (#/), #/login, #/register,
-//                        #/register/google
+//   otherwise          → the landing page
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
 import { platformApi } from './platformApi';
 import { useConfirm } from '../crm/components/Dialogs';
 import { exitApp, resetBackHandler, useBackHandler } from '../crm/useBackHandler';
 import { LandingPage } from '../site/LandingPage';
 import { LoginPage, RegisterPage, GoogleReturn, AuthCard, Field, useSignedOutReason } from '../site/AuthPages';
-import { TermsPage, PrivacyPage, RefundPage, DataDeletionPage, ContactPage } from '../site/LegalPages';
+import { TermsPage, PrivacyPage, RefundPage, DataDeletionPage } from '../site/LegalPages';
 import { readOAuthReturn } from '../site/siteApi';
+import { NAV_EVENT, useSitePath } from '../site/siteNav';
+import { Redirect, SiteRoutes } from '../site/SiteRoutes';
 import '../site/site.css';
 import './admin.css';
 
@@ -67,9 +71,12 @@ function useHashRoute() {
     const on = () => setHash(window.location.hash || '');
     window.addEventListener('hashchange', on);
     window.addEventListener('popstate', on);
+    // A website link (navigate()) can drop the hash: /#/register → /pricing.
+    window.addEventListener(NAV_EVENT, on);
     return () => {
       window.removeEventListener('hashchange', on);
       window.removeEventListener('popstate', on);
+      window.removeEventListener(NAV_EVENT, on);
     };
   }, []);
   return hash.replace(/^#/, '');
@@ -142,18 +149,27 @@ function AdminLoginPage({
   );
 }
 
+/** Hash routes that win over the path (in-page anchors like #errors don't). */
+const HASH_ROUTE = /^\/(admin|demo|login|register|app|terms|privacy|refund|data-deletion|contact)(\/|\?|$)/;
+
 export function AdminApp() {
   const route = useHashRoute();
+  const path = useSitePath();
   const [, force] = useState(0);
   const rerender = () => force((n) => n + 1);
   const confirm = useConfirm();
 
+  // A website page (/pricing …) unless a hash route or a sign-in return says otherwise.
+  const onSitePage = path !== '/' && !HASH_ROUTE.test(route) && !readOAuthReturn(route);
+
   // Signed in (CRM or admin panel): Back at the top level must not drop the
   // user onto the login screen (or out of the site) by accident. It asks.
   const isAdminArea = route.startsWith('/admin');
-  const signedIn = isAdminArea
-    ? platformApi.adminLoggedIn()
-    : !route.startsWith('/demo') && platformApi.businessLoggedIn();
+  const signedIn = onSitePage
+    ? false
+    : isAdminArea
+      ? platformApi.adminLoggedIn()
+      : !route.startsWith('/demo') && platformApi.businessLoggedIn();
   useBackHandler(
     signedIn,
     async () => {
@@ -175,6 +191,15 @@ export function AdminApp() {
     save();
     rerender();
   };
+
+  // ----- Website pages (everyone) -----
+  if (onSitePage) {
+    return (
+      <Loading>
+        <SiteRoutes path={path} />
+      </Loading>
+    );
+  }
 
   // ----- Super admin area -----
   if (route.startsWith('/admin')) {
@@ -252,7 +277,8 @@ export function AdminApp() {
   if (page === 'privacy') return <PrivacyPage />;
   if (page === 'refund') return <RefundPage />;
   if (page === 'data-deletion') return <DataDeletionPage />;
-  if (page === 'contact') return <ContactPage />;
+  // The old contact page is now the website's /contact.
+  if (page === 'contact') return <Redirect to="/contact" />;
 
   if (!platformApi.businessLoggedIn()) {
     // A CRM page (#/app/…) while signed out: sign in, then that page opens.

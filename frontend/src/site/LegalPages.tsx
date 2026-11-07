@@ -1,5 +1,7 @@
 import type { ReactNode } from 'react';
-import { SiteHeader } from './LandingPage';
+import { SiteFooter, SiteHeader, SiteLink } from './SiteChrome';
+import { PAGE_META } from './siteMeta';
+import { useSeo } from './siteNav';
 import './site.css';
 
 // ---------------------------------------------------------------------------
@@ -31,29 +33,32 @@ const courts = LEGAL.courtsCity ? `the courts at ${LEGAL.courtsCity}, India` : '
 const mail = (to: string) => <a href={`mailto:${to}`}>{to}</a>;
 
 const DOCS = [
-  { route: '#/terms', label: 'Terms' },
-  { route: '#/privacy', label: 'Privacy' },
-  { route: '#/refund', label: 'Refunds' },
-  { route: '#/data-deletion', label: 'Data deletion' },
-  { route: '#/contact', label: 'Contact' },
+  { route: '/terms', label: 'Terms' },
+  { route: '/privacy', label: 'Privacy' },
+  { route: '/refund', label: 'Refunds' },
+  { route: '/data-deletion', label: 'Data deletion' },
+  { route: '/contact', label: 'Contact' },
 ] as const;
 
-function LegalLayout({ route, title, children }: { route: (typeof DOCS)[number]['route']; title: string; children: ReactNode }) {
+function LegalLayout({ route, title, children }: { route: Exclude<(typeof DOCS)[number]['route'], '/contact'>; title: string; children: ReactNode }) {
+  // Also reached as #/privacy (older links, Meta's app settings): the
+  // canonical address is the path.
+  useSeo(PAGE_META.get(route));
   return (
     <div className="lp-legal-page">
       <SiteHeader compact />
       <main className="lp-legal-main">
         <div className="lp-legal-container">
           <div className="lp-legal-nav">
-            <a href="#/" className="lp-legal-back">
+            <SiteLink href="/" className="lp-legal-back">
               <span className="material-icons">arrow_back</span>
               Back to Home
-            </a>
+            </SiteLink>
             <nav className="lp-legal-tabs" aria-label="Legal documents">
               {DOCS.map((d) => (
-                <a key={d.route} href={d.route} className={`lp-legal-tab${d.route === route ? ' active' : ''}`} aria-current={d.route === route ? 'page' : undefined}>
+                <SiteLink key={d.route} href={d.route} className={`lp-legal-tab${d.route === route ? ' active' : ''}`} aria-current={d.route === route ? 'page' : undefined}>
                   {d.label}
-                </a>
+                </SiteLink>
               ))}
             </nav>
           </div>
@@ -65,11 +70,12 @@ function LegalLayout({ route, title, children }: { route: (typeof DOCS)[number][
           </article>
         </div>
       </main>
+      <SiteFooter />
     </div>
   );
 }
 
-function GrievanceBlock() {
+export function GrievanceBlock() {
   return (
     <div className="lp-legal-box">
       <p><strong>Grievance Officer</strong></p>
@@ -109,13 +115,13 @@ const PROCESSORS = [
 // ------------------------------------------------------------------ terms --
 export function TermsPage() {
   return (
-    <LegalLayout route="#/terms" title="Terms and Conditions">
+    <LegalLayout route="/terms" title="Terms and Conditions">
       <section>
         <p>
           These Terms and Conditions (“Terms”) are an agreement between you and {LEGAL.company} (“{LEGAL.company}”, “we”, “us”)
           for the use of {LEGAL.product}, the website {LEGAL.website} and related services (together, the “Service”).
           By creating an account, starting a free trial or paying for a plan, you accept these Terms and our{' '}
-          <a href="#/privacy">Privacy Policy</a>. If you accept on behalf of a business, you confirm you are authorised to bind it.
+          <a href="/privacy">Privacy Policy</a>. If you accept on behalf of a business, you confirm you are authorised to bind it.
         </p>
       </section>
 
@@ -187,13 +193,13 @@ export function TermsPage() {
         <h2>6. Plans, free trial and payment</h2>
         <ul>
           <li><strong>Free trial.</strong> A new account gets 7 days of Premium features from the moment it signs up. No card is needed.</li>
-          <li><strong>After the trial or a plan ends.</strong> When nothing new is bought, only the Starter plan's features stay open (shown in our <a href="#/">pricing section</a>). Your data is kept, but the other features are locked until you buy a plan.</li>
+          <li><strong>After the trial or a plan ends.</strong> When nothing new is bought, only the Starter plan's features stay open (shown on our <SiteLink href="/pricing">pricing page</SiteLink>). Your data is kept, but the other features are locked until you buy a plan.</li>
           <li><strong>Paid plans.</strong> Starter, Basic, Pro and Premium are paid in advance for a monthly, quarterly or annual period through Razorpay. The price shown at checkout is the amount you pay.</li>
           <li><strong>No automatic renewal.</strong> We never charge you again on our own. To continue, renew before the period ends; a renewal starts when the current period ends.</li>
           <li><strong>Upgrades.</strong> You can upgrade at any time. The unused value of your current plan is credited against the new plan, as shown before you pay. If you buy a plan during the free trial, the unused trial days are added to it.</li>
           <li><strong>Downgrades.</strong> A lower plan can be bought once the current paid plan has ended.</li>
           <li><strong>Price changes.</strong> We may change prices for future purchases. A change never affects a period you have already paid for.</li>
-          <li><strong>Refunds.</strong> See our <a href="#/refund">Refund and Cancellation Policy</a>.</li>
+          <li><strong>Refunds.</strong> See our <a href="/refund">Refund and Cancellation Policy</a>.</li>
         </ul>
       </section>
 
@@ -216,10 +222,10 @@ export function TermsPage() {
       <section>
         <h2>9. Suspension and termination</h2>
         <ul>
-          <li>You can stop using the Service at any time and ask us to delete your account (see <a href="#/data-deletion">Data deletion</a>).</li>
+          <li>You can stop using the Service at any time and ask us to delete your account (see <a href="/data-deletion">Data deletion</a>).</li>
           <li>We may suspend or close an account that breaks these Terms or Meta’s policies, puts other customers or the Service at risk, or where the law requires it. Where reasonable, we warn you first and give you a chance to fix the problem.</li>
           <li>If we close your account without a breach on your part, we refund the unused part of your current paid period.</li>
-          <li>After closure we delete your data as described in our <a href="#/privacy">Privacy Policy</a>.</li>
+          <li>After closure we delete your data as described in our <a href="/privacy">Privacy Policy</a>.</li>
         </ul>
       </section>
 
@@ -279,7 +285,7 @@ export function TermsPage() {
 // ---------------------------------------------------------------- privacy --
 export function PrivacyPage() {
   return (
-    <LegalLayout route="#/privacy" title="Privacy Policy">
+    <LegalLayout route="/privacy" title="Privacy Policy">
       <section>
         <p>
           This policy explains what personal data {LEGAL.company} (“we”, “us”) collects through {LEGAL.product} and {LEGAL.website}
@@ -399,7 +405,7 @@ export function PrivacyPage() {
       <section>
         <h2>8. Deleting your data</h2>
         <p>
-          See <a href="#/data-deletion">Data deletion instructions</a> for how to delete your account, disconnect Meta, and how your customers
+          See <a href="/data-deletion">Data deletion instructions</a> for how to delete your account, disconnect Meta, and how your customers
           can ask for their data to be deleted.
         </p>
       </section>
@@ -483,7 +489,7 @@ export function PrivacyPage() {
 // ----------------------------------------------------------------- refund --
 export function RefundPage() {
   return (
-    <LegalLayout route="#/refund" title="Refund and Cancellation Policy">
+    <LegalLayout route="/refund" title="Refund and Cancellation Policy">
       <section>
         <h2>1. Try before you pay</h2>
         <p>
@@ -537,7 +543,7 @@ export function RefundPage() {
 // ---------------------------------------------------------- data deletion --
 export function DataDeletionPage() {
   return (
-    <LegalLayout route="#/data-deletion" title="Data Deletion Instructions">
+    <LegalLayout route="/data-deletion" title="Data Deletion Instructions">
       <section>
         <h2>1. Delete your account and all its data</h2>
         <ol className="lp-legal-steps">
@@ -575,29 +581,8 @@ export function DataDeletionPage() {
       <section>
         <h2>4. Questions</h2>
         <p>
-          Email {mail(LEGAL.privacyEmail)}. See our <a href="#/privacy">Privacy Policy</a> for what we keep and for how long.
+          Email {mail(LEGAL.privacyEmail)}. See our <a href="/privacy">Privacy Policy</a> for what we keep and for how long.
         </p>
-      </section>
-    </LegalLayout>
-  );
-}
-
-// ---------------------------------------------------------------- contact --
-export function ContactPage() {
-  return (
-    <LegalLayout route="#/contact" title="Contact Us">
-      <section>
-        <p>{LEGAL.company} — WhatsApp CRM for businesses.</p>
-        <ul>
-          <li>Sales and support: <a href={LEGAL.phoneHref}>{LEGAL.phone}</a></li>
-          <li>WhatsApp: <a href={LEGAL.whatsappHref} target="_blank" rel="noopener noreferrer">{LEGAL.phone}</a></li>
-          <li>Email: {mail(LEGAL.supportEmail)}</li>
-          <li>Privacy and data requests: {mail(LEGAL.privacyEmail)}</li>
-          {LEGAL.address ? <li>Address: {LEGAL.address}</li> : null}
-        </ul>
-      </section>
-      <section>
-        <GrievanceBlock />
       </section>
     </LegalLayout>
   );

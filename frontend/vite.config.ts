@@ -2,6 +2,7 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 import crmDarkTheme from './build/crmDarkTheme';
 import crmViewportUnits from './build/crmViewportUnits';
+import sitePages from './build/sitePages';
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => {
@@ -13,7 +14,9 @@ export default defineConfig(({ mode }) => {
   // WhatsApp signup popup refuses to run on an http:// page).
   const backend = env.BACKEND_URL || 'http://localhost:5055';
   return {
-    plugins: [react()],
+    // sitePages: one HTML file per website page with its own title and tags,
+    // plus sitemap.xml and robots.txt (build only).
+    plugins: [react(), sitePages()],
     // CRM stylesheets: viewport units that survive the 90% view (theme/scale.css),
     // and dark copies of the colour rules (switched on by <html data-theme="dark">).
     css: { postcss: { plugins: [crmViewportUnits(), crmDarkTheme()] } },

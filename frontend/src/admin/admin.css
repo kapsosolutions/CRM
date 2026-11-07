@@ -2371,3 +2371,10 @@ body.pa-dark .toast-close {
 .pa-shell .pd-box-body .k-pager {
   margin-bottom: 0;
 }
+
+/* Demo Requests → Messages (website Contact page) */
+.dr-table td.cm-message {
+  max-width: 420px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

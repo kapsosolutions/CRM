@@ -6,9 +6,9 @@
   "description": "Reusable WhatsApp-style CRM UI (React + Vite + TypeScript)",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc --noEmit -p . && tsc --noEmit -p tsconfig.node.json && vite build",
     "preview": "vite preview",
-    "lint": "tsc --noEmit"
+    "lint": "tsc --noEmit -p . && tsc --noEmit -p tsconfig.node.json"
   },
   "dependencies": {
     "@types/qrcode": "1.5.6",

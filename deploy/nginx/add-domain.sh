@@ -90,8 +90,12 @@ location /assets/ {
     include /etc/nginx/snippets/crm-security-headers.conf;
     try_files $uri =404;
 }
-# The app shell must always be fresh so a new deploy is picked up.
-location = /index.html {
+# The app shell must always be fresh so a new deploy is picked up. The
+# website's pages are copies of it (/pricing -> /pricing/index.html, made by
+# frontend/build/sitePages.ts), so they get the same headers. Only files
+# named index.html: auth-callback.html and instagram-callback.html keep
+# their own rules.
+location ~ ^/([a-z0-9-]+/)*index\.html$ {
     add_header Cache-Control "no-cache";
     include /etc/nginx/snippets/crm-security-headers.conf;
     include /etc/nginx/snippets/crm-csp.conf;
