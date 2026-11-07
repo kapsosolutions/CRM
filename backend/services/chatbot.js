@@ -14,6 +14,7 @@ import { emitMessage, emitStatus } from './eventBus.js';
 import { setReaction } from './reactions.js';
 import { touchInbound, touchOutbound, getConversation } from './conversationState.js';
 import { runJourney } from './journeyRuntime.js';
+import { automationAllowed } from './chatThrottle.js';
 import { tenantHasFeature } from './planGate.js';
 import { runFlowMap, runFlowCompletion, settlePayment } from './flowMapRuntime.js';
 import { saveFlowSubmission } from './registrations.js';
@@ -122,7 +123,9 @@ export async function handleReaction(reaction, ctx = {}) {
   }
 }
 
-const PAID_STATES = ['captured', 'success', 'successful', 'completed', 'paid', 'authorized'];
+// 'authorized' is not here on purpose: an authorised payment can still be
+// voided or never captured, so only a capture confirms the order.
+const PAID_STATES = ['captured', 'success', 'successful', 'completed', 'paid'];
 const FAILED_STATES = ['failed', 'cancelled', 'canceled', 'declined', 'expired', 'error'];
 
 /**
@@ -171,8 +174,19 @@ export async function handlePaymentUpdate(payment, ctx = {}) {
     logger.info('payment status not final, waiting', { reference, state });
     return false;
   }
+  // What was actually paid, when the update says ({ value, offset } like the
+  // order card, or a plain number). Checked against the order before it is
+  // marked paid.
+  const amt = payment.amount ?? payment.transaction?.amount;
+  let amount = null;
+  if (amt && typeof amt === 'object' && Number.isFinite(Number(amt.value))) {
+    amount = Number(amt.value) / (Number(amt.offset) > 0 ? Number(amt.offset) : 100);
+  } else if (Number.isFinite(Number(amt)) && amt !== null && amt !== '') {
+    amount = Number(amt);
+  }
+  const currency = String(payment.currency || payment.transaction?.currency || amt?.currency || '').toUpperCase();
   return settlePayment(ctx.meta || metaCloud, {
-    reference, outcome, transactionId, businessId: ctx.tenantId,
+    reference, outcome, transactionId, businessId: ctx.tenantId, amount, currency,
   });
 }
 
@@ -339,6 +353,11 @@ export async function handleMessage(msg, ctx = {}) {
     }
     return;
   }
+
+  // A chat sending far more than a person would (button mashing, another
+  // bot): the bot pauses for it a while instead of tripping Meta's pair rate
+  // limit on every reply. The messages are already filed for an agent.
+  if (!automationAllowed(ctx.tenantId, phone, { name: ctx.tenantName })) return;
 
   // On the shared test number (ctx.sandbox) only journeys run: keyword
   // templates and native Flows belong to the business's own WABA.

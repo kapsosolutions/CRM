@@ -31,8 +31,8 @@ export async function sendPlanReminders(now = new Date()) {
           type: 'plan_ending',
           title: s.status === 'trial' ? `Your free trial ends ${days}` : `Your ${s.name} plan ends ${days}`,
           body: s.status === 'trial'
-            ? `After ${dateText(s.endsAt)} you move to the Free plan (10 contacts, 3 templates). Choose a plan to keep every feature.`
-            : `Renew before ${dateText(s.endsAt)} to keep ${s.name}. After that you move to the Free plan.`,
+            ? `After ${dateText(s.endsAt)} only Chats and 3 templates stay open. Choose a plan to keep every feature.`
+            : `Renew before ${dateText(s.endsAt)} to keep ${s.name}. After that only Chats and 3 templates stay open.`,
           target: { view: 'profile', id: 'billing' },
         });
         // eslint-disable-next-line no-await-in-loop
@@ -44,7 +44,7 @@ export async function sendPlanReminders(now = new Date()) {
         await notify(biz._id, {
           type: 'plan_ended',
           title: s.ended.kind === 'trial' ? 'Your free trial has ended' : `Your ${s.ended.name} plan has ended`,
-          body: 'You\'re on the Free plan now: chats with 10 contacts and 3 templates. Choose a plan to unlock everything again.',
+          body: 'Only Chats and 3 templates are open now. Choose a plan to unlock everything again.',
           target: { view: 'profile', id: 'billing' },
         });
         // eslint-disable-next-line no-await-in-loop

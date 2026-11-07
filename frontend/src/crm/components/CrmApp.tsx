@@ -132,7 +132,7 @@ export function CrmApp({
   /** Does this live event belong to the tenant we're signed in as? */
   const mine = (id?: string) => !id || !bizRef.current || id === bizRef.current;
 
-  // The plans dialog, for a chat outside the plan (Free: after its first 10 contacts).
+  // The plans dialog, for a chat outside the plan (a plan with a contact limit).
   const { openPlans } = usePlan();
   // WhatsApp voice calls (the shell's CallProvider; absent outside the shell).
   const calls = useCalls();
@@ -1592,21 +1592,21 @@ export function CrmApp({
                 </button>
               </div>
             ) : activeChat?.locked ? (
-              // Outside the plan (Free: after its first 10 contacts). Messages
+              // Outside the plan (a plan with a contact limit). Messages
               // from them are kept; replying needs an upgrade (the server refuses too).
               <div className="plan-chat-locked" data-testid="chat-plan-locked">
                 <div>
                   <strong>Upgrade to reply to this contact</strong>
                   {isMetaChannelChat(activeChat)
                     ? `${activeChat.channel === 'instagram' ? 'Instagram' : 'Messenger'} chats are part of the Pro plan.`
-                    : 'Your Free plan includes chats with 10 contacts. Their messages are saved for when you upgrade.'}
+                    : 'Your plan doesn’t include chats with this contact. Their messages are saved for when you upgrade.'}
                 </div>
                 <button
                   type="button"
                   className="pl-btn"
                   onClick={() => openPlans(isMetaChannelChat(activeChat)
                     ? { tier: 'pro', reason: 'Instagram and Messenger chats are included from the Pro plan.' }
-                    : { tier: 'basic', reason: 'The Free plan includes chats with 10 contacts. Basic and up have no limit.' })}
+                    : { tier: 'basic', reason: 'Your plan limits the contacts you can chat with.' })}
                 >
                   <span className="material-icons" aria-hidden="true">workspace_premium</span>
                   See plans

@@ -3,9 +3,9 @@
 // each hosted image and re-encodes it, downscaled to keep the JSON small:
 //   • banners  → 1920×240 (8:1), matching the welcome-flow banner spec
 //   • option thumbnails → 180×180 (1:1)
-import axios from 'axios';
 import sharp from 'sharp';
 import logger from './logger.js';
+import { safeGetBuffer } from './safeFetch.js';
 
 // Thumbnail box for selection-list rows (static options and the dynamic rows
 // the flow endpoint serves). 1:1, small enough that a whole list stays well
@@ -24,12 +24,9 @@ export async function fetchResizedBase64(url, { width, height }) {
   let lastError = '';
   for (const timeout of attempts) {
     try {
-      const res = await axios.get(url, {
-        responseType: 'arraybuffer',
-        timeout,
-        maxContentLength: 15 * 1024 * 1024,
-      });
-      const out = await sharp(Buffer.from(res.data))
+      // A business-supplied URL: internal addresses are refused.
+      const data = await safeGetBuffer(url, { timeout, maxBytes: 15 * 1024 * 1024 });
+      const out = await sharp(data)
         .resize(width, height, { fit: 'cover' })
         .jpeg({ quality: 80 })
         .toBuffer();

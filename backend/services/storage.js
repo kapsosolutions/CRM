@@ -58,17 +58,26 @@ export function mediaFolder(businessId, bucket = 'misc') {
   return id ? `biz/${id}/${b}` : `shared/${b}`;
 }
 
-/** The storage key for one of our URLs ('' when the URL isn't ours). */
+// A key that could climb out of its folder once a server or proxy decodes /
+// normalises it ("..", encoded dots or slashes, backslashes).
+const UNSAFE_KEY = /(^|\/)\.\.?(\/|$)|%2e|%2f|%5c|\\|\/\//i;
+
+/** The storage key for one of our URLs ('' when the URL isn't ours or isn't safe). */
 export function keyFromUrl(url) {
   if (!url || typeof url !== 'string') return '';
-  const { zone, cdn } = cfg();
+  const { zone, host, cdn } = cfg();
   let key = '';
   if (cdn && url.startsWith(`${cdn}/`)) key = url.slice(cdn.length + 1);
-  else if (zone) {
-    const m = url.match(new RegExp(`^https?://[^/]+/${zone}/(.+)$`));
-    if (m) key = m[1];
-  }
-  return key.split('?')[0].split('#')[0];
+  else if (zone && url.startsWith(`https://${host}/${zone}/`)) key = url.slice(`https://${host}/${zone}/`.length);
+  key = key.split('?')[0].split('#')[0];
+  if (!key || key.startsWith('/') || UNSAFE_KEY.test(key)) return '';
+  return key;
+}
+
+/** May a request for `owner` (a business id; '' = super admin / system) delete this key? */
+function ownsKey(key, owner) {
+  if (!owner) return true;
+  return key.startsWith(`biz/${clean(owner)}/`);
 }
 
 /** True when `url` is one of ours AND lives inside `folderPrefix`. */
@@ -150,12 +159,21 @@ const storage = {
     }
   },
 
-  async deleteByUrl(url) {
+  /**
+   * Delete one of our files. `owner` is the business making the request:
+   * then only files under biz/<owner>/ are deleted (a definition saved with
+   * another tenant's URL can't make us delete that tenant's file).
+   */
+  async deleteByUrl(url, owner = '') {
     try {
       const { zone, host, password } = cfg();
       if (!password) return false;
       const key = keyFromUrl(url);
       if (!key) return false;
+      if (!ownsKey(key, owner)) {
+        logger.warn('storage delete refused: outside the business folder', { key, owner: String(owner) });
+        return false;
+      }
       await axios.delete(`https://${host}/${zone}/${key}`, {
         headers: { AccessKey: password },
         timeout: 20000,
@@ -209,11 +227,11 @@ const storage = {
   },
 
   /** Best-effort delete of many URLs. Returns how many were removed. */
-  async deleteMany(urls = []) {
+  async deleteMany(urls = [], owner = '') {
     let n = 0;
     for (const url of new Set([...urls].filter(Boolean))) {
       // eslint-disable-next-line no-await-in-loop
-      if (await this.deleteByUrl(url)) n += 1;
+      if (await this.deleteByUrl(url, owner)) n += 1;
     }
     return n;
   },

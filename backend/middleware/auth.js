@@ -1,7 +1,7 @@
 // Auth middleware for the multi-tenant CRM.
 // Tokens are signed by services/auth.js and carry { role: 'admin' | 'business',
 // sub, username }. 'admin' = super admin (platform owner), 'business' = a tenant.
-import { verifyToken } from '../services/auth.js';
+import { verifyToken, isCurrentAdmin } from '../services/auth.js';
 import Business from '../models/Business.js';
 
 function bearer(req) {
@@ -20,6 +20,8 @@ const tokenIsStale = (payload, biz) => (payload.tv || 0) !== (biz.tokenVersion |
 export async function requireAuth(req, res, next) {
   const payload = verifyToken(bearer(req));
   if (!payload) return res.status(401).json({ success: false, message: 'Unauthorized' });
+  // An admin token minted before the admin password last changed is dead.
+  if (payload.role === 'admin' && !isCurrentAdmin(payload)) return res.status(401).json({ success: false, message: 'Unauthorized' });
   req.auth = payload;
   if (payload.role === 'business' && payload.sub) {
     try {
@@ -37,7 +39,7 @@ export async function requireAuth(req, res, next) {
 // Platform owner only (manage businesses).
 export async function requireSuperAdmin(req, res, next) {
   const payload = verifyToken(bearer(req));
-  if (!payload || payload.role !== 'admin') {
+  if (!isCurrentAdmin(payload)) {
     return res.status(401).json({ success: false, message: 'Admin only' });
   }
   req.auth = payload;

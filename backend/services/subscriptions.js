@@ -59,7 +59,7 @@ const rupees = (paise) => `₹${(paise / 100).toLocaleString('en-IN', { maximumF
 export function quote(biz, tierIn, cycleIn, now = new Date()) {
   const tier = tierOf(tierIn);
   const cycle = cycleOf(cycleIn);
-  if (!isPaidTier(tier)) throw new BillingError('Choose the Basic, Pro or Premium plan.');
+  if (!isPaidTier(tier)) throw new BillingError('Choose the Starter, Basic, Pro or Premium plan.');
   if (!cycle) throw new BillingError('Choose monthly, quarterly or annual billing.');
   const months = CYCLES[cycle];
   const listPaise = pricePaise(tier, cycle);

@@ -3,14 +3,15 @@
 // by the server (backend/services/plans.js): the tiers, prices and limits
 // here must match it.
 //
-//   Free     ₹0 — Chats with 10 contacts + 3 templates (no carousel, no
-//            authentication templates). Nothing else.
-//   Basic    No chat / template limits, campaigns, automation, catalog,
+//   Starter  ₹499 (tier key 'free') — Chats with unlimited contacts + 3
+//            templates (no carousel, no authentication templates).
+//   Basic    No template limit, campaigns, automation, catalog,
 //            orders… everything except Ads, Instagram, Messenger, Create.
 //            No authentication templates.
 //   Pro      Everything except Ads.
 //   Premium  Everything.
 // Every new business gets every feature for 7 days first (the free trial).
+// No plan limits contacts.
 // Prices are per month and are what the customer pays; quarterly and annual
 // are paid upfront.
 import type { PlanFeature, PlanLimits, PlanState, PlanTierKey } from './types';
@@ -35,17 +36,18 @@ const ALL: PlanFeature[] = [
 const without = (...f: PlanFeature[]) => ALL.filter((x) => !f.includes(x));
 
 export const LIMITS: Record<PlanTierKey, PlanLimits> = {
-  free: { features: ['chats', 'templates'], contacts: 10, templates: 3, campaignsPerMonth: 0, carousel: false, authTemplates: false },
+  free: { features: ['chats', 'templates'], contacts: null, templates: 3, campaignsPerMonth: 0, carousel: false, authTemplates: false },
   basic: { features: without('ads', 'create', 'instagram', 'messenger'), contacts: null, templates: null, campaignsPerMonth: 15, carousel: true, authTemplates: false },
   pro: { features: without('ads'), contacts: null, templates: null, campaignsPerMonth: 50, carousel: true, authTemplates: true },
   premium: { features: ALL, contacts: null, templates: null, campaignsPerMonth: null, carousel: true, authTemplates: true },
 };
 
 export const TIER_ORDER: PlanTierKey[] = ['free', 'basic', 'pro', 'premium'];
-export const TIER_NAMES: Record<PlanTierKey, string> = { free: 'Free', basic: 'Basic', pro: 'Pro', premium: 'Premium' };
+export const TIER_NAMES: Record<PlanTierKey, string> = { free: 'Starter', basic: 'Basic', pro: 'Pro', premium: 'Premium' };
 
-/** Per-month price in rupees, for each cycle (Free: 0). */
-export const PRICES: Record<Exclude<PlanTierKey, 'free'>, Record<BillingCycle, number>> = {
+/** Per-month price in rupees, for each cycle. */
+export const PRICES: Record<PlanTierKey, Record<BillingCycle, number>> = {
+  free: { monthly: 499, quarterly: 449, annual: 374 },
   basic: { monthly: 999, quarterly: 899, annual: 749 },
   pro: { monthly: 1999, quarterly: 1799, annual: 1499 },
   premium: { monthly: 2499, quarterly: 2249, annual: 1874 },
@@ -66,11 +68,11 @@ export interface PlanTier {
 export const PLANS: PlanTier[] = [
   {
     key: 'free',
-    name: 'Free',
+    name: 'Starter',
     theme: 'slate',
     description: 'Start chatting with customers on the official WhatsApp Business API.',
     includes: [
-      'Team inbox: chat with up to 10 contacts',
+      'Team inbox: chat with unlimited contacts',
       'Up to 3 message templates',
       'Connect your own WhatsApp number',
       'Official Meta Cloud API',
@@ -84,7 +86,7 @@ export const PLANS: PlanTier[] = [
     theme: 'blue',
     description: 'Unlimited chats and templates, campaigns, automation and your catalog on WhatsApp.',
     includes: [
-      'Unlimited contacts & chats',
+      'Everything in Starter',
       'Unlimited templates, incl. carousel',
       `${LIMITS.basic.campaignsPerMonth} campaigns a month (broadcast & drip)`,
       'Automation: journeys & WhatsApp Flows',
@@ -132,21 +134,20 @@ export const cycleMonths = (c: string) => BILLING_CYCLES.find((x) => x.key === c
 const inr = (n: number) => `₹${n.toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
 export const rupees = (paise: number) => inr(Math.round(paise) / 100);
 
-/** "₹1,499" per month for a plan + cycle ("₹0" for Free). */
+/** "₹1,499" per month for a plan + cycle. */
 export function monthlyPrice(tier: PlanTierKey, cycle: BillingCycle): string {
-  return tier === 'free' ? '₹0' : inr(PRICES[tier][cycle]);
+  return inr(PRICES[tier][cycle]);
 }
 
 /** What the period costs upfront: "₹17,988 billed annually". */
 export function billedText(tier: PlanTierKey, cycle: BillingCycle): string {
-  if (tier === 'free') return 'free forever';
   const total = PRICES[tier][cycle] * cycleMonths(cycle);
   return cycle === 'monthly' ? 'billed monthly' : `${inr(total)} billed ${cycle === 'annual' ? 'annually' : 'quarterly'}`;
 }
 
 /** "₹1499/month, billed annually (₹17,988)" */
 export function priceText(tier: PlanTierKey, cycle: BillingCycle): string {
-  return tier === 'free' ? '₹0' : `${monthlyPrice(tier, cycle)}/month, ${billedText(tier, cycle)}`;
+  return `${monthlyPrice(tier, cycle)}/month, ${billedText(tier, cycle)}`;
 }
 
 export const hasFeature = (state: PlanState | null | undefined, f: PlanFeature) =>
@@ -168,5 +169,5 @@ export function planStatusText(s: PlanState | null | undefined): string {
   if (s.status === 'trial') return `Free trial · ${s.daysLeft === 1 ? '1 day' : `${s.daysLeft} days`} left`;
   if (s.status === 'active') return `${s.name} · until ${date}`;
   if (s.status === 'legacy') return `${s.name}`;
-  return 'Free plan';
+  return 'No active plan';
 }

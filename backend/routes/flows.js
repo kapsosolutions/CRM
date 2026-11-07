@@ -261,7 +261,7 @@ router.put('/:id', async (req, res) => {
       const after = storage.collectCdnUrls(flow.toObject());
       const dropped = [...storage.collectCdnUrls(before)].filter((u) => !after.has(u));
       if (dropped.length) {
-        storage.deleteMany(dropped)
+        storage.deleteMany(dropped, String(req.business?._id || ''))
           .then((n) => logger.info('flow media cleaned', { flow: String(flow._id), removed: n }))
           .catch(() => {});
       }
@@ -288,7 +288,7 @@ router.patch('/:id/message', async (req, res) => {
 
     // A replaced header image/video/pdf leaves the old file orphaned.
     if (before.msgHeaderMediaUrl && before.msgHeaderMediaUrl !== flow.msgHeaderMediaUrl) {
-      storage.deleteByUrl(before.msgHeaderMediaUrl).catch(() => {});
+      storage.deleteByUrl(before.msgHeaderMediaUrl, String(req.business?._id || '')).catch(() => {});
     }
     res.json({ success: true, data: flow });
   } catch (err) {
@@ -311,7 +311,7 @@ router.delete('/:id', async (req, res) => {
       }
     }
     await flow.deleteOne();
-    if (media.length) storage.deleteMany(media).catch(() => {});
+    if (media.length) storage.deleteMany(media, String(req.business?._id || '')).catch(() => {});
   }
   res.json({ success: true });
 });

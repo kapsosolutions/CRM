@@ -77,18 +77,6 @@ export function PlanAction({
 }) {
   const cur = current?.tier;
   const paidActive = current?.status === 'active';
-  if (plan.key === 'free') {
-    return (
-      <>
-        <button type="button" className="lp-plan-try-btn" style={{ backgroundColor: plan.buttonColor }} disabled data-plan="free">
-          {cur === 'free' ? 'Current plan' : 'Free plan'}
-        </button>
-        <span className="lp-plan-action-note">
-          {cur === 'free' ? 'Upgrade any time.' : current?.status === 'trial' ? 'Where you land after the trial.' : 'Where you land if a plan ends.'}
-        </span>
-      </>
-    );
-  }
   const lower = paidActive && cur && tierRank(plan.key) < tierRank(cur);
   const same = paidActive && cur === plan.key;
   const label = busy === plan.key
@@ -165,7 +153,7 @@ export function BuyPlanModal({ onClose, api, plan, highlightTier, reason, onPaid
 
         <PlanCards
           cycle={cycle}
-          currentTier={plan?.status === 'trial' ? undefined : plan?.tier}
+          currentTier={plan?.status === 'active' || plan?.status === 'legacy' ? plan?.tier : undefined}
           highlightTier={highlightTier}
           action={(p) => <PlanAction plan={p} current={plan} busy={busy} onBuy={handleBuy} />}
         />

@@ -109,18 +109,18 @@ export function BillingPage({ api, demo = false, onNavigate, onEditProfile }: Pr
   const pill = plan.status === 'trial'
     ? { cls: 'trial', text: 'Free trial' }
     : plan.status === 'free'
-      ? { cls: 'free', text: 'Free plan' }
+      ? { cls: 'free', text: 'No active plan' }
       : { cls: 'paid', text: plan.name };
 
   const statusLine = plan.status === 'trial'
-    ? `Every feature is open during your trial. It ends on ${fmtDate(plan.endsAt)} (${plan.daysLeft === 1 ? '1 day' : `${plan.daysLeft} days`} left); after that you move to the Free plan unless you choose a plan.`
+    ? `Every feature is open during your trial. It ends on ${fmtDate(plan.endsAt)} (${plan.daysLeft === 1 ? '1 day' : `${plan.daysLeft} days`} left); after that only Chats and 3 templates stay open unless you choose a plan.`
     : plan.status === 'active'
       ? `You're on ${plan.name}${plan.cycle ? ` (${cycleLabel(plan.cycle)})` : ''} until ${fmtDate(plan.endsAt)}. Renew before then to keep it.`
       : plan.status === 'legacy'
         ? `You're on ${plan.name}: every feature, as when you joined. Buy a plan any time; it starts straight away.`
         : plan.ended?.kind === 'plan'
-          ? `Your ${plan.ended.name} plan ended on ${fmtDate(plan.ended.at)}. You're on the Free plan: chats with 10 contacts and 3 templates.`
-          : `Your free trial ended${plan.ended?.at ? ` on ${fmtDate(plan.ended.at)}` : ''}. You're on the Free plan: chats with 10 contacts and 3 templates.`;
+          ? `Your ${plan.ended.name} plan ended on ${fmtDate(plan.ended.at)}. Choose a plan to unlock everything again; until then only Chats and 3 templates stay open.`
+          : `Your free trial ended${plan.ended?.at ? ` on ${fmtDate(plan.ended.at)}` : ''}. Choose a plan to unlock everything again; until then only Chats and 3 templates stay open.`;
 
   return (
     <div className="bl-page" data-testid="billing-page">
@@ -237,7 +237,7 @@ export function BillingPage({ api, demo = false, onNavigate, onEditProfile }: Pr
         </div>
         <PlanCards
           cycle={cycle}
-          currentTier={plan.status === 'trial' ? undefined : plan.tier}
+          currentTier={plan.status === 'active' || plan.status === 'legacy' ? plan.tier : undefined}
           action={(p) => <PlanAction plan={p} current={plan} busy={busy || (demo ? 'demo' : '')} onBuy={handleBuy} />}
         />
         {demo && <p className="bl-foot">Payments are switched off in the demo.</p>}

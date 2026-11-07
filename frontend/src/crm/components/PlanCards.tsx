@@ -89,10 +89,10 @@ export function PlanCards({ cycle, action, currentTier, highlightTier }: Props) 
 
           <div className="lp-plan-specs">
             <div className="lp-plan-spec-main">
-              {plan.key === 'free' ? 'Up to 10 contacts · 3 templates' : 'Unlimited contacts & templates'}
+              {plan.key === 'free' ? 'Unlimited contacts · 3 templates' : 'Unlimited contacts & templates'}
             </div>
             <div className="lp-plan-spec-sub">
-              {plan.key === 'free' ? 'After your 7-day free trial' : 'Every feature free for 7 days'}
+              Every feature free for 7 days
             </div>
             <div className="lp-plan-spec-charges">
               <MessageChargesLink />

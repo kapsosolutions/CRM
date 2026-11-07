@@ -110,14 +110,22 @@ export async function sweepExpiredOrders() {
   let released = 0;
   for (const order of rows) {
     try {
+      // Only while it is still unpaid: a payment that lands between the
+      // query and here wins, and the order is left alone.
+      const now = new Date();
+      // eslint-disable-next-line no-await-in-loop
+      const r = await Order.updateOne(
+        {
+          _id: order._id, 'payment.status': 'pending', paid: { $ne: true }, status: { $ne: 'cancelled' },
+        },
+        {
+          $set: {
+            status: 'cancelled', cancelledAt: now, 'payment.status': 'failed', 'payment.settledAt': now,
+          },
+        },
+      );
+      if (!Number(r?.modifiedCount ?? r?.matchedCount ?? 0)) continue;
       order.status = 'cancelled';
-      order.cancelledAt = new Date();
-      order.payment = {
-        ...(order.payment?.toObject ? order.payment.toObject() : order.payment),
-        status: 'failed',
-        settledAt: new Date(),
-      };
-      await order.save();
       if (order.kind === 'booking') await releaseBookingSlot(order);
       await notify(order);
       released += 1;

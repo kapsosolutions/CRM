@@ -56,7 +56,7 @@ router.delete('/', async (req, res) => {
       return res.status(403).json({ success: false, message: 'Not your media' });
     }
 
-    const ok = await storage.deleteByUrl(url);
+    const ok = await storage.deleteByUrl(url, id);
     res.json({ success: ok });
   } catch (err) {
     logger.error('media delete failed', { error: err.message });

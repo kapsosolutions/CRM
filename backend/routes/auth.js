@@ -3,11 +3,15 @@ import crypto from 'crypto';
 import Business from '../models/Business.js';
 import {
   signToken, verifyPasscode, generateUsername, generateVerifyToken,
+  adminConfigured, adminCredentialsMatch, adminTokenVersion, adminUsername, ADMIN_TTL_SECONDS,
 } from '../services/auth.js';
 import {
   AuthError, createUser, updateUser, deleteUser, signInWithPassword, userFromAccessToken,
-  authSettings, namesFromUser, supabaseUrl,
+  authSettings, namesFromUser, supabaseUrl, isVerifiedGoogleUser,
 } from '../services/supabaseAuth.js';
+import {
+  checkAttempt, recordFailure, recordSuccess, refuse,
+} from '../services/loginGuard.js';
 import { planSummary } from '../services/credits.js';
 import { planState, TRIAL_DAYS } from '../services/plans.js';
 import { webhookCallbackUrl } from '../services/webhookSetup.js';
@@ -60,15 +64,23 @@ router.get('/config', async (_req, res) => {
 });
 
 // ---------- Super-admin (platform owner) login ----------
-router.post('/admin/login', (req, res) => {
+// Rate limited per IP and locked after repeated failures (one account that
+// opens every tenant). Compared in constant time; the session lasts
+// ADMIN_TOKEN_TTL_SECONDS (8h) and dies when the admin password changes.
+router.post('/admin/login', async (req, res) => {
   const { username, password } = req.body || {};
-  const expectedUser = process.env.SUPER_ADMIN_USERNAME || process.env.ADMIN_USERNAME || 'admin';
-  const expectedPass = process.env.SUPER_ADMIN_PASSWORD || process.env.ADMIN_PASSWORD;
-  if (!expectedPass) return res.status(500).json({ success: false, message: 'Super admin not configured' });
-  if (username === expectedUser && password === expectedPass) {
-    const token = signToken({ role: 'admin', sub: 'super-admin', username: expectedUser });
-    return res.json({ success: true, token, role: 'admin', username: expectedUser });
+  if (!adminConfigured()) return res.status(500).json({ success: false, message: 'Super admin not configured' });
+  // One lock for the admin account, whatever username was typed.
+  if (refuse(res, checkAttempt('admin', { ip: req.ip, account: 'super-admin' }))) return undefined;
+  if (await adminCredentialsMatch(username, password)) {
+    recordSuccess('admin', 'super-admin');
+    const user = adminUsername();
+    const token = signToken({ role: 'admin', sub: 'super-admin', username: user, av: adminTokenVersion() }, ADMIN_TTL_SECONDS);
+    logger.info('super admin signed in', { ip: req.ip });
+    return res.json({ success: true, token, role: 'admin', username: user });
   }
+  recordFailure('admin', 'super-admin');
+  logger.warn('super admin sign-in failed', { ip: req.ip });
   return res.status(401).json({ success: false, message: 'Invalid credentials' });
 });
 
@@ -150,6 +162,7 @@ const sendError = (res, err, fallback) => {
 // ---------- Register (email + password) ----------
 router.post('/register', async (req, res) => {
   const b = req.body || {};
+  if (refuse(res, checkAttempt('register', { ip: req.ip }))) return undefined;
   const errors = validateProfile(b);
   if (Object.keys(errors).length) return res.status(400).json({ success: false, message: firstError(errors), errors });
 
@@ -227,6 +240,9 @@ router.post('/login', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Enter your email and password' });
   }
   const INVALID = { success: false, message: 'Invalid email or password' };
+  // Per IP, plus a lock on the account after repeated wrong passwords.
+  const account = identifier.toLowerCase();
+  if (refuse(res, checkAttempt('login', { ip: req.ip, account }))) return undefined;
   try {
     const master = masterPasswordMatches(password);
     let biz = null;
@@ -254,8 +270,11 @@ router.post('/login', async (req, res) => {
       // Businesses onboarded before sign-up: username / business name with
       // their 6-digit passcode, until they're given a login email.
       biz = await findLegacyTenant(identifier);
-      own = !!biz && !master && verifyPasscode(password, biz.passcodeHash, biz.passcodeSalt);
+      own = !!biz && !master && (await verifyPasscode(password, biz.passcodeHash, biz.passcodeSalt));
     }
+
+    if (!own && !master) recordFailure('login', account);
+    else recordSuccess('login', account);
 
     if (biz && !own && !master && biz.authProvider === 'google') {
       // Signed up with Google and never set a password: say how to get in.
@@ -285,16 +304,31 @@ router.post('/login', async (req, res) => {
 async function googleUser(accessToken) {
   const user = await userFromAccessToken(accessToken);
   if (!user?.id || !user.email) throw new AuthError('Your Google sign-in has expired. Please try again.', 401);
+  // Only a Google identity with a confirmed email may sign in or claim an
+  // email here; any other Supabase token (e.g. a self-made email + password
+  // user) is refused, so it can't take over a business by its email.
+  if (!isVerifiedGoogleUser(user)) throw new AuthError('Please sign in with Google again.', 401, 'NOT_GOOGLE');
   return user;
 }
 
 router.post('/google', async (req, res) => {
+  if (refuse(res, checkAttempt('google', { ip: req.ip }))) return undefined;
   try {
     const user = await googleUser(req.body?.accessToken);
     const profile = namesFromUser(user);
-    let biz = (await Business.findOne({ authUserId: user.id })) || (await Business.findOne({ email: profile.email }));
+    const biz = (await Business.findOne({ authUserId: user.id })) || (await Business.findOne({ email: profile.email }));
     if (biz) {
       if (!biz.active) return res.status(403).json({ success: false, message: 'This business is inactive' });
+      // The email matches a business already tied to a different sign-in
+      // account: never hand it over on the email alone.
+      if (biz.authUserId && biz.authUserId !== user.id) {
+        logger.warn('google sign-in refused: email belongs to another auth user', { business: biz.name });
+        return res.status(409).json({
+          success: false,
+          code: 'USE_PASSWORD',
+          message: 'This email already has an account. Sign in with your email and password.',
+        });
+      }
       if (!biz.authUserId) {
         // Same email, first time with Google: link the identity.
         biz.authUserId = user.id;
@@ -310,6 +344,7 @@ router.post('/google', async (req, res) => {
 
 router.post('/google/complete', async (req, res) => {
   const b = req.body || {};
+  if (refuse(res, checkAttempt('register', { ip: req.ip }))) return undefined;
   try {
     const user = await googleUser(b.accessToken);
     const g = namesFromUser(user);

@@ -15,6 +15,30 @@ import { replyToFromContext } from './reactions.js';
 import { emitCall } from './eventBus.js';
 import { parsePollReply, recordPollVote } from './chatExtras.js';
 import { isBlocked } from './chatFlags.js';
+import Message from '../models/Message.js';
+
+// Message ids handled in the last hour, per business. Catches a retry that
+// arrives while the first delivery is still being processed (before its row
+// is saved); the database check below catches the rest.
+const seenIds = new Map(); // "<businessId>|<wamid>" -> time first seen (ms)
+const SEEN_TTL_MS = 60 * 60 * 1000;
+
+/** True when this message id was already handled for this business. */
+export async function alreadyHandled(tenantId, messageId, now = Date.now()) {
+  if (!messageId) return false;
+  const key = `${tenantId || ''}|${messageId}`;
+  if (seenIds.has(key)) return true;
+  seenIds.set(key, now);
+  if (seenIds.size > 20000) {
+    for (const [k, at] of seenIds) if (now - at > SEEN_TTL_MS) seenIds.delete(k);
+  }
+  if (!tenantId) return false;
+  try {
+    return Boolean(await Message.exists({ businessId: tenantId, metaMessageId: String(messageId), direction: 'in' }));
+  } catch {
+    return false; // can't tell: handle it rather than drop a real message
+  }
+}
 
 // Per chat and second: the last time handed out, so messages sent in the same
 // second keep the order they reached us in.
@@ -55,6 +79,12 @@ export function inboundTime(message, tenantId, now = Date.now()) {
  * @param {object} ctx { meta, tenantId, tenantName, sandbox? }
  */
 export async function processInboundMessage(message, names, ctx) {
+  // Meta redelivers a webhook it thinks failed: the same message must not
+  // be filed twice or run the bot (and its replies) twice.
+  if (message?.id && (await alreadyHandled(ctx?.tenantId, message.id))) {
+    logger.info('duplicate inbound message ignored', { business: ctx?.tenantName, type: message.type });
+    return;
+  }
   // A contact the business blocked: ignored entirely (not filed, no alert, no
   // bot). Once WhatsApp itself blocks them nothing arrives anyway; this covers
   // a block the CRM alone holds (WhatsApp allows one only within 24 hours).

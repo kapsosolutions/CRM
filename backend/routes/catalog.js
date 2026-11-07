@@ -206,7 +206,7 @@ router.put('/categories/:id', uploadMedia.single('image'), async (req, res) => {
     if (!cat) return res.status(404).json({ success: false, message: 'Not found' });
     // Image replaced → drop the old file (after the new one is safely stored).
     if (update.imageUrl && existing.imageUrl && existing.imageUrl !== update.imageUrl) {
-      storage.deleteByUrl(existing.imageUrl).catch(() => {});
+      storage.deleteByUrl(existing.imageUrl, String(req.business?._id || '')).catch(() => {});
     }
     res.json({ success: true, data: cat });
   } catch (err) {
@@ -218,7 +218,7 @@ router.delete('/categories/:id', async (req, res) => {
   const cat = await Category.findOne({ _id: req.params.id, ...owner(req) }).lean();
   if (cat) {
     await Category.deleteOne({ _id: req.params.id, ...owner(req) });
-    if (cat.imageUrl) storage.deleteByUrl(cat.imageUrl).catch(() => {});
+    if (cat.imageUrl) storage.deleteByUrl(cat.imageUrl, String(req.business?._id || '')).catch(() => {});
   }
   res.json({ success: true });
 });
@@ -301,7 +301,7 @@ router.put('/products/:id', uploadMedia.any(), async (req, res) => {
     // hold up to 10, so comparing only the primary would leak the rest.
     const keep = new Set(allImageUrls({ imageUrl: update.imageUrl, variants }));
     for (const old of new Set(allImageUrls(existing))) {
-      if (!keep.has(old)) storage.deleteByUrl(old).catch(() => {});
+      if (!keep.has(old)) storage.deleteByUrl(old, String(req.business?._id || '')).catch(() => {});
     }
 
     const sync = await catalog.syncProductToMeta(product, req.business);
@@ -329,7 +329,7 @@ router.delete('/products/:id', async (req, res) => {
     const urls = allImageUrls(product);
     await catalog.deleteProductFromMeta(product, req.business).catch(() => {});
     await product.deleteOne();
-    for (const u of new Set(urls)) storage.deleteByUrl(u).catch(() => {});
+    for (const u of new Set(urls)) storage.deleteByUrl(u, String(req.business?._id || '')).catch(() => {});
   }
   res.json({ success: true });
 });

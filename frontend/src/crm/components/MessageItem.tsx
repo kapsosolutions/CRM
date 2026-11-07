@@ -28,6 +28,7 @@ import {
 import { ReactionPicker } from './ReactionPicker';
 import { ReactionDetails, type ReactionPerson } from './ReactionDetails';
 import { LocationMap } from './LocationMap';
+import { safeUrl } from '../safeUrl';
 
 export function MsgReplySvg({ width = 18, height = 18 }: { width?: number; height?: number }) {
   return (
@@ -631,7 +632,7 @@ export const MessageItem = memo(function MessageItem({
                       <a
                         className="rich-btn"
                         key={i}
-                        href={b.url}
+                        href={safeUrl(b.url)}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
@@ -722,7 +723,7 @@ export const MessageItem = memo(function MessageItem({
                   <div className="msg-card-btns">
                     {c.buttons.map((b, j) =>
                       b.kind === 'cta' && b.url ? (
-                        <a className="msg-card-btn" key={j} href={b.url} target="_blank" rel="noopener noreferrer">
+                        <a className="msg-card-btn" key={j} href={safeUrl(b.url)} target="_blank" rel="noopener noreferrer">
                           <span className="material-icons">open_in_new</span> {b.text}
                         </a>
                       ) : b.kind === 'catalog' || b.kind === 'mpm' || /catalog|items?/i.test(b.text) ? (

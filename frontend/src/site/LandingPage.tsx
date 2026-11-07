@@ -240,8 +240,8 @@ const FAQ_ITEMS: FaqItem[] = [
     a: 'Yes, Kapso Solutions is an Official WhatsApp Business Solution Partner (BSP) built on WhatsApp Business APIs.',
   },
   {
-    q: 'Does Kapso Solutions offer a FREE account?',
-    a: 'Yes. Kapso Solutions offers a FREE forever plan, providing businesses with free access to the WhatsApp Business API. This plan is perfect for small and medium-sized businesses to start their WhatsApp marketing journey with zero upfront costs.',
+    q: 'Can I try Kapso Solutions for free?',
+    a: 'Yes. Every new account gets a 7-day free trial with every feature, and no card is needed. After that, plans start at ₹499 a month with the Starter plan: a team inbox for unlimited contacts on the official WhatsApp Business API.',
   },
   {
     q: 'Is there any WhatsApp Business API procurement fee for a brand/business?',
@@ -490,14 +490,12 @@ export function LandingPage() {
                     className="lp-plan-try-btn"
                     style={{ backgroundColor: plan.buttonColor }}
                   >
-                    {plan.key === 'free' ? 'Get started free' : 'Start 7-day free trial'}
+                    Start 7-day free trial
                   </a>
-                  {plan.key !== 'free' && (
-                    <a href="#/register" className="lp-plan-buy-link">
-                      <BuyNowSvg width={16} height={16} stroke="currentColor" />
-                      <span>Buy now</span>
-                    </a>
-                  )}
+                  <a href="#/register" className="lp-plan-buy-link">
+                    <BuyNowSvg width={16} height={16} stroke="currentColor" />
+                    <span>Buy now</span>
+                  </a>
                 </>
               )}
             />

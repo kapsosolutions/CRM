@@ -69,7 +69,7 @@ interface Props {
 }
 
 const UNCONNECTED_MARQUEE_MESSAGES: Record<string, string> = {
-  chats: 'Connect your WhatsApp account to remove the 10 contact limit and message unlimited customers.',
+  chats: 'Connect your WhatsApp account to message unlimited customers.',
   templates: 'Templates belong to your own WhatsApp Business Account. Connect your WhatsApp number to create and send templates.',
   campaigns: 'Campaigns belong to your own WhatsApp Business Account. Connect your WhatsApp number to launch broadcast campaigns.',
   flows: 'WhatsApp Flows and journeys run with your own WhatsApp Business Account. Connect your number to enable Flows.',
@@ -186,7 +186,7 @@ interface PlanTopBarProps {
  * what the plan needs attention for (from the server's plan state):
  *   trial      "Your trial ends in N days." (a live HH:MM:SS on the last day) + Buy Now
  *   paid       from 5 days before the end: "Your Pro plan ends in N days." + Renew
- *   free       "You're on the Free plan: 10 contacts, 3 templates." + Upgrade
+ *   free       nothing bought: "Only Chats and 3 templates are open." + Choose a plan
  * A paid plan with time left, or a business from before plans: nothing in the middle.
  */
 function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: PlanTopBarProps) {
@@ -253,11 +253,11 @@ function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: Plan
       <>
         <span className="crm-top-bar-text" data-testid="topbar-plan-text">
           {plan.ended?.kind === 'plan' ? `Your ${plan.ended.name} plan has ended.` : plan.ended?.kind === 'trial' ? 'Your trial has ended.' : ''}{' '}
-          You&apos;re on the <strong>Free plan</strong>: 10 contacts, 3 templates.
+          Only <strong>Chats and 3 templates</strong> are open.
         </span>
         <button type="button" className="crm-top-bar-btn" onClick={onBuyNow} data-testid="topbar-buy">
           <BuyNowSvg width={16} height={16} stroke="currentColor" />
-          <span>Upgrade</span>
+          <span>Choose a plan</span>
         </button>
       </>
     );

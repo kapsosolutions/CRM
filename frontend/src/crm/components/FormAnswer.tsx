@@ -2,6 +2,7 @@
 // for a rating, chips for ticked options, thumbnails for photos, file chips for
 // documents. Used by the chat's form bubble and the Form submissions list.
 // Rows saved before answers had types show as plain text, as before.
+import { safeUrl } from '../safeUrl';
 import type { FormRow } from '../types';
 import './FormAnswer.css';
 
@@ -88,7 +89,7 @@ export function FormAnswer({ row, onView, compact = false }: Props) {
               <a
                 className="fa-doc"
                 key={`${f.url}-${i}`}
-                href={f.url}
+                href={safeUrl(f.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 onClick={(e) => {

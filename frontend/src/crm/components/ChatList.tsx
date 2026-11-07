@@ -620,7 +620,7 @@ export function ChatList({
         chats.length >= 10),
   );
 
-  // The plan's contact limit (Free: its first 10 contacts). Chats after that
+  // The plan's contact limit (none of the current plans has one). Chats after that
   // arrive locked from the server; adding another contact needs an upgrade.
   const { limits: planLimits, openPlans } = usePlan();
   const planContactLimit = !needsConnect ? planLimits?.contacts ?? null : null;
@@ -628,7 +628,7 @@ export function ChatList({
   const lockedCount = chats.filter((c) => c.locked).length;
   const planFull = planContactLimit !== null && waContacts >= planContactLimit;
   const upgradeForContacts = () =>
-    openPlans({ tier: 'basic', reason: `The Free plan includes chats with ${planContactLimit} contacts. Basic and up have no limit.` });
+    openPlans({ tier: 'basic', reason: `Your plan includes chats with ${planContactLimit} contacts.` });
 
   return (
     <>
@@ -661,7 +661,7 @@ export function ChatList({
             title={isFull
               ? 'Contact limit reached (10/10). Connect WhatsApp to unlock.'
               : planFull
-                ? `Your Free plan includes ${planContactLimit} contacts. Upgrade to add more.`
+                ? `Your plan includes ${planContactLimit} contacts. Upgrade to add more.`
                 : 'Add contact / New chat'}
             onClick={() => {
               if (isFull) {
@@ -698,7 +698,7 @@ export function ChatList({
           <div className="plan-contact-bar" data-testid="plan-contact-bar">
             <span className="material-icons" aria-hidden="true">lock</span>
             <span>
-              Free plan: chats with {Math.min(waContacts, planContactLimit)}/{planContactLimit} contacts
+              Your plan: chats with {Math.min(waContacts, planContactLimit)}/{planContactLimit} contacts
               {lockedCount > 0 ? ` · ${lockedCount} more waiting` : ''}
             </span>
             <button type="button" className="k-link-btn" onClick={upgradeForContacts}>Upgrade</button>

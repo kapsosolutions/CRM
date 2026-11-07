@@ -226,7 +226,7 @@ router.put('/:id', uploadMedia.single('image'), async (req, res) => {
     if (!member) return res.status(404).json({ success: false, message: 'Not found' });
     // Photo replaced → drop the old file.
     if (update.imageUrl && existing.imageUrl && existing.imageUrl !== update.imageUrl) {
-      storage.deleteByUrl(existing.imageUrl).catch(() => {});
+      storage.deleteByUrl(existing.imageUrl, String(req.business?._id || '')).catch(() => {});
     }
 
     // Message the affected patients, then stamp those entries so saving the
@@ -274,7 +274,7 @@ router.delete('/:id', async (req, res) => {
   const member = await Member.findOne({ _id: req.params.id, ...owner(req) }).lean();
   if (member) {
     await Member.deleteOne({ _id: req.params.id, ...owner(req) });
-    if (member.imageUrl) storage.deleteByUrl(member.imageUrl).catch(() => {});
+    if (member.imageUrl) storage.deleteByUrl(member.imageUrl, String(req.business?._id || '')).catch(() => {});
   }
   res.json({ success: true });
 });

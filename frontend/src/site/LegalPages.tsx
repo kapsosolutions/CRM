@@ -97,7 +97,7 @@ function GrievanceBlock() {
 const PROCESSORS = [
   { name: 'Meta Platforms, Inc. and Meta Platforms Ireland Ltd.', service: 'WhatsApp Business Platform, Messenger, Instagram, Marketing API, Commerce Manager and Facebook Login', where: 'Worldwide (Meta data centres)' },
   { name: 'The Constant Company, LLC (Vultr)', service: 'Application servers', where: 'India (Bengaluru)' },
-  { name: 'Supabase, Inc.', service: 'Database and sign-in (including Continue with Google)', where: 'Singapore' },
+  { name: 'Supabase, Inc.', service: 'Database and sign-in (including Continue with Google)', where: 'Sweden (European Union, Stockholm)' },
   { name: 'BunnyWay d.o.o. (bunny.net)', service: 'Storage and delivery of media files (images, documents, audio, video)', where: 'Singapore storage; content delivery network worldwide' },
   { name: 'ANI Technologies Pvt. Ltd. (Ola Maps)', service: 'Turning a shared map pin into a street address', where: 'India' },
   { name: 'OpenStreetMap Foundation (Nominatim)', service: 'Address lookup when Ola Maps is unavailable', where: 'United Kingdom and European Union' },
@@ -187,8 +187,8 @@ export function TermsPage() {
         <h2>6. Plans, free trial and payment</h2>
         <ul>
           <li><strong>Free trial.</strong> A new account gets 7 days of Premium features from the moment it signs up. No card is needed.</li>
-          <li><strong>Free plan.</strong> When the trial or a paid plan ends and nothing new is bought, the account moves to the Free plan automatically. The Free plan has limits shown on our <a href="#/">pricing section</a> (for example 10 contacts and 3 message templates). Your data is kept, but features outside the Free plan are locked until you buy a plan.</li>
-          <li><strong>Paid plans.</strong> Basic, Pro and Premium are paid in advance for a monthly, quarterly or annual period through Razorpay. The price shown at checkout is the amount you pay.</li>
+          <li><strong>After the trial or a plan ends.</strong> When nothing new is bought, only Chats and up to 3 message templates stay open (the Starter plan's features, shown in our <a href="#/">pricing section</a>). Your data is kept, but the other features are locked until you buy a plan.</li>
+          <li><strong>Paid plans.</strong> Starter, Basic, Pro and Premium are paid in advance for a monthly, quarterly or annual period through Razorpay. The price shown at checkout is the amount you pay.</li>
           <li><strong>No automatic renewal.</strong> We never charge you again on our own. To continue, renew before the period ends; a renewal starts when the current period ends.</li>
           <li><strong>Upgrades.</strong> You can upgrade at any time. The unused value of your current plan is credited against the new plan, as shown before you pay. If you buy a plan during the free trial, the unused trial days are added to it.</li>
           <li><strong>Downgrades.</strong> A lower plan can be bought once the current paid plan has ended.</li>
@@ -379,7 +379,7 @@ export function PrivacyPage() {
       <section>
         <h2>6. Where data is stored</h2>
         <p>
-          Our servers are in India and our database and media storage are in Singapore. When data leaves India, we make sure it goes only to
+          Our servers are in India, our database is in Sweden (European Union) and our media storage is in Singapore. When data leaves India, we make sure it goes only to
           countries the Government of India has not restricted, and that it is protected as this policy describes.
         </p>
       </section>
@@ -496,7 +496,7 @@ export function RefundPage() {
         <h2>2. Cancellation</h2>
         <p>
           Plans are paid in advance for one period (monthly, quarterly or annual) and never renew automatically, so there is no subscription to
-          cancel and no future charge. If you do not renew, your plan stays active until its end date and the account then moves to the Free plan.
+          cancel and no future charge. If you do not renew, your plan stays active until its end date; after that only Chats and 3 templates stay open until you buy a plan.
           Your data stays in your account.
         </p>
       </section>

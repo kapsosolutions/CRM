@@ -875,11 +875,18 @@ export async function runFlowCompletion(meta, phone, form = {}, tokens = {}, bus
  * @param {'paid'|'failed'} outcome
  * @returns {Promise<boolean>} true when a follow-up was sent
  */
-export async function settlePayment(meta, { reference, outcome, transactionId = '', businessId = '' }) {
-  if (!reference) return false;
+export async function settlePayment(meta, {
+  reference, outcome, transactionId = '', businessId = '', amount = null, currency = '',
+}) {
+  if (!reference || !['paid', 'failed'].includes(outcome)) return false;
+  // Only ever settled inside the business the payment arrived for.
+  if (!businessId) {
+    logger.warn('payment settlement without a business, ignored', { reference, outcome });
+    return false;
+  }
   const order = await Order.findOne({
     reference: String(reference),
-    ...(businessId ? { businessId } : {}),
+    businessId,
   });
   if (!order) {
     logger.warn('payment settlement: no order for that reference', { reference, outcome });
@@ -890,19 +897,62 @@ export async function settlePayment(meta, { reference, outcome, transactionId = 
     logger.info('payment settlement ignored, already recorded', { reference, outcome });
     return false;
   }
+  // A paid order is never turned back into a failed one by a late or
+  // replayed update.
+  if (already === 'paid' || order.paid) {
+    logger.warn('payment settlement ignored, order already paid', { reference, outcome });
+    return false;
+  }
+  // The amount (and currency) paid must match the order before it counts.
+  if (outcome === 'paid' && amount !== null) {
+    const due = Number(order.total || 0);
+    const wrongAmount = Math.abs(Number(amount) - due) > 0.01;
+    const wrongCurrency = currency && order.currency && String(order.currency).toUpperCase() !== currency;
+    if (wrongAmount || wrongCurrency) {
+      logger.warn('payment settlement refused: amount does not match the order', {
+        reference, paid: amount, currency, due, orderCurrency: order.currency || '',
+      });
+      if (order.businessId) {
+        notify(order.businessId, {
+          type: 'payment_failed',
+          title: `Payment mismatch for ${order.reference}`,
+          body: `Received ${money(amount)} but the order total is ${money(due)}. Check it before confirming.`,
+          target: { view: 'orders', id: String(order._id), phone: order.phone },
+        }).catch(() => {});
+      }
+      return false;
+    }
+  }
 
+  // One conditional write: of two copies of the same update arriving
+  // together, only the first changes the order (and goes on to confirm).
+  const settledAt = new Date();
+  const set = {
+    'payment.status': outcome,
+    'payment.ref': transactionId || order.payment?.ref || '',
+    'payment.settledAt': settledAt,
+  };
+  if (outcome === 'paid') {
+    set.paid = true;
+    // A paid order is confirmed; an unpaid one keeps whatever it had.
+    if (!order.status || order.status === 'pending') set.status = 'confirmed';
+  }
+  const won = await Order.updateOne(
+    { _id: order._id, paid: { $ne: true }, 'payment.status': { $ne: outcome } },
+    { $set: set },
+  );
+  if (!Number(won?.modifiedCount ?? won?.matchedCount ?? 0)) {
+    logger.info('payment settlement ignored, recorded by a concurrent update', { reference, outcome });
+    return false;
+  }
   order.payment = {
     ...(order.payment?.toObject ? order.payment.toObject() : order.payment),
     status: outcome,
-    ref: transactionId || order.payment?.ref || '',
-    settledAt: new Date(),
+    ref: set['payment.ref'],
+    settledAt,
   };
-  if (outcome === 'paid') {
-    order.paid = true;
-    // A paid order is confirmed; an unpaid one keeps whatever it had.
-    if (!order.status || order.status === 'pending') order.status = 'confirmed';
-  }
-  await order.save();
+  if (set.paid) order.paid = true;
+  if (set.status) order.status = set.status;
   // The bell. Fire and forget: the follow-up below must go out regardless.
   if (order.businessId) {
     const who = order.customerName || (order.phone ? `+${order.phone}` : '');

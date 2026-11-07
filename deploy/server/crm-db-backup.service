@@ -1,0 +1,10 @@
+[Unit]
+Description=CRM database backup (pg_dump)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/sbin/crm-db-backup
+Nice=10
+IOSchedulingClass=idle

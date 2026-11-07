@@ -419,7 +419,7 @@ router.post('/:id/regenerate', async (req, res) => {
   const biz = await Business.findById(req.params.id);
   if (!biz) return res.status(404).json({ success: false, message: 'Not found' });
   const passcode = generatePasscode();
-  const { hash, salt } = hashPasscode(passcode);
+  const { hash, salt } = await hashPasscode(passcode);
   biz.passcodeHash = hash;
   biz.passcodeSalt = salt;
   biz.tokenVersion = (biz.tokenVersion || 0) + 1;
@@ -447,7 +447,7 @@ router.post('/trial', async (req, res) => {
       ? Math.min(90, Math.floor(Number(b.trialDays)))
       : TRIAL_DAYS;
     const passcode = generatePasscode();
-    const { hash, salt } = hashPasscode(passcode);
+    const { hash, salt } = await hashPasscode(passcode);
 
     const biz = await Business.create({
       name: b.name.trim(),
@@ -511,7 +511,7 @@ router.post('/:id/trial/reset', async (req, res) => {
     ? Math.min(90, Math.floor(Number(req.body.trialDays)))
     : TRIAL_DAYS;
   const passcode = generatePasscode();
-  const { hash, salt } = hashPasscode(passcode);
+  const { hash, salt } = await hashPasscode(passcode);
   await grantPlan(biz._id, { trialDays: days });
   await Business.updateOne({ _id: biz._id }, {
     $set: { passcodeHash: hash, passcodeSalt: salt, tokenVersion: (biz.tokenVersion || 0) + 1 }, // old session out

@@ -31,7 +31,7 @@ export async function clearChatHistory(businessId, phone) {
       if (owned(url)) urls.add(url);
     }
   }
-  const deletedMedia = await storage.deleteMany([...urls]);
+  const deletedMedia = await storage.deleteMany([...urls], String(owner.businessId || ''));
   await Message.deleteMany({ ...owner, phone });
   await Conversation.updateOne(
     { ...owner, phone },

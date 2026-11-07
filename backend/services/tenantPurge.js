@@ -37,6 +37,9 @@ import SocialPost from '../models/SocialPost.js';
 import AdDraft from '../models/AdDraft.js';
 import AdSavedAudience from '../models/AdSavedAudience.js';
 import AdAudienceJob from '../models/AdAudienceJob.js';
+import ApiKey from '../models/ApiKey.js';
+import OtpCode from '../models/OtpCode.js';
+import PushSubscription from '../models/PushSubscription.js';
 import Business from '../models/Business.js';
 import storage from './storage.js';
 import { getClientForBusiness } from './metaCloud.js';
@@ -75,6 +78,11 @@ const OWNED = [
   ['adDrafts', AdDraft],
   ['adSavedAudiences', AdSavedAudience],
   ['adAudienceJobs', AdAudienceJob],
+  // Developer API keys (hashed), the OTP codes sent through the API, and
+  // this business's browser push subscriptions.
+  ['apiKeys', ApiKey],
+  ['otpCodes', OtpCode],
+  ['pushSubscriptions', PushSubscription],
   // SubscriptionPayment rows are deliberately kept: they are billing records
   // that tax and accounting law requires us to retain (see the Privacy Policy).
 ];

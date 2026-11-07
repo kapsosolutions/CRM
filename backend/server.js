@@ -27,7 +27,6 @@ import callsRouter from './routes/calls.js';
 import campaignsRouter from './routes/campaigns.js';
 import notificationsRouter from './routes/notifications.js';
 import pushRouter from './routes/push.js';
-import adminRouter from './routes/admin.js';
 import authRouter from './routes/auth.js';
 import businessesRouter from './routes/businesses.js';
 import crmRouter from './routes/crm.js';
@@ -59,16 +58,21 @@ import socialRouter from './routes/social.js';
 import publicApiRouter from './routes/publicApi.js';
 import developerRouter from './routes/developer.js';
 import { ensureTokenKey } from './services/tokenCrypto.js';
+import { assertAuthSecret } from './services/auth.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 dotenv.config({ path: path.join(__dirname, '.env') });
+// Refuse to run in production with the public dev signing secret.
+assertAuthSecret();
 
 const app = express();
 const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 const DATABASE_URL = process.env.DATABASE_URL;
 const STARTED_AT = new Date();
+// True once the database is connected and the schema is ready (see /api/health).
+let ready = false;
 
 // CORS — allow a comma-separated list of origins, or * for any.
 const corsOrigin = process.env.CORS_ORIGIN || '*';
@@ -86,7 +90,7 @@ const corsOptions =
 const io = new SocketServer(server, { cors: corsOptions });
 setIO(io);
 io.use(async (socket, next) => {
-  const token = socket.handshake.auth?.token || socket.handshake.query?.token || '';
+  const token = socket.handshake.auth?.token || '';
   try {
     const biz = await businessFromToken(token);
     if (biz) {
@@ -134,6 +138,7 @@ if (!DATABASE_URL) {
   // Connects, then creates any missing tables / columns / indexes.
   db.init()
     .then(() => {
+      ready = true;
       // Tag any pre-tenancy rows before serving traffic, so tenant scoping has
       // something to scope on.
       runTenantMigration().catch((err) => logger.error('tenant migration failed', { error: err.message }));
@@ -215,8 +220,31 @@ function buildHealthReport() {
     },
   };
 }
-app.get('/', (_req, res) => res.json(buildHealthReport()));
-app.get('/api/health', (_req, res) => res.json(buildHealthReport()));
+// A database round-trip at most every 5 s (cheap; probes can't pile up on it).
+let lastPing = { at: 0, ok: false, pending: null };
+async function databaseOk() {
+  if (Date.now() - lastPing.at < 5000) return lastPing.ok;
+  if (!lastPing.pending) {
+    lastPing.pending = Promise.race([
+      db.ping(),
+      new Promise((resolve) => { setTimeout(() => resolve(false), 3000).unref(); }),
+    ]).then((ok) => {
+      lastPing = { at: Date.now(), ok, pending: null };
+      return ok;
+    });
+  }
+  return lastPing.pending;
+}
+async function health(_req, res) {
+  const dbOk = ready && (await databaseOk());
+  const report = buildHealthReport();
+  report.status = dbOk ? 'OK' : 'DEGRADED';
+  report.ready = ready;
+  // 503 tells the deploy script and any monitor the backend can't serve.
+  res.status(dbOk ? 200 : 503).json(report);
+}
+app.get('/', health);
+app.get('/api/health', health);
 
 // ---------------- Routes ----------------
 // Per-tenant webhook: /api/whatsapp/webhook/:tenantId. The base path (no tenant)
@@ -227,7 +255,6 @@ app.use('/api/whatsapp/webhook/:tenantId', webhookRouter);
 app.use('/api/whatsapp/webhook', webhookRouter);
 app.use('/api/auth', authRouter);
 app.use('/api/businesses', businessesRouter);
-app.use('/api/admin', adminRouter);
 app.use('/api/crm', crmRouter);
 // Plan gates (services/plans.js): changes to a page's data need that page in
 // the business's plan. Reads, and requests without a business token
@@ -289,10 +316,31 @@ app.use((err, req, res, _next) => {
 process.on('unhandledRejection', (reason) => {
   logger.error('unhandled rejection (kept running)', { error: reason?.message || String(reason) });
 });
+// An uncaught exception leaves the process in an unknown state: log it and
+// exit, and systemd (Restart=always) starts a clean one.
 process.on('uncaughtException', (err) => {
-  logger.error('uncaught exception (kept running)', { error: err?.message, stack: err?.stack?.split('\n').slice(0, 4).join(' | ') });
+  logger.error('uncaught exception, exiting', { error: err?.message, stack: err?.stack?.split('\n').slice(0, 4).join(' | ') });
+  setTimeout(() => process.exit(1), 200).unref();
 });
 
-server.listen(PORT, () => {
-  logger.info(`WhatsApp CRM backend listening on http://localhost:${PORT}`);
+// systemd stop / restart: stop taking requests, let in-flight ones finish
+// (at most 10 s), then close the database pool.
+let stopping = false;
+function shutdown(signal) {
+  if (stopping) return;
+  stopping = true;
+  ready = false;
+  logger.info(`${signal} received, shutting down`);
+  setTimeout(() => process.exit(0), 10_000).unref();
+  io.close();
+  server.close(() => {
+    db.close().finally(() => process.exit(0));
+  });
+}
+process.on('SIGTERM', () => shutdown('SIGTERM'));
+process.on('SIGINT', () => shutdown('SIGINT'));
+
+const HOST = process.env.HOST || (process.env.NODE_ENV === 'production' ? '127.0.0.1' : undefined);
+server.listen(PORT, HOST, () => {
+  logger.info(`WhatsApp CRM backend listening on http://${HOST || 'localhost'}:${PORT}`);
 });

@@ -75,7 +75,7 @@ router.put('/:id', async (req, res) => {
   const after = storage.collectCdnUrls(j.toObject());
   const dropped = [...storage.collectCdnUrls(before)].filter((u) => !after.has(u));
   if (dropped.length) {
-    storage.deleteMany(dropped)
+    storage.deleteMany(dropped, String(req.business?._id || ''))
       .then((n) => logger.info('journey media cleaned', { journey: String(j._id), removed: n }))
       .catch(() => {});
   }
@@ -87,7 +87,7 @@ router.delete('/:id', async (req, res) => {
   await Journey.deleteOne({ _id: req.params.id, businessId: req.business._id });
   if (j) {
     const media = [...storage.collectCdnUrls(j)];
-    if (media.length) storage.deleteMany(media).catch(() => {});
+    if (media.length) storage.deleteMany(media, String(req.business?._id || '')).catch(() => {});
   }
   res.json({ success: true });
 });

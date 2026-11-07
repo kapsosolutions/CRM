@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 // Runtime data + navigation for endpoint-mode flows. Serves dynamic screen data
 // (e.g. the business's categories as a radio list with 1:1 images) and decides
 // the next screen from the user's selection (per-option branching).
@@ -544,18 +545,33 @@ export async function resolveLabels(flow, form = {}) {
   return out;
 }
 
-const phoneFromToken = (token) => {
-  const m = String(token || '').match(/^flow_[a-f0-9]{24}_(\d+)/i);
-  return m ? m[1] : '';
-};
+// A flow_token we mint when sending: "flow_<id>_<phone>_<sig>", where sig is
+// an HMAC (AUTH_SECRET) of the id and phone. The data endpoint below answers
+// only tokens with a valid sig, so nobody can read another business's flow
+// data (members, categories, a customer's orders) by making up a token.
+// Completed-flow webhooks (signed by Meta, scoped to the receiving business)
+// still read the id from older unsigned tokens via flowIdFromToken.
+const flowSig = (flowId, phone) =>
+  crypto.createHmac('sha256', process.env.AUTH_SECRET || 'dev-insecure-secret-change-me')
+    .update(`flow:${String(flowId).toLowerCase()}:${phone}`).digest('hex').slice(0, 24);
 
-// A flow_token we mint when sending encodes the flow id: "flow_<id>_<phone>".
+/** { flowId, phone } from a token we signed, or null. */
+export function verifiedFlowToken(token) {
+  const m = String(token || '').match(/^flow_([a-f0-9]{24})_(\d+)_([a-f0-9]{24})$/i);
+  if (!m) return null;
+  const want = Buffer.from(flowSig(m[1], m[2]));
+  const got = Buffer.from(m[3].toLowerCase());
+  if (want.length !== got.length || !crypto.timingSafeEqual(want, got)) return null;
+  return { flowId: m[1], phone: m[2] };
+}
+
 export function flowIdFromToken(token) {
   const m = String(token || '').match(/^flow_([a-f0-9]{24})_/i);
   return m ? m[1] : null;
 }
 export function makeFlowToken(flowId, phone) {
-  return `flow_${flowId}_${String(phone || '').replace(/\D/g, '')}`;
+  const p = String(phone || '').replace(/\D/g, '');
+  return `flow_${flowId}_${p}_${flowSig(flowId, p)}`;
 }
 
 async function loadFlow(flowId) {
@@ -624,7 +640,8 @@ async function resolveScreen(flow, screen, phone, form = {}) {
 // INIT: initial screen + its dynamic data. Honors the Start node's entryTarget
 // when it designates a screen; otherwise opens on the first screen.
 export async function handleInit(flowToken) {
-  const flow = await loadFlow(flowIdFromToken(flowToken));
+  const verified = verifiedFlowToken(flowToken);
+  const flow = verified ? await loadFlow(verified.flowId) : null;
   const screens = flow?.screens || [];
   let entry = screens[0];
   if (flow?.entryTarget && flow.entryTarget.startsWith('screen_')) {
@@ -632,7 +649,7 @@ export async function handleInit(flowToken) {
     if (wanted) entry = wanted;
   }
   if (!entry) return { screen: 'WELCOME', data: {} };
-  const phone = phoneFromToken(flowToken);
+  const { phone } = verified;
   const shown = await resolveScreen(flow, entry, phone);
   const data = { ...shown.data, flow_token: flowToken };
   return { screen: shown.screen.id, data: { ...data, ...composeDynamicTexts(shown.screen, data) } };
@@ -640,7 +657,8 @@ export async function handleInit(flowToken) {
 
 // data_exchange: decide the next screen from the selection + supply its data.
 export async function handleDataExchange(flowToken, currentScreenId, form = {}) {
-  const flow = await loadFlow(flowIdFromToken(flowToken));
+  const verified = verifiedFlowToken(flowToken);
+  const flow = verified ? await loadFlow(verified.flowId) : null;
   if (!flow) return { screen: currentScreenId, data: { error_message: 'Flow not found.' } };
 
   const current = (flow.screens || []).find((s) => s.id === currentScreenId);
@@ -660,7 +678,7 @@ export async function handleDataExchange(flowToken, currentScreenId, form = {}) 
     // No further screen → close the flow, returning the collected answers.
     return { screen: 'SUCCESS', data: { extension_message_response: { params: { flow_token: flowToken, ...form } } } };
   }
-  const phone = phoneFromToken(flowToken);
+  const { phone } = verified;
   // Publish readable labels alongside the raw ids so the next screen (e.g. a
   // Register form) can show "Dr. Asha Rao" rather than "mem_6ac4…".
   const labels = await resolveLabels(flow, form);
@@ -687,4 +705,5 @@ export default {
   handleDataExchange,
   makeFlowToken,
   flowIdFromToken,
+  verifiedFlowToken,
 };

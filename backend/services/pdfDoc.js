@@ -11,10 +11,10 @@
 // member / category values, which is what makes one template work for every
 // business and every flow.
 import PDFDocument from 'pdfkit';
-import axios from 'axios';
 import storage, { mediaFolder } from './storage.js';
 import { fillTokens } from './tokens.js';
 import logger from './logger.js';
+import { safeGetBuffer } from './safeFetch.js';
 
 // A4 in the designer's pixel space (96dpi) and in PDF points (72dpi).
 // 794×1123 px is the rounded 96dpi size, which isn't *exactly* A4, so we scale
@@ -38,12 +38,8 @@ async function loadImage(url, cache) {
     if (url.startsWith('data:')) {
       buf = Buffer.from(url.replace(/^data:[^;]+;base64,/, ''), 'base64');
     } else {
-      const res = await axios.get(url, {
-        responseType: 'arraybuffer',
-        timeout: 15000,
-        maxContentLength: 10 * 1024 * 1024,
-      });
-      buf = Buffer.from(res.data);
+      // A business-supplied URL: internal addresses are refused.
+      buf = await safeGetBuffer(url, { timeout: 15000, maxBytes: 10 * 1024 * 1024 });
     }
   } catch (err) {
     logger.warn('pdf image fetch failed', { url, error: err.message });

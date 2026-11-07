@@ -2,9 +2,11 @@
 // business is on right now.
 //
 // Plans (cheapest first):
-//   free     ₹0 — Chats with up to 10 contacts, and up to 3 templates
-//            (no carousel, no authentication templates). Nothing else.
-//   basic    No chat / template limits, campaigns (monthly cap), and every
+//   free     "Starter", ₹499/month (the key is still 'free' so stored
+//            subscriptions keep working) — Chats with any number of
+//            contacts, and up to 3 templates (no carousel, no
+//            authentication templates). Nothing else.
+//   basic    No template limit, campaigns (monthly cap), and every
 //            page except Ads, Instagram, Messenger and Create. No
 //            authentication templates.
 //   pro      Everything except Ads (campaigns: a higher monthly cap).
@@ -16,7 +18,7 @@
 //      subscription: kept on Premium (they were onboarded before plans
 //      existed, so nothing they use is taken away);
 //   3. the 7-day free trial (from sign-up): Premium;
-//   4. otherwise Free.
+//   4. otherwise status 'free' (nothing bought): the Starter limits.
 // Nothing here writes to the database: the plan is worked out from the
 // dates every time, so a trial or a paid period ends on time without a job.
 //
@@ -25,9 +27,10 @@
 // The browser has the same table (frontend/src/crm/plans.ts): keep them equal.
 
 export const TIERS = ['free', 'basic', 'pro', 'premium'];
-export const TIER_NAMES = { free: 'Free', basic: 'Basic', pro: 'Pro', premium: 'Premium' };
+export const TIER_NAMES = { free: 'Starter', basic: 'Basic', pro: 'Pro', premium: 'Premium' };
 export const CYCLES = { monthly: 1, quarterly: 3, annual: 12 };
 export const PRICES = {
+  free: { monthly: 499, quarterly: 449, annual: 374 },
   basic: { monthly: 999, quarterly: 899, annual: 749 },
   pro: { monthly: 1999, quarterly: 1799, annual: 1499 },
   premium: { monthly: 2499, quarterly: 2249, annual: 1874 },
@@ -55,7 +58,7 @@ const without = (...f) => ALL.filter((x) => !f.includes(x));
 export const LIMITS = {
   free: {
     features: ['chats', 'templates'],
-    contacts: 10, // distinct WhatsApp contacts it can chat with
+    contacts: null, // no plan limits the contacts it can chat with
     templates: 3, // templates in its account (any status)
     campaignsPerMonth: 0,
     carousel: false,
@@ -88,7 +91,8 @@ export const LIMITS = {
 };
 
 export const tierRank = (t) => TIERS.indexOf(t);
-export const isPaidTier = (t) => t === 'basic' || t === 'pro' || t === 'premium';
+// Every plan can be bought (Starter included).
+export const isPaidTier = (t) => t === 'free' || t === 'basic' || t === 'pro' || t === 'premium';
 export const cycleOf = (raw) => (Object.prototype.hasOwnProperty.call(CYCLES, String(raw)) ? String(raw) : '');
 export const tierOf = (raw) => (TIERS.includes(String(raw || '').toLowerCase()) ? String(raw).toLowerCase() : '');
 

@@ -124,6 +124,23 @@ export async function userFromAccessToken(accessToken) {
   }
 }
 
+/**
+ * Is this Supabase user a real, verified Google sign-in? The access token
+ * alone isn't enough: an email + password user (who may never have proved
+ * they own the address) gets a token too. Requires a Google identity and a
+ * confirmed email.
+ */
+export function isVerifiedGoogleUser(user) {
+  if (!user?.id || !user.email) return false;
+  const providers = [
+    ...(Array.isArray(user.app_metadata?.providers) ? user.app_metadata.providers : []),
+    user.app_metadata?.provider,
+    ...(Array.isArray(user.identities) ? user.identities.map((i) => i?.provider) : []),
+  ];
+  if (!providers.includes('google')) return false;
+  return Boolean(user.email_confirmed_at || user.confirmed_at);
+}
+
 /** Which providers are switched on in the Supabase project (cached a minute). */
 let settingsCache = null;
 let settingsAt = 0;
@@ -157,5 +174,5 @@ export const supabaseUrl = url;
 
 export default {
   AuthError, createUser, updateUser, deleteUser, signInWithPassword, userFromAccessToken,
-  authSettings, namesFromUser, supabaseUrl,
+  authSettings, namesFromUser, supabaseUrl, isVerifiedGoogleUser,
 };

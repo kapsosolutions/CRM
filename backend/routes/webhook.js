@@ -185,15 +185,16 @@ router.post('/', async (req, res) => {
   // number, whichever callback URL it arrived on.
   const platformSigned = signedWith(req, process.env.META_APP_SECRET);
 
-  // Signature is verified against the app that delivered this request, which
-  // is the one the callback URL belongs to.
-  if (urlBiz?.appSecret && req.rawBody) {
-    const signature = req.get('x-hub-signature-256') || '';
-    const expected = 'sha256=' + crypto.createHmac('sha256', urlBiz.appSecret).update(req.rawBody).digest('hex');
-    if (signature && !timingSafeEqual(signature, expected)) {
-      logger.warn('Webhook signature mismatch', { tenant: urlBiz.username });
-      return res.sendStatus(401);
-    }
+  // A per-tenant callback must be signed by the app that delivered it: the
+  // business's own app (its appSecret) or the platform app. Unsigned or
+  // wrongly signed deliveries are refused, so nobody can forge inbound
+  // messages, orders or payments by posting to a tenant's callback URL.
+  if (req.params.tenantId && !(signedWith(req, urlBiz?.appSecret) || platformSigned)) {
+    logger.warn('Webhook rejected: missing or bad signature', {
+      tenant: urlBiz?.username || req.params.tenantId,
+      hasSignature: Boolean(req.get('x-hub-signature-256')),
+    });
+    return res.sendStatus(401);
   }
 
   res.sendStatus(200); // ack immediately

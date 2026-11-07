@@ -11,6 +11,7 @@
 //   • Revoked at Meta (error 190): a banner with Reconnect (popup → dialog).
 // The Click-to-WhatsApp leads (/api/ads/leads) are fetched only while an ad
 // account is connected.
+import { safeUrl } from '../safeUrl';
 import { useCallback, useEffect, useId, useRef, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { AdLeadsReport, BusinessProfile, MetaAdAccountOption, MetaAdLink, MetaAdsLogin, MetaAdsStatus } from '../types';
@@ -813,7 +814,7 @@ function CtwaLeads({ report, error, onOpenChat }: { report: AdLeadsReport | null
                     <small>lead{a.leads === 1 ? '' : 's'}</small>
                   </span>
                   {a.url && (
-                    <a href={a.url} target="_blank" rel="noreferrer" className="icon-btn" aria-label="View ad on Meta">
+                    <a href={safeUrl(a.url)} target="_blank" rel="noreferrer" className="icon-btn" aria-label="View ad on Meta">
                       <span className="material-icons">open_in_new</span>
                     </a>
                   )}

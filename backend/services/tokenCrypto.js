@@ -62,7 +62,13 @@ function generateKey() {
 
 function key() {
   let raw = process.env.TOKEN_ENC_KEY;
-  if (!raw || !String(raw).trim()) raw = generateKey();
+  if (!raw || !String(raw).trim()) {
+    // In production a missing key means the .env was lost or replaced: a new
+    // key would silently make every stored token (and every backup's tokens)
+    // unreadable, so refuse instead.
+    if (process.env.NODE_ENV === 'production') throw new Error('TOKEN_ENC_KEY is not set');
+    raw = generateKey();
+  }
   if (raw === cachedRaw && cachedKey) return cachedKey;
   const k = parseKey(raw);
   if (!k) throw new Error('TOKEN_ENC_KEY must be 32 bytes, as base64 or 64 hex characters');

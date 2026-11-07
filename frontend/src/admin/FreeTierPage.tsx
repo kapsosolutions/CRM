@@ -1,9 +1,9 @@
-// Super-admin → Free tier: businesses on the 7-day free trial ("New") and on
-// the Free plan after it, and handing someone a trial of the CRM.
+// Super-admin → Free tier: businesses on the 7-day free trial ("New") and the
+// ones with no plan after it, and handing someone a trial of the CRM.
 //
 // Onboarding is identical to a normal business (same Meta credentials, same
 // Graph verification): the tenant gets the free trial (every feature), then
-// the Free plan (10 contacts, 3 templates) unless it buys a plan in
+// only Chats + 3 templates unless it buys a plan in
 // Settings → Billing. The generated username + passcode are what you pass to
 // the trial user.
 //
@@ -23,8 +23,8 @@ const DEFAULT_TRIAL_DAYS = 7;
 const fmtDate = (s?: string) =>
   s ? new Date(s).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' }) : '—';
 
-/** On the free tier: the free trial (New) or the Free plan after it. */
-const onFreeTier = (b: Business) => b.planState?.status === 'trial' || b.planState?.tier === 'free';
+/** On the free tier: the free trial (New), or no plan bought after it. */
+const onFreeTier = (b: Business) => b.planState?.status === 'trial' || b.planState?.status === 'free';
 
 export function FreeTierPage({ onOpen }: { onOpen: (id: string) => void }) {
   const confirm = useConfirm();
@@ -138,7 +138,7 @@ export function FreeTierPage({ onOpen }: { onOpen: (id: string) => void }) {
         <div>
           <h1>Free tier</h1>
           <p className="pa-page-sub">
-            {totals.trials} on the free trial (New) · {totals.free} on the Free plan
+            {totals.trials} on the free trial (New) · {totals.free} with no plan
           </p>
         </div>
         <div className="pa-head-actions">
@@ -191,7 +191,7 @@ export function FreeTierPage({ onOpen }: { onOpen: (id: string) => void }) {
                 onChange={(e) => setDays(Math.min(90, Math.max(1, Number(e.target.value) || 1)))}
               />
               <small className="pa-hint">
-                Every feature during the trial, then the Free plan (10 contacts, 3 templates) unless they buy a
+                Every feature during the trial; after it only Chats and 3 templates stay open unless they buy a
                 plan in Settings → Billing.
               </small>
             </label>
@@ -213,7 +213,7 @@ export function FreeTierPage({ onOpen }: { onOpen: (id: string) => void }) {
 
       {loading && <div className="pa-note">Loading…</div>}
       {!loading && list.length === 0 && (
-        <div className="pa-note">No businesses on the free trial or the Free plan.</div>
+        <div className="pa-note">No businesses on the free trial or without a plan.</div>
       )}
 
       {list.length > 0 && (

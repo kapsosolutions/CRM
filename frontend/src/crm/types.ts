@@ -12,7 +12,7 @@ export interface Chat {
   unread: number;
   windowOpen: boolean;
   windowMsLeft: number;
-  /** The plan doesn't let the business reply here (Free: after its first 10 contacts). */
+  /** The plan doesn't let the business reply here (a plan with a contact limit). */
   locked?: boolean;
   botPaused?: boolean;
   /**
