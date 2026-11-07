@@ -1,6 +1,7 @@
 // Thin client for the multi-tenant platform backend (admin + auth + businesses).
 import { defaultConfig } from '../crm/config';
 import type { PlanState } from '../crm/types';
+import type { EventTheme } from '../event/liveEvent';
 
 const API = import.meta.env.VITE_API_BASE ?? defaultConfig.apiBase;
 
@@ -190,6 +191,21 @@ export interface DashboardStats {
 export type DemoStatus = 'scheduled' | 'completed' | 'not_answered' | 'not_interested' | 'cancelled';
 export type DemoView = 'today' | 'upcoming' | 'missed' | DemoStatus | 'all';
 
+export type SiteEventStatus = 'live' | 'scheduled' | 'ended' | 'off';
+export interface SiteEventInput {
+  name: string;
+  startsAt: string | null;
+  endsAt: string | null;
+  theme: EventTheme;
+}
+export interface SiteEventRow extends SiteEventInput {
+  _id: string;
+  active: boolean;
+  status: SiteEventStatus;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export type ContactStatus = 'new' | 'replied' | 'closed';
 export interface ContactMessage {
   _id: string;
@@ -289,7 +305,10 @@ async function req<T>(path: string, opts: RequestInit = {}, token?: string): Pro
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${API}${path}`, { ...opts, headers });
   const data = await res.json().catch(() => ({}));
-  if (!res.ok) throw new Error((data && (data.message || data.error)) || `HTTP ${res.status}`);
+  if (!res.ok) {
+    // Per-field messages ({ field: message }) when the server sent them.
+    throw Object.assign(new Error((data && (data.message || data.error)) || `HTTP ${res.status}`), { fields: (data && data.errors) || {} });
+  }
   return data as T;
 }
 
@@ -455,6 +474,36 @@ export const platformApi = {
   },
   deleteDemo(id: string) {
     return req<{ success: boolean; counts: DemoCounts }>(`/api/admin/demos/${id}`, { method: 'DELETE' }, adminToken());
+  },
+
+  // ---- Events: themes for the website and the CRM (backend routes/events.js) ----
+  listEvents() {
+    return req<{ success: boolean; data: SiteEventRow[] }>('/api/admin/events', {}, adminToken());
+  },
+  createEvent(body: SiteEventInput) {
+    return req<{ success: boolean; data: SiteEventRow }>('/api/admin/events', { method: 'POST', body: JSON.stringify(body) }, adminToken());
+  },
+  saveEvent(id: string, body: SiteEventInput) {
+    return req<{ success: boolean; data: SiteEventRow }>(`/api/admin/events/${id}`, { method: 'PUT', body: JSON.stringify(body) }, adminToken());
+  },
+  activateEvent(id: string) {
+    return req<{ success: boolean }>(`/api/admin/events/${id}/activate`, { method: 'POST' }, adminToken());
+  },
+  deactivateEvent(id: string) {
+    return req<{ success: boolean }>(`/api/admin/events/${id}/deactivate`, { method: 'POST' }, adminToken());
+  },
+  deleteEvent(id: string) {
+    return req<{ success: boolean }>(`/api/admin/events/${id}`, { method: 'DELETE' }, adminToken());
+  },
+  /** One image or GIF for an event → its public URL. */
+  async uploadEventImage(file: File): Promise<string> {
+    const fd = new FormData();
+    fd.append('file', file);
+    // Not req(): the browser sets the multipart Content-Type itself.
+    const res = await fetch(`${API}/api/admin/events/upload`, { method: 'POST', body: fd, headers: { Authorization: `Bearer ${adminToken()}` } });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || !data.url) throw new Error(data.message || `Upload failed (${res.status})`);
+    return data.url as string;
   },
 
   // ---- Contact page messages (kapsosolutions.com/contact) ----

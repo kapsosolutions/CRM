@@ -10,6 +10,7 @@ import logger from '../services/logger.js';
 import '../models/AdAudienceJob.js';
 import '../models/ApiKey.js';
 import '../models/ContactMessage.js';
+import '../models/SiteEvent.js';
 import '../models/OtpCode.js';
 import '../models/AdDraft.js';
 import '../models/AdSavedAudience.js';

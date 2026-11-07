@@ -102,6 +102,27 @@ export function RefreshIcon() {
   );
 }
 
+/** Events: a sparkle (festive themes for the website and the CRM). */
+export function SparkleIcon() {
+  return (
+    <Line>
+      <path d="M10 2.75L11.6 7.4L16.25 9L11.6 10.6L10 15.25L8.4 10.6L3.75 9L8.4 7.4L10 2.75Z" />
+      <path d="M15.5 13.25V17.25M13.5 15.25H17.5" />
+    </Line>
+  );
+}
+
+/** An image (uploads). */
+export function ImageIcon() {
+  return (
+    <Line>
+      <rect x="2.75" y="3.75" width="14.5" height="12.5" rx="2" />
+      <circle cx="7.25" cy="8.25" r="1.5" />
+      <path d="M17.25 13L13 9L5 16.25" />
+    </Line>
+  );
+}
+
 /** The CRM top bar's bell. */
 export function BellIcon() {
   return (

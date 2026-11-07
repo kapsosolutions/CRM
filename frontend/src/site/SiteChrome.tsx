@@ -1,12 +1,14 @@
 // The website's frame, on every public page: the black strip, the header with
 // the Solutions / Product / Resources / API / Pricing menus, the mobile menu,
 // the footer and the WhatsApp button. SitePage wraps a page in all of it.
-import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { DemoModal } from './DemoModal';
 import { BookDemoSvg } from '../crm/components/TemplateIcons';
 import { platformApi } from '../admin/platformApi';
 import { FOOTER_COLUMNS, MENUS, type Menu, type MenuLink } from './siteMenus';
 import { SiteIcon } from './SiteIcons';
+import { cssUrl, useLiveEvent } from '../event/liveEvent';
+import { EventPreviewBadge } from '../event/EventPreviewBadge';
 import { onSiteLinkClick, useSitePath, useSeo } from './siteNav';
 import type { SitePageMeta } from './siteMeta';
 import './site.css';
@@ -101,6 +103,7 @@ export function SiteHeader({ compact = false, onBookDemo }: { compact?: boolean;
   const closeTimer = useRef<number | undefined>(undefined);
   const path = useSitePath();
   const signedIn = platformApi.businessLoggedIn();
+  const logo = useLiveEvent()?.theme.logos?.site || '/logo.png';
 
   // A new page closes every menu.
   useEffect(() => {
@@ -147,6 +150,7 @@ export function SiteHeader({ compact = false, onBookDemo }: { compact?: boolean;
 
   return (
     <>
+      <EventPreviewBadge />
       {!compact && (
         <div className="lp-top-bar">
           <div className="lp-top-bar-container">
@@ -165,7 +169,7 @@ export function SiteHeader({ compact = false, onBookDemo }: { compact?: boolean;
 
       <header className={`lp-header sx-header${compact ? ' compact' : ''}`}>
         <SiteLink className="lp-brand" href="/" aria-label={BRAND}>
-          <img className="lp-brand-logo" src="/logo.png" alt={BRAND} />
+          <img className="lp-brand-logo" src={logo} alt={BRAND} />
         </SiteLink>
 
         <nav className="sx-nav lp-desktop-only" aria-label="Main" ref={navRef} onMouseLeave={() => hover(null)}>
@@ -211,7 +215,7 @@ export function SiteHeader({ compact = false, onBookDemo }: { compact?: boolean;
       <aside className={`lp-mobile-sidebar ${sidebarOpen ? 'open' : ''}`} aria-label="Mobile Navigation" aria-hidden={!sidebarOpen}>
         <div className="lp-sidebar-header">
           <SiteLink className="lp-brand" href="/" onClick={() => setSidebarOpen(false)} aria-label={BRAND}>
-            <img className="lp-brand-logo" src="/logo.png" alt={BRAND} />
+            <img className="lp-brand-logo" src={logo} alt={BRAND} />
           </SiteLink>
           <button type="button" className="lp-sidebar-close" onClick={() => setSidebarOpen(false)} aria-label="Close navigation menu">✕</button>
         </div>
@@ -269,13 +273,14 @@ function MetaMark({ className = '' }: { className?: string }) {
 }
 
 export function SiteFooter() {
+  const logo = useLiveEvent()?.theme.logos?.site || '/logo.png';
   return (
     <footer className="lp-footer sx-footer">
       <div className="lp-footer-container">
         <div className="sx-footer-grid">
           <div className="lp-footer-brand-col">
             <SiteLink href="/" className="lp-brand" aria-label={BRAND}>
-              <img className="lp-brand-logo sx-footer-logo" src="/logo.png" alt={BRAND} />
+              <img className="lp-brand-logo sx-footer-logo" src={logo} alt={BRAND} />
             </SiteLink>
             <p className="sx-footer-about">WhatsApp CRM, automation and the official WhatsApp Business API for growing businesses.</p>
             <div className="lp-footer-meta-badge">
@@ -320,17 +325,23 @@ export function SiteFooter() {
 }
 
 export function WhatsAppFloat() {
+  // An event can swap the button for its own image (a festive icon or GIF).
+  const wa = useLiveEvent()?.theme.whatsapp;
   return (
     <a
       href={`${WHATSAPP_HREF}?text=${encodeURIComponent('Hello Kapso Solutions Team! I would like to learn more about your WhatsApp CRM.')}`}
       target="_blank"
       rel="noopener noreferrer"
-      className="lp-wa-float-btn"
+      className={`lp-wa-float-btn${wa?.image ? ' ev-image' : ''}`}
       aria-label="Chat with us on WhatsApp"
       title="Chat with us on WhatsApp"
+      data-testid="wa-float"
     >
       <span className="lp-wa-float-pulse" aria-hidden="true" />
-      <span className="lp-wa-float-tooltip">Chat with us 👋</span>
+      <span className="lp-wa-float-tooltip">{wa?.tooltip || 'Chat with us 👋'}</span>
+      {wa?.image ? (
+        <img className="lp-wa-float-img" src={wa.image} alt="" aria-hidden="true" />
+      ) : (
       <div className="lp-wa-float-icon-wrap">
         <svg className="lp-wa-float-svg" viewBox="0 0 175.216 175.552" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <defs>
@@ -344,8 +355,23 @@ export function WhatsAppFloat() {
           <path fill="#ffffff" fillRule="evenodd" d="M68.772 55.603c-1.378-3.061-2.828-3.123-4.137-3.176l-3.524-.043c-1.226 0-3.218.46-4.902 2.3s-6.435 6.287-6.435 15.332 6.588 17.785 7.506 19.013 12.718 20.381 31.405 27.75c15.529 6.124 18.689 4.906 22.061 4.6s10.877-4.447 12.408-8.74 1.532-7.971 1.073-8.74-1.685-1.226-3.525-2.146-10.877-5.367-12.562-5.981-2.91-.919-4.137.921-4.746 5.979-5.819 7.206-2.144 1.381-3.984.462-7.76-2.861-14.784-9.124c-5.465-4.873-9.154-10.891-10.228-12.73s-.114-2.835.808-3.751c.825-.824 1.838-2.147 2.759-3.22s1.224-1.84 1.836-3.065.307-2.301-.153-3.22-4.032-10.011-5.666-13.647" />
         </svg>
       </div>
+      )}
     </a>
   );
+}
+
+/**
+ * The live event's hero background for a section: class names and the CSS
+ * variables site-pages.css reads (image, overlay strength, text tone).
+ */
+export function eventHeroProps(h?: { heroBg?: string; tone?: 'dark' | 'light'; overlay?: number; accent?: string }): { className: string; style?: CSSProperties } {
+  const bg = cssUrl(h?.heroBg);
+  if (!bg && !h?.accent) return { className: '' };
+  const style = {
+    ...(bg ? { '--ev-hero-bg': bg, '--ev-hero-overlay': String(Math.min(90, Math.max(0, h?.overlay || 0)) / 100) } : {}),
+    ...(h?.accent ? { '--ev-accent': h.accent } : {}),
+  } as CSSProperties;
+  return { className: `${bg ? ' ev-hero' : ''}${bg && h?.tone === 'light' ? ' ev-light' : ''}`, style };
 }
 
 /** A content page: header, the page, the footer, the WhatsApp button, the demo dialog. */
@@ -353,8 +379,10 @@ export function SitePage({ meta, children, className = '', noindex = false }: { 
   useSeo(meta, { noindex });
   const [demoOpen, setDemoOpen] = useState(false);
   const openDemo = () => setDemoOpen(true);
+  // Every page's hero (.sx-hero) takes the event's background.
+  const hero = eventHeroProps(useLiveEvent()?.theme.pages);
   return (
-    <div className={`lp sx-page ${className}`}>
+    <div className={`lp sx-page ${className}${hero.className}`} style={hero.style}>
       <SiteHeader onBookDemo={openDemo} />
       {demoOpen && <DemoModal onClose={() => setDemoOpen(false)} />}
       <main className="sx-main">{children(openDemo)}</main>

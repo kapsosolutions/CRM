@@ -1,0 +1,102 @@
+/* Event themes (admin panel → Events): the preview badge and the CRM's
+   announcement bar. The website's hero / button rules are in site-pages.css. */
+
+.ev-preview-badge {
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  z-index: 100000;
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 10px 8px 16px;
+  border-radius: 999px;
+  background: #0f172a;
+  color: #ffffff;
+  font: 600 13px/1.2 Inter, system-ui, sans-serif;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.35);
+}
+.ev-preview-badge button {
+  border: 0;
+  border-radius: 999px;
+  padding: 6px 12px;
+  background: #22c55e;
+  color: #052e16;
+  font: inherit;
+  cursor: pointer;
+}
+
+/* CRM: the event's announcement, above the plan bar. */
+.ev-announce {
+  flex-shrink: 0;
+  position: relative;
+  z-index: 46;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 38px;
+  padding: 6px 44px;
+  background: var(--ev-ann-bg, #16a34a);
+  color: var(--ev-ann-color, #ffffff);
+  font-size: 13.5px;
+  font-weight: 600;
+  line-height: 1.35;
+  text-align: center;
+}
+.ev-announce-img {
+  height: 26px;
+  width: auto;
+  max-width: 80px;
+  object-fit: contain;
+  flex: none;
+}
+.ev-announce-text {
+  min-width: 0;
+}
+.ev-announce-link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  border-radius: 999px;
+  border: 1.5px solid currentColor;
+  color: inherit;
+  font-weight: 700;
+  font-size: 12.5px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.ev-announce-link:hover {
+  background: rgba(255, 255, 255, 0.16);
+  text-decoration: none;
+}
+.ev-announce-close {
+  position: absolute;
+  right: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 26px;
+  height: 26px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+  opacity: 0.8;
+}
+.ev-announce-close:hover {
+  opacity: 1;
+  background: rgba(255, 255, 255, 0.16);
+}
+@media (max-width: 640px) {
+  .ev-announce {
+    justify-content: flex-start;
+    text-align: left;
+    padding: 6px 40px 6px 12px;
+    font-size: 12.5px;
+  }
+}

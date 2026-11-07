@@ -7,7 +7,8 @@ import { useSmoothScroll } from './useSmoothScroll';
 import { BuyNowSvg } from '../crm/components/TemplateIcons';
 import { CycleToggle, PlanCards } from '../crm/components/PlanCards';
 import type { BillingCycle } from '../crm/plans';
-import { SiteFooter, SiteHeader, WhatsAppFloat } from './SiteChrome';
+import { SiteFooter, SiteHeader, WhatsAppFloat, eventHeroProps } from './SiteChrome';
+import { useLiveEvent } from '../event/liveEvent';
 import { HOME_META } from './siteMeta';
 import { useSeo } from './siteNav';
 import './site.css';
@@ -102,6 +103,8 @@ export function FaqSection() {
 export function LandingPage() {
   useSmoothScroll();
   useSeo(HOME_META);
+  const ev = useLiveEvent()?.theme.landing || {};
+  const hero = eventHeroProps(ev);
   const [demoOpen, setDemoOpen] = useState(false);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('quarterly');
   const openDemo = () => setDemoOpen(true);
@@ -113,9 +116,10 @@ export function LandingPage() {
 
       <main>
         {/* ---------- Hero Section (Centered Layout) ---------- */}
-        <section className="lp-hero-centered">
+        {/* An event (admin panel → Events) can change the background, the art and the words. */}
+        <section className={`lp-hero-centered${hero.className}`} style={hero.style} data-testid="landing-hero">
           <img
-            src="/design1.png"
+            src={ev.heroArt || '/design1.png'}
             alt=""
             className="lp-hero-bg-left"
             aria-hidden="true"
@@ -123,17 +127,23 @@ export function LandingPage() {
 
           <div className="lp-hero-centered-container">
             <div className="lp-hero-badge">
-              <span className="lp-hero-badge-sparkle">✨</span>
-              <span>— AI-Powered WhatsApp Marketing Platform</span>
+              {ev.badge ? (
+                <span>{ev.badge}</span>
+              ) : (
+                <>
+                  <span className="lp-hero-badge-sparkle">✨</span>
+                  <span>— AI-Powered WhatsApp Marketing Platform</span>
+                </>
+              )}
             </div>
 
             <h1 className="lp-hero-title">
-              <span className="lp-hero-title-green">5X Your Revenue</span>{' '}
-              <span className="lp-hero-title-black">with the Power of WhatsApp</span>
+              <span className="lp-hero-title-green">{ev.titleAccent || '5X Your Revenue'}</span>{' '}
+              <span className="lp-hero-title-black">{ev.titleMain || 'with the Power of WhatsApp'}</span>
             </h1>
 
             <p className="lp-hero-desc">
-              Broadcast, Automate, Engage, Sell - do everything with the AI-powered WhatsApp Marketing &amp; Engagement Platform. Powered by Official WhatsApp APIs ⚡
+              {ev.desc || 'Broadcast, Automate, Engage, Sell - do everything with the AI-powered WhatsApp Marketing & Engagement Platform. Powered by Official WhatsApp APIs ⚡'}
             </p>
 
             <div className="lp-hero-actions">

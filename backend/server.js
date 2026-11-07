@@ -43,6 +43,7 @@ import mediaRouter from './routes/media.js';
 import onboardingRouter from './routes/onboarding.js';
 import settingsRouter from './routes/settings.js';
 import demosRouter, { demoAdminRouter } from './routes/demos.js';
+import eventsRouter, { eventsAdminRouter } from './routes/events.js';
 import adsRouter from './routes/ads.js';
 import billingRouter, { razorpayWebhookRouter } from './routes/billing.js';
 import { requireFeature } from './services/planGate.js';
@@ -285,6 +286,8 @@ app.use('/api/notifications', notificationsRouter); // header bell + notificatio
 app.use('/api/push', pushRouter); // desktop notifications (Web Push) for this browser
 app.use('/api/demo', demosRouter); // public: book a demo
 app.use('/api/admin/demos', demoAdminRouter); // super admin: Demo Requests
+app.use('/api/events', eventsRouter); // public: the live event theme (website + CRM)
+app.use('/api/admin/events', eventsAdminRouter); // super admin: Events
 app.use('/api/ads', requireFeature('ads', { only: (req) => !(req.method === 'DELETE' && req.path === '/meta') }), adsRouter); // Click-to-WhatsApp ad leads + the connected Meta ad account (/api/ads/meta)
 app.use('/api/billing', billingRouter); // Settings → Billing: plan, usage, Razorpay plan purchases
 app.use('/api/razorpay/webhook', razorpayWebhookRouter); // Razorpay → us (signed): plan payments

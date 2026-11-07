@@ -1773,3 +1773,75 @@ a.sx-chip:hover {
 .lp-mobile-sidebar.open ~ .lp-wa-float-btn {
   display: none;
 }
+
+/* ------------------------------------------------------------ event themes
+   Admin panel → Events. SiteChrome's eventHeroProps() sets --ev-hero-bg
+   (an image or GIF), --ev-hero-overlay (0–0.9, a wash so the text stays
+   readable) and --ev-accent; .ev-light switches the hero text to white. */
+.sx-page.ev-hero .sx-hero,
+.lp-hero-centered.ev-hero {
+  position: relative;
+  isolation: isolate;
+  background: var(--ev-hero-bg) center / cover no-repeat, #ffffff;
+}
+.sx-page.ev-hero .sx-hero::before,
+.lp-hero-centered.ev-hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: rgba(255, 255, 255, var(--ev-hero-overlay, 0));
+}
+.sx-page.ev-hero.ev-light .sx-hero::before,
+.lp-hero-centered.ev-hero.ev-light::before {
+  background: rgba(2, 6, 23, var(--ev-hero-overlay, 0));
+}
+.sx-page.ev-light .sx-hero .sx-h1,
+.sx-page.ev-light .sx-hero .sx-lead,
+.sx-page.ev-light .sx-hero .sx-check-list li,
+.sx-page.ev-light .sx-hero .sx-crumbs,
+.sx-page.ev-light .sx-hero .sx-crumbs a,
+.sx-page.ev-light .sx-hero .sx-crumbs strong,
+.lp-hero-centered.ev-light .lp-hero-title-black,
+.lp-hero-centered.ev-light .lp-hero-desc,
+.lp-hero-centered.ev-light .lp-hero-trust-item {
+  color: #ffffff;
+  text-shadow: 0 1px 12px rgba(0, 0, 0, 0.35);
+}
+.lp-hero-centered .lp-hero-title-green {
+  color: var(--ev-accent, #00d084);
+}
+.sx-page .sx-hero .sx-h1 em {
+  color: var(--ev-accent, #16a34a);
+}
+
+/* The floating WhatsApp button with the event's own image. */
+.lp-wa-float-btn.ev-image {
+  background: transparent;
+  border: none;
+  box-shadow: none;
+  width: 66px;
+  height: 66px;
+}
+.lp-wa-float-btn.ev-image:hover,
+.lp-wa-float-btn.ev-image:active {
+  box-shadow: none;
+}
+.lp-wa-float-btn.ev-image .lp-wa-float-pulse {
+  display: none;
+}
+.lp-wa-float-img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.25));
+  pointer-events: none;
+}
+@media (max-width: 640px) {
+  .lp-wa-float-btn.ev-image {
+    width: 58px;
+    height: 58px;
+  }
+}

@@ -270,10 +270,13 @@ interface SidebarProps extends Props {
   onHome?: () => void;
   /** Pinned under the menu (the daily messaging limit). */
   footer?: ReactNode;
+  /** An event's logos (admin panel → Events), for the light and dark theme. */
+  logoLight?: string;
+  logoDark?: string;
 }
 
 export function NavRail({
-  view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome, footer, forms = [],
+  view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome, footer, forms = [], logoLight, logoDark,
 }: SidebarProps) {
   // Form pages come from the business's forms, not from its type's page list.
   const shown = (key: CrmView) => isFormView(key) || !allowed || allowed.includes(key);
@@ -286,7 +289,7 @@ export function NavRail({
     <nav className={`nav-rail crm-sidebar${collapsed ? ' collapsed' : ''}`} aria-label="CRM sections">
       <div className="crm-side-brand">
         <button type="button" className="crm-side-logo" onClick={onHome} title="Kapso CRM - Home">
-          <img src={theme === 'dark' ? '/logo1.png' : '/logo.png'} alt="Kapso Solutions" className="crm-side-logo-full" />
+          <img src={theme === 'dark' ? logoDark || '/logo1.png' : logoLight || '/logo.png'} alt="Kapso Solutions" className="crm-side-logo-full" data-testid="crm-logo" />
           <span className="crm-side-logo-mark" aria-hidden="true">K</span>
         </button>
         {onToggleCollapsed && (

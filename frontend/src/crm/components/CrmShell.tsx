@@ -17,6 +17,9 @@ import { MessagingLimitProvider, SidebarMessagingLimit } from './MessagingLimit'
 import { prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, isFormView, type CrmView, type FormRailItem, SettingsRailSvg, ProfileRailSvg } from './NavRail';
+import { EventAnnouncement } from './EventAnnouncement';
+import { EventPreviewBadge } from '../../event/EventPreviewBadge';
+import { useLiveEvent } from '../../event/liveEvent';
 import { FormSubmissionsPage } from './FormSubmissionsPage';
 import { formPagesFor, formPageOf, presetOfSubmission, OTHER_FORMS } from '../flowForms';
 import type { Order, Registration, WaFlowDef } from '../types';
@@ -1076,6 +1079,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   // ---- Sidebar (collapsible; a drawer on small screens) + light / dark theme ----
   const [theme, toggleTheme] = useCrmTheme();
+  // The live event (admin panel → Events): the sidebar logo and the announcement bar.
+  const liveEvent = useLiveEvent();
   useCrmScale();
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     try {
@@ -1141,6 +1146,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
       businessId={business?._id}
     >
     <div className="crm-shell-root">
+      <EventAnnouncement event={liveEvent} />
+      <EventPreviewBadge />
       <PlanTopBar
         plan={planState}
         onBuyNow={() => setPlansFor({})}
@@ -1164,6 +1171,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
           collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleSidebar}
           theme={theme}
+          logoLight={liveEvent?.theme.logos?.crmLight}
+          logoDark={liveEvent?.theme.logos?.crmDark}
           onHome={() => {
             setDrawerOpen(false);
             navigate('chats');
