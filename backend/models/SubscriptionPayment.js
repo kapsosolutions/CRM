@@ -9,7 +9,8 @@ import { Schema, defineModel } from '../db/model.js';
 const SubscriptionPaymentSchema = new Schema(
   {
     businessId: { type: Schema.Types.ObjectId, ref: 'Business', index: true },
-    orderId: { type: String, required: true, unique: true, index: true }, // Razorpay order_…
+    // Razorpay Payment Link plink_… (what the CRM uses), or a Checkout order order_…
+    orderId: { type: String, required: true, unique: true, index: true },
     paymentId: { type: String, default: '' }, // Razorpay pay_…
     tier: { type: String, required: true }, // basic | pro | premium
     cycle: { type: String, required: true }, // monthly | quarterly | annual

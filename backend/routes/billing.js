@@ -2,9 +2,15 @@
 //
 //   GET  /api/billing                  plan, usage, messaging tier, contact, payments
 //   GET  /api/billing/quote?tier&cycle what a plan costs now (upgrade credit, period)
-//   POST /api/billing/checkout         { tier, cycle } → Razorpay order for the Checkout
+//   POST /api/billing/link             { tier, cycle } → Razorpay Payment Link { url } (what the CRM uses)
+//   GET  /api/razorpay/return          Razorpay → the customer's browser, back from the paid link (signed):
+//                                      activates, then redirects to the CRM's Billing with ?payment=…
+//   POST /api/billing/checkout         { tier, cycle } → Razorpay order for the Checkout popup (older path;
+//                                      needs the website registered with Razorpay)
 //   POST /api/billing/confirm          { orderId, paymentId, signature } → activates the plan
-//   POST /api/razorpay/webhook         Razorpay → us (signed): activates / records failures
+//   POST /api/razorpay/webhook         Razorpay → us (signed, optional): activates / records failures
+// Payment Links need no webhook: an unpaid recent link is also checked with
+// Razorpay when Billing is opened, and every few minutes.
 import express from 'express';
 import { requireBusiness } from '../middleware/auth.js';
 import Business from '../models/Business.js';
@@ -12,6 +18,7 @@ import SubscriptionPayment from '../models/SubscriptionPayment.js';
 import { billingSummary } from '../services/billing.js';
 import {
   quote, presentQuote, checkout, confirmCheckout, activate, markFailed, BillingError,
+  startPaymentLink, confirmPaymentLink, settleLink, syncPendingLinks,
 } from '../services/subscriptions.js';
 import { planState } from '../services/plans.js';
 import { verifyWebhookSignature, webhookConfigured } from '../services/razorpay.js';
@@ -29,7 +36,24 @@ function fail(res, err, what) {
 }
 
 router.get('/', async (req, res) => {
-  res.json({ success: true, data: await billingSummary(req.business) });
+  // A link paid in a tab that closed before coming back: Razorpay says so now.
+  let biz = req.business;
+  try {
+    const r = await syncPendingLinks({ businessId: biz._id, max: 3 });
+    if (r.activated) biz = (await Business.findById(biz._id)) || biz;
+  } catch (err) {
+    logger.warn('billing: payment link check failed', { error: err.message });
+  }
+  res.json({ success: true, data: await billingSummary(biz) });
+});
+
+router.post('/link', async (req, res) => {
+  try {
+    const b = req.body || {};
+    res.status(201).json({ success: true, data: await startPaymentLink(req.business, { tier: b.tier, cycle: b.cycle }) });
+  } catch (err) {
+    fail(res, err, 'plan payment link');
+  }
 });
 
 router.get('/quote', (req, res) => {
@@ -83,8 +107,19 @@ webhook.post('/', async (req, res) => {
   const event = String(req.body?.event || '');
   const payment = req.body?.payload?.payment?.entity || null;
   const order = req.body?.payload?.order?.entity || null;
+  const link = req.body?.payload?.payment_link?.entity || null;
   const orderId = payment?.order_id || order?.id || '';
   try {
+    // A Payment Link (if a webhook is set up at all): Razorpay is asked for its status.
+    if (link?.id && /^plink_/.test(link.id)) {
+      const row = await SubscriptionPayment.findOne({ orderId: link.id }).lean();
+      if (!row) return res.json({ success: true, ignored: true });
+      if (event === 'payment_link.paid') {
+        const r = await settleLink(row);
+        logger.info('razorpay webhook', { event, link: link.id, activated: r.activated });
+      }
+      return res.json({ success: true });
+    }
     if (!orderId || !(await SubscriptionPayment.exists({ orderId }))) {
       // Not a plan purchase (another product on the same Razorpay account).
       return res.json({ success: true, ignored: true });
@@ -106,5 +141,39 @@ webhook.post('/', async (req, res) => {
   }
 });
 
-export { webhook as razorpayWebhookRouter };
+// ------------------------------------------------- back from Razorpay --
+
+const back = express.Router();
+
+/**
+ * Where the CRM shows the result: Settings → Billing, with ?payment=paid |
+ * pending | failed (CrmShell reads it once and removes it). Same site, so a
+ * path is enough (nginx serves the CRM and the API on one domain).
+ */
+function crmBilling(result, reason = '') {
+  const open = encodeURIComponent(JSON.stringify({ target: { view: 'profile', id: 'billing' } }));
+  return `/?payment=${result}${reason ? `&reason=${encodeURIComponent(reason)}` : ''}&crmOpen=${open}#/`;
+}
+
+// Razorpay redirects the customer's browser here (GET) after the hosted page.
+back.get('/', async (req, res) => {
+  const q = req.query || {};
+  try {
+    const r = await confirmPaymentLink({
+      linkId: String(q.razorpay_payment_link_id || ''),
+      referenceId: String(q.razorpay_payment_link_reference_id || ''),
+      status: String(q.razorpay_payment_link_status || ''),
+      paymentId: String(q.razorpay_payment_id || ''),
+      signature: String(q.razorpay_signature || ''),
+    });
+    logger.info('razorpay return', { link: String(q.razorpay_payment_link_id || ''), status: r.status, activated: r.activated });
+    return res.redirect(303, crmBilling(r.status === 'paid' ? 'paid' : r.status === 'failed' ? 'failed' : 'pending'));
+  } catch (err) {
+    const reason = err instanceof BillingError ? err.code : 'error';
+    if (!(err instanceof BillingError)) logger.error('razorpay return failed', { error: err.message });
+    return res.redirect(303, crmBilling('failed', reason));
+  }
+});
+
+export { webhook as razorpayWebhookRouter, back as razorpayReturnRouter };
 export default router;

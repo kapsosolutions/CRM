@@ -28,6 +28,7 @@ import {
 } from './plans.js';
 import {
   razorpayConfigured, razorpayKeyId, createOrder, fetchPayment, capturePayment, verifyCheckoutSignature, razorpayError,
+  createPaymentLink, fetchPaymentLink, verifyPaymentLinkSignature,
 } from './razorpay.js';
 
 const MIN_PAISE = 100; // Razorpay's minimum charge (₹1)
@@ -313,6 +314,155 @@ export async function confirmCheckout(biz, { orderId, paymentId, signature } = {
   return activate(orderId, { paymentId, method: p.method || '', amount: Number(p.amount) });
 }
 
+// ---------------------------------------------------------------------------
+// Payment Links (what the CRM uses): the business pays on Razorpay's hosted
+// page, so no website has to be registered with Razorpay. Razorpay sends the
+// browser back to /api/razorpay/return with a signed result; no webhook is
+// needed. If the tab is closed before that, the link is checked with Razorpay
+// (Billing page, and every few minutes for recent links). The link's id
+// (plink_…) is the row's orderId.
+// ---------------------------------------------------------------------------
+
+/** How long a link can be paid. */
+const LINK_TTL_S = 2 * 60 * 60;
+/** Unpaid links younger than this are checked with Razorpay. */
+const LINK_CHECK_DAYS = 3;
+const publicBase = () => String(process.env.PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '');
+
+/** Create the Razorpay Payment Link for a plan purchase. → { url, linkId, amount, quote, description } */
+export async function startPaymentLink(biz, { tier, cycle } = {}) {
+  if (!razorpayConfigured()) throw new BillingError('Online payments aren\'t set up yet. Please contact support.', 503, 'PAYMENTS_OFF');
+  const base = publicBase();
+  if (!/^https?:\/\/[^\s/]+/.test(base)) {
+    logger.error('payment link: PUBLIC_BASE_URL is not set, so Razorpay has nowhere to send the customer back');
+    throw new BillingError('Online payments aren\'t set up yet. Please contact support.', 503, 'PAYMENTS_OFF');
+  }
+  const q = quote(biz, tier, cycle);
+  const referenceId = `sub_${String(biz._id).slice(-10)}_${Date.now().toString(36)}`;
+  const description = `${TIER_NAMES[q.tier]} plan · ${q.cycle} (${q.months} month${q.months === 1 ? '' : 's'})`;
+  let link;
+  try {
+    link = await createPaymentLink({
+      amount: q.amountPaise,
+      referenceId,
+      description: `Kapso Solutions · ${description}`,
+      customer: {
+        name: [biz.ownerFirstName, biz.ownerLastName].filter(Boolean).join(' ') || biz.name || '',
+        email: biz.email || '',
+        contact: biz.ownerPhone || '',
+      },
+      notes: { businessId: String(biz._id), business: String(biz.name || '').slice(0, 200), tier: q.tier, cycle: q.cycle, kind: q.kind },
+      callbackUrl: `${base}/api/razorpay/return`,
+      expireBy: Math.floor(Date.now() / 1000) + LINK_TTL_S,
+    });
+  } catch (err) {
+    logger.error('razorpay payment link failed', { business: biz.name, error: razorpayError(err) });
+    throw new BillingError('Couldn\'t start the payment. Please try again in a moment.', 502, 'RAZORPAY_FAILED');
+  }
+  if (!link?.id || !/^https:\/\//.test(String(link.short_url || '')) || Number(link.amount) !== q.amountPaise) {
+    throw new BillingError('Couldn\'t start the payment. Please try again in a moment.', 502, 'RAZORPAY_FAILED');
+  }
+  await SubscriptionPayment.create({
+    businessId: biz._id,
+    orderId: link.id,
+    tier: q.tier,
+    cycle: q.cycle,
+    months: q.months,
+    kind: q.kind,
+    listPaise: q.listPaise,
+    creditPaise: q.creditPaise,
+    amountPaise: q.amountPaise,
+    currency: 'INR',
+    status: 'created',
+    receipt: referenceId,
+  });
+  logger.info('plan payment link created', { business: biz.name, tier: q.tier, cycle: q.cycle, kind: q.kind, amount: q.amountPaise, link: link.id });
+  return { url: link.short_url, linkId: link.id, amount: q.amountPaise, currency: 'INR', quote: presentQuote(q), description };
+}
+
+/**
+ * Ask Razorpay where a link stands, and activate the plan once it's paid in
+ * full. A link that expired or was cancelled unpaid is marked failed.
+ * @returns {Promise<{payment: object, activated: boolean, status: 'paid'|'pending'|'failed'}>}
+ */
+export async function settleLink(row) {
+  const pay = row?.orderId ? row : null;
+  if (!pay) throw new BillingError('Payment not found.', 404, 'NOT_FOUND');
+  if (pay.status === 'paid') return { payment: pay, activated: false, status: 'paid' };
+  let l;
+  try {
+    l = await fetchPaymentLink(pay.orderId);
+  } catch (err) {
+    logger.warn('razorpay payment link check failed', { link: pay.orderId, error: razorpayError(err) });
+    return { payment: pay, activated: false, status: 'pending' };
+  }
+  const status = String(l?.status || '');
+  if (status === 'paid' && Number(l.amount_paid) === Number(pay.amountPaise) && Number(l.amount) === Number(pay.amountPaise)) {
+    const payments = Array.isArray(l.payments) ? l.payments : [];
+    const p = payments.find((x) => x?.status === 'captured') || payments[0] || {};
+    const r = await activate(pay.orderId, { paymentId: String(p.payment_id || p.id || ''), method: String(p.method || ''), amount: Number(l.amount_paid) });
+    return { ...r, status: 'paid' };
+  }
+  if (status === 'paid') {
+    logger.error('razorpay payment link paid with a different amount', { link: pay.orderId, expected: pay.amountPaise, paid: l.amount_paid });
+    return { payment: pay, activated: false, status: 'failed' };
+  }
+  if (status === 'expired' || status === 'cancelled') {
+    await markFailed(pay.orderId, `Payment link ${status}`);
+    return { payment: pay, activated: false, status: 'failed' };
+  }
+  return { payment: pay, activated: false, status: 'pending' };
+}
+
+/**
+ * Razorpay sent the customer back from the hosted page. The signature
+ * proves the redirect is Razorpay's; the plan is activated only after
+ * Razorpay itself says the link is paid (settleLink).
+ */
+export async function confirmPaymentLink({ linkId, referenceId, status, paymentId, signature } = {}) {
+  const pay = await SubscriptionPayment.findOne({ orderId: String(linkId || '') }).lean();
+  if (!pay || !/^plink_/.test(pay.orderId)) throw new BillingError('Payment not found.', 404, 'NOT_FOUND');
+  if (pay.status === 'paid') return { payment: pay, activated: false, status: 'paid' };
+  if (!verifyPaymentLinkSignature({ linkId, referenceId, status, paymentId, signature })) {
+    logger.warn('razorpay payment link signature invalid', { link: linkId });
+    throw new BillingError('The payment couldn\'t be verified.', 400, 'BAD_SIGNATURE');
+  }
+  return settleLink(pay);
+}
+
+/** Check unpaid recent links with Razorpay (a tab closed after paying). */
+export async function syncPendingLinks({ businessId = null, max = 20 } = {}) {
+  if (!razorpayConfigured()) return { checked: 0, activated: 0 };
+  const since = new Date(Date.now() - LINK_CHECK_DAYS * 24 * 60 * 60 * 1000);
+  const rows = await SubscriptionPayment.find({
+    ...(businessId ? { businessId } : {}),
+    status: 'created',
+    orderId: /^plink_/,
+    createdAt: { $gte: since },
+  }).sort({ createdAt: -1 }).limit(max).lean();
+  let activated = 0;
+  for (const row of rows) {
+    try {
+      // eslint-disable-next-line no-await-in-loop
+      const r = await settleLink(row);
+      if (r.activated) activated += 1;
+    } catch (err) {
+      logger.warn('payment link sync failed', { link: row.orderId, error: err.message });
+    }
+  }
+  if (activated) logger.info('payment link sync activated plans', { checked: rows.length, activated });
+  return { checked: rows.length, activated };
+}
+
+let linkTimer = null;
+/** Every few minutes: recent unpaid links (safe to call once at boot). */
+export function startPaymentLinkSync(everyMs = 5 * 60 * 1000) {
+  if (linkTimer) return;
+  const run = () => syncPendingLinks().catch((err) => logger.warn('payment link sync failed', { error: err.message }));
+  linkTimer = setInterval(run, everyMs);
+  if (linkTimer.unref) linkTimer.unref();
+}
+
 /** Record a failed attempt (Razorpay's webhook). Never undoes a paid order. */
 export async function markFailed(orderId, reason = '') {
   await SubscriptionPayment.updateOne(
@@ -362,4 +512,5 @@ export const newRequestKey = () => crypto.randomBytes(8).toString('hex');
 
 export default {
   quote, checkout, confirmCheckout, activate, markFailed, grantPlan, presentQuote, presentPayment, addMonths, BillingError,
+  startPaymentLink, confirmPaymentLink, settleLink, syncPendingLinks, startPaymentLinkSync,
 };

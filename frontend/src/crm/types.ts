@@ -1706,6 +1706,16 @@ export interface PlanQuote {
   endsAt: string | null;
 }
 
+/** POST /api/billing/link: Razorpay's hosted payment page for a plan. */
+export interface PlanPaymentLink {
+  url: string;
+  linkId: string;
+  amount: number;
+  currency: string;
+  quote: PlanQuote;
+  description: string;
+}
+
 /** POST /api/billing/checkout: what Razorpay Checkout opens with. */
 export interface PlanCheckout {
   keyId: string;

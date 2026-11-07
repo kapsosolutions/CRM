@@ -45,7 +45,8 @@ import settingsRouter from './routes/settings.js';
 import demosRouter, { demoAdminRouter } from './routes/demos.js';
 import eventsRouter, { eventsAdminRouter } from './routes/events.js';
 import adsRouter from './routes/ads.js';
-import billingRouter, { razorpayWebhookRouter } from './routes/billing.js';
+import billingRouter, { razorpayWebhookRouter, razorpayReturnRouter } from './routes/billing.js';
+import { startPaymentLinkSync } from './services/subscriptions.js';
 import { requireFeature } from './services/planGate.js';
 import { startPlanReminders } from './services/planReminders.js';
 import { startBuilderMediaSweep } from './services/builderMediaSweep.js';
@@ -196,6 +197,8 @@ if (!DATABASE_URL) {
       startPostScheduler();
       // Daily: journey / flow uploads no definition uses (tab closed mid-edit…).
       startBuilderMediaSweep();
+      // Every 5 min: plan Payment Links paid in a tab closed before returning.
+      startPaymentLinkSync();
     })
     .catch((err) => logger.error('Database connection error', { error: err.message }));
 }
@@ -290,7 +293,8 @@ app.use('/api/events', eventsRouter); // public: the live event theme (website +
 app.use('/api/admin/events', eventsAdminRouter); // super admin: Events
 app.use('/api/ads', requireFeature('ads', { only: (req) => !(req.method === 'DELETE' && req.path === '/meta') }), adsRouter); // Click-to-WhatsApp ad leads + the connected Meta ad account (/api/ads/meta)
 app.use('/api/billing', billingRouter); // Settings → Billing: plan, usage, Razorpay plan purchases
-app.use('/api/razorpay/webhook', razorpayWebhookRouter); // Razorpay → us (signed): plan payments
+app.use('/api/razorpay/webhook', razorpayWebhookRouter); // Razorpay → us (signed, optional): plan payments
+app.use('/api/razorpay/return', razorpayReturnRouter); // Razorpay → the customer's browser, back from a paid Payment Link
 // Messenger / Instagram: the channel in the request (connecting one, its templates).
 const metaChannelOf = (req) => (String(req.body?.channel || req.query?.channel || '').toLowerCase() === 'instagram' ? 'instagram' : 'messenger');
 // Disconnecting (DELETE) a channel stays possible after a downgrade.

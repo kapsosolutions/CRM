@@ -50,9 +50,10 @@ import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
 import type { BusinessProfile } from '../types';
 import { useLockWindowScroll } from '../useLockWindowScroll';
 import { useAppSmoothScroll } from '../useAppSmoothScroll';
-import { useConfirm } from './Dialogs';
+import { useConfirm, useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
 import { BuyPlanModal } from './BuyPlanModal';
+import { paymentReturnMessage } from '../razorpay';
 import { DemoModal } from '../../site/DemoModal';
 import { BookDemoSvg, NavConnectSvg, BuyNowSvg } from './TemplateIcons';
 import { numberStatusTone, CHANNEL_STATUS_EVENT, NUMBER_ACTIVATION_EVENT } from '../numberStatus';
@@ -639,8 +640,9 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   const [planState, setPlanState] = useState<PlanState | null>(() => (demo ? demoPlan() : null));
   // The plans dialog, opened from the top bar, a locked page or a locked option.
   const [plansFor, setPlansFor] = useState<{ tier?: PlanTierKey; reason?: string } | null>(null);
-  // The native Flow builder is the platform owner's tool, plus any tenant it's
-  // been enabled for. Demo mode shows everything.
+  // Automation → the Flows tab (native WhatsApp Flows): every signed-in
+  // business sees it. On a plan without Flows (Starter) it carries the crown
+  // and opens the plans dialog; Basic and up open it (FlowsPage).
   const [canUseFlows, setCanUseFlows] = useState(demo);
   // The platform owner (admin, or a master-password session): the Flows tab's
   // daily-limit lock doesn't apply, so any tenant's flows can be looked after.
@@ -669,11 +671,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         setLabels(r.business?.labels);
         setBusinessId(r.business?._id);
         setPlanState(r.planState || null);
-        // Three ways in: the admin panel, a tenant the owner switched Flows on
-        // for, or a session opened with the platform master passcode. The last
-        // one is what makes the builder reachable inside *any* tenant without
-        // handing the tenant itself the tool.
-        setCanUseFlows(r.role === 'admin' || !!r.master || !!r.business?.flowsEnabled);
+        // Every business has the tab; its plan decides whether it opens.
+        setCanUseFlows(true);
         setStaffSession(r.role === 'admin' || !!r.master);
       })
       .catch(() => setCategory('other')) // on failure, don't hide anything
@@ -683,6 +682,36 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   useEffect(() => {
     loadMe();
   }, [loadMe]);
+
+  // Back from Razorpay's payment page (/api/razorpay/return): ?payment=paid |
+  // pending | failed. Said once, then taken out of the address (the
+  // crmOpen=… beside it opens Settings → Billing). While Razorpay is still
+  // confirming, Billing is read again a few times: that read asks Razorpay.
+  const notifyPay = useNotify();
+  useEffect(() => {
+    if (demo) return undefined;
+    let timers: ReturnType<typeof setTimeout>[] = [];
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const result = params.get('payment') || '';
+      if (!result) return undefined;
+      const reason = params.get('reason') || '';
+      params.delete('payment');
+      params.delete('reason');
+      const rest = params.toString();
+      window.history.replaceState(null, '', `${window.location.pathname}${rest ? `?${rest}` : ''}${window.location.hash}`);
+      const m = paymentReturnMessage(result, reason);
+      if (m) notifyPay(m.kind, m.title, m.text);
+      if (result === 'pending') {
+        timers = [8000, 20000, 45000].map((ms) => setTimeout(() => {
+          api.getBilling().then(() => loadMe()).catch(() => {});
+        }, ms));
+      }
+    } catch {
+      /* ignore */
+    }
+    return () => timers.forEach(clearTimeout);
+  }, [api, demo, loadMe, notifyPay]);
 
   // A trial or a paid period ends at a set time: read the plan again then,
   // so the pages lock (or the bar changes) without a reload.

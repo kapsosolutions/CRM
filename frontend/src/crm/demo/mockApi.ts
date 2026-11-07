@@ -649,6 +649,10 @@ export class MockCrmApi extends CrmApi {
     return Promise.reject(new Error('Payments are switched off in the demo. Sign up to choose a plan.'));
   }
 
+  override startPlanPaymentLink(): Promise<never> {
+    return Promise.reject(new Error('Payments are switched off in the demo. Sign up to choose a plan.'));
+  }
+
   override startPlanCheckout(): Promise<never> {
     return Promise.reject(new Error('Payments are switched off in the demo. Sign up to choose a plan.'));
   }

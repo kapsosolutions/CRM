@@ -28,7 +28,7 @@ import type {
   AdsCompareResult, AdsPixelDetails, AdsPixelsList, AdsRuleHistory, AdsRulePreview, AdsRuleSpec, AdsRulesList, AdsRuleWrite, AdsSplitTest, AdsTestDetails,
   AdsTestInput, AdsTestMetric, AdsTestsList,
 } from './types';
-import type { AdLeadsReport, BusinessSettings, PaymentSettings, BusinessProfile, SandboxInfo, ChannelStatus, ActivationResult, TwoStepPinResult, SignupActivation, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, FlowTemplate, Order, OrderStatus, Journey, Registration, RegistrationStatus, PlanSummary, BillingSummary, PlanState, PlanQuote, PlanCheckout, CatalogSync, CatalogSyncResult, TemplateSource, TemplateVariable, TriggerEvent, Slot } from './types';
+import type { AdLeadsReport, BusinessSettings, PaymentSettings, BusinessProfile, SandboxInfo, ChannelStatus, ActivationResult, TwoStepPinResult, SignupActivation, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, FlowTemplate, Order, OrderStatus, Journey, Registration, RegistrationStatus, PlanSummary, BillingSummary, PlanState, PlanQuote, PlanCheckout, PlanPaymentLink, CatalogSync, CatalogSyncResult, TemplateSource, TemplateVariable, TriggerEvent, Slot } from './types';
 
 /** An offer write: the saved offer plus how the catalog push went. */
 export interface OfferWrite {
@@ -254,6 +254,15 @@ export class CrmApi {
   /** What a plan + cycle costs this business now (upgrade credit, the period it buys). */
   getPlanQuote(tier: string, cycle: string): Promise<{ success: boolean; data: PlanQuote }> {
     return this.request(`/api/billing/quote?tier=${encodeURIComponent(tier)}&cycle=${encodeURIComponent(cycle)}`, { headers: this.authHeaders() });
+  }
+
+  /** A Razorpay Payment Link for a plan: the browser goes to `url` (Razorpay's own page) and comes back to Billing. */
+  startPlanPaymentLink(body: { tier: string; cycle: string }): Promise<{ success: boolean; data: PlanPaymentLink }> {
+    return this.request('/api/billing/link', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify(body),
+    });
   }
 
   /** Create the Razorpay order for a plan (opened in Razorpay Checkout). */

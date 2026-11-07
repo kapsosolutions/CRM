@@ -3,8 +3,8 @@
 // The cards are the landing page's (PlanCards). Each paid plan's button says
 // what clicking it does for THIS business (Buy, Upgrade, Renew, or why not),
 // shows the exact amount from the server (an upgrade's unused credit comes
-// off), then opens Razorpay Checkout (crm/razorpay.ts). The plan changes
-// only after the server has checked the payment with Razorpay.
+// off), then goes to Razorpay's payment page (a Payment Link, crm/razorpay.ts).
+// The plan changes only after the server has checked the payment with Razorpay.
 import { useCallback, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { PlanState, PlanTierKey } from '../types';
@@ -45,18 +45,17 @@ export function usePlanPurchase(api: CrmApi, onPaid?: (plan: PlanState) => void)
       ];
       const ok = await confirm({
         title: `Pay ${rupees(q.amountPaise)} for ${TIER_NAMES[tier]}?`,
-        message: 'You’ll pay securely with Razorpay (UPI, cards, net banking, wallets). Your plan changes as soon as the payment is confirmed.',
+        message: 'You’ll pay securely on Razorpay’s page (UPI, cards, net banking, wallets), then come back here. Your plan changes as soon as the payment is confirmed.',
         points,
         confirmLabel: `Pay ${rupees(q.amountPaise)}`,
         tone: 'primary',
       });
       if (!ok) return null;
       try {
-        const r = await payForPlan(api, tier, cycle);
-        if (r.status === 'dismissed') return null;
-        notify('success', `${TIER_NAMES[r.plan.tier]} plan is active`, r.plan.endsAt ? `Until ${fmtDate(r.plan.endsAt)}. Thank you!` : 'Thank you!');
-        onPaid?.(r.plan);
-        return r.plan;
+        // Off to Razorpay's page; the result shows when it sends the browser back.
+        await payForPlan(api, tier, cycle);
+        notify('success', 'Opening Razorpay…', 'Pay there; you’ll come back to Billing when it’s done.');
+        return null;
       } catch (e) {
         notify('error', 'Payment not completed', e instanceof Error ? e.message : 'Please try again.');
         return null;
