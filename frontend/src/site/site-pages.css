@@ -34,61 +34,106 @@
 .sx-header {
   gap: 24px;
 }
+/* Wide screens: logo | menus centred | buttons. */
+@media (min-width: 1081px) {
+  .sx-header {
+    display: grid;
+    /* Plain 1fr: a side never shrinks below its content, so on narrower
+       screens the menus shift a little instead of touching the buttons. */
+    grid-template-columns: 1fr auto 1fr;
+  }
+  .sx-header .lp-brand {
+    justify-self: start;
+  }
+  .sx-header .lp-actions {
+    justify-self: end;
+    margin-left: 0;
+  }
+}
 .sx-nav {
   display: flex;
   align-items: center;
-  gap: 2px;
-  margin-left: clamp(8px, 2vw, 32px);
-  position: relative;
+  justify-content: center;
+  gap: 4px;
 }
 .sx-nav-item {
-  position: relative;
+  position: static;
 }
 .sx-nav-btn {
+  position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: 3px;
   padding: 10px 12px;
   border: none;
-  border-radius: 10px;
   background: transparent;
-  color: #1f2937;
+  color: #334155;
   font: inherit;
   font-size: 15px;
   font-weight: 500;
   text-decoration: none;
   cursor: pointer;
   white-space: nowrap;
+  transition: color 0.15s ease;
+}
+/* Hover / open: darker text and a line under the label (no box). */
+.sx-nav-btn::after {
+  content: '';
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 3px;
+  height: 2px;
+  border-radius: 2px;
+  background: #16a34a;
+  transform: scaleX(0);
+  transform-origin: center;
+  transition: transform 0.18s ease;
 }
 .sx-nav-btn:hover,
 .sx-nav-btn.on {
-  color: #000000;
-  background: #f1f5f9;
+  color: #0f172a;
   text-decoration: none;
 }
-.sx-nav-btn.on {
-  box-shadow: inset 0 -2px 0 #22c55e;
+.sx-nav-btn:hover::after,
+.sx-nav-btn.on::after {
+  transform: scaleX(1);
+}
+.sx-nav-btn:has(.sx-nav-chev)::after {
+  right: 28px;
+}
+.sx-nav-btn:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px #bbf7d0;
+  border-radius: 8px;
 }
 .sx-nav-chev {
+  color: #64748b;
   transition: transform 0.18s ease;
 }
 .sx-nav-item.open .sx-nav-chev {
   transform: rotate(180deg);
+  color: #0f172a;
 }
+
+/* The menu: one wide panel, centred under the header. */
 .sx-panel {
   position: absolute;
-  top: calc(100% + 10px);
-  left: -16px;
+  top: calc(100% - 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  width: min(1120px, calc(100vw - 48px));
+  box-sizing: border-box;
   z-index: 80;
   display: flex;
-  gap: 18px;
-  padding: 20px;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding: 24px;
   background: #ffffff;
   border: 1px solid var(--sx-line);
   border-radius: 18px;
   box-shadow: 0 24px 60px rgba(15, 23, 42, 0.14);
   animation: sxDrop 0.16s ease;
-  flex-wrap: wrap;
 }
 .sx-panel::before {
   /* keeps the menu open while the pointer travels down to it */
@@ -96,29 +141,36 @@
   position: absolute;
   left: 0;
   right: 0;
-  top: -12px;
-  height: 12px;
+  top: -14px;
+  height: 14px;
 }
 @keyframes sxDrop {
-  from { opacity: 0; transform: translateY(-6px); }
-  to { opacity: 1; transform: none; }
+  from { opacity: 0; transform: translate(-50%, -6px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
 }
 .sx-panel-groups {
-  display: flex;
-  gap: 18px;
+  flex: 1;
+  min-width: 0;
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 16px;
 }
-.sx-panel-product .sx-panel-groups,
-.sx-panel-resources .sx-panel-groups {
-  flex-wrap: nowrap;
+/* Product: "Click-to-WhatsApp ads  Soon" needs a bit more room. */
+.sx-panel-product .sx-panel-groups {
+  grid-template-columns: 1.15fr 1fr 1fr 1fr;
 }
 .sx-panel-group {
-  min-width: 220px;
+  min-width: 0;
+}
+.sx-panel-group.wide {
+  grid-column: span 2;
 }
 .sx-panel-group.tinted {
   background: var(--sx-green-soft);
   border-radius: 14px;
-  padding: 12px;
-  margin: -12px 0;
+  padding: 14px 10px;
+  margin: -14px 0;
 }
 .sx-panel-title {
   font-size: 11.5px;
@@ -126,25 +178,30 @@
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--sx-muted);
-  margin: 0 8px 8px;
+  margin: 0 8px 10px;
 }
 .sx-panel-title.light {
   color: #86efac;
 }
+.sx-panel-links {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
 .sx-panel-links.two-col {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  column-gap: 6px;
+  column-gap: 8px;
 }
 .sx-menu-link {
   display: flex;
   align-items: flex-start;
-  gap: 10px;
-  padding: 8px;
+  gap: 12px;
+  padding: 7px 8px;
   border-radius: 10px;
-  color: var(--sx-ink);
+  color: #0f172a;
   text-decoration: none;
-  max-width: 280px;
+  transition: background 0.15s ease;
 }
 .sx-menu-link:hover {
   background: #f1f5f9;
@@ -153,28 +210,54 @@
 .sx-panel-group.tinted .sx-menu-link:hover {
   background: #ffffff;
 }
+/* The icon: the CRM sidebar's grey line icon, in a small bordered box. */
 .sx-menu-ico {
-  font-size: 20px;
-  color: var(--sx-green);
   flex: none;
-  margin-top: 1px;
+  width: 32px;
+  height: 32px;
+  box-sizing: border-box;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #ffffff;
+  color: #475569;
+  transition: color 0.15s ease, border-color 0.15s ease;
+}
+.sx-menu-ico > svg {
+  display: block;
+  max-width: 18px;
+  max-height: 18px;
+}
+.sx-menu-ico .material-icons {
+  font-size: 18px;
+}
+.sx-menu-link:hover .sx-menu-ico {
+  color: #0f172a;
+  border-color: #cbd5e1;
 }
 .sx-menu-text {
   display: flex;
   flex-direction: column;
+  justify-content: center;
+  min-height: 32px;
   min-width: 0;
 }
 .sx-menu-label {
   font-size: 14px;
-  font-weight: 600;
+  font-weight: 500;
+  line-height: 1.35;
   display: inline-flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
 }
 .sx-menu-desc {
   font-size: 12.5px;
+  line-height: 1.4;
   color: var(--sx-muted);
-  margin-top: 2px;
+  margin-top: 1px;
 }
 .sx-menu-badge {
   font-size: 10.5px;
@@ -190,11 +273,13 @@
   font-weight: 600;
   color: var(--sx-green-strong);
   text-decoration: none;
-  padding: 6px 8px 0;
+  padding: 12px 8px 0;
   border-top: 1px solid var(--sx-line);
 }
 .sx-panel-dev {
-  width: 330px;
+  width: 340px;
+  flex: none;
+  box-sizing: border-box;
   background: #0f172a;
   color: #e2e8f0;
   border-radius: 14px;
@@ -227,10 +312,12 @@
   color: #86efac;
 }
 .sx-panel-aside {
-  width: 260px;
+  width: 280px;
+  flex: none;
+  box-sizing: border-box;
   background: var(--sx-green-soft);
   border-radius: 14px;
-  padding: 16px;
+  padding: 18px;
 }
 .sx-panel-aside p {
   font-size: 13.5px;
@@ -244,20 +331,44 @@
   color: var(--sx-green-strong);
   text-decoration: none;
 }
-.sx-panel-resources,
-.sx-panel-product {
-  left: -140px;
-}
-.sx-panel-api {
-  left: -220px;
-}
 
-@media (max-width: 1180px) {
-  .sx-panel-product .sx-panel-groups {
-    flex-wrap: wrap;
-    max-width: 760px;
+@media (max-width: 1280px) {
+  .sx-header {
+    gap: 14px;
+  }
+  .sx-nav {
+    gap: 0;
+  }
+  .sx-nav-btn {
+    padding: 10px 9px;
+  }
+  .sx-nav-btn::after {
+    left: 9px;
+    right: 9px;
+  }
+  .sx-nav-btn:has(.sx-nav-chev)::after {
+    right: 25px;
+  }
+  .sx-header .lp-actions {
+    gap: 8px;
   }
 }
+@media (max-width: 1240px) {
+  .sx-panel {
+    padding: 20px;
+    gap: 18px;
+  }
+  .sx-panel-groups {
+    gap: 14px;
+  }
+  .sx-panel-aside {
+    width: 230px;
+  }
+  .sx-panel-dev {
+    width: 300px;
+  }
+}
+
 @media (max-width: 1080px) {
   .sx-nav {
     display: none !important;
@@ -311,9 +422,9 @@
   text-decoration: none;
   font-size: 14.5px;
 }
-.sx-mnav-link .material-icons {
-  font-size: 19px;
-  color: var(--sx-green);
+.sx-mnav-link .sx-menu-ico {
+  width: 30px;
+  height: 30px;
 }
 .sx-mnav-link:hover {
   background: #f1f5f9;

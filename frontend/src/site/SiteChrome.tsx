@@ -6,6 +6,7 @@ import { DemoModal } from './DemoModal';
 import { BookDemoSvg } from '../crm/components/TemplateIcons';
 import { platformApi } from '../admin/platformApi';
 import { FOOTER_COLUMNS, MENUS, type Menu, type MenuLink } from './siteMenus';
+import { SiteIcon } from './SiteIcons';
 import { onSiteLinkClick, useSitePath, useSeo } from './siteNav';
 import type { SitePageMeta } from './siteMeta';
 import './site.css';
@@ -43,7 +44,7 @@ const API_SNIPPET = `curl -X POST \\
 function MenuItem({ l, onPick }: { l: MenuLink; onPick: () => void }) {
   return (
     <SiteLink href={l.href} className="sx-menu-link" onClick={onPick}>
-      <span className="material-icons sx-menu-ico" aria-hidden="true">{l.icon}</span>
+      <span className="sx-menu-ico" aria-hidden="true"><SiteIcon name={l.icon} /></span>
       <span className="sx-menu-text">
         <span className="sx-menu-label">
           {l.label}
@@ -60,7 +61,7 @@ function MenuPanel({ menu, onPick }: { menu: Menu; onPick: () => void }) {
     <div className={`sx-panel sx-panel-${menu.key}`} role="menu" data-testid={`menu-panel-${menu.key}`}>
       <div className="sx-panel-groups">
         {menu.groups.map((g) => (
-          <div key={g.title} className={`sx-panel-group${g.tinted ? ' tinted' : ''}`}>
+          <div key={g.title} className={`sx-panel-group${g.tinted ? ' tinted' : ''}${g.links.length > 5 ? ' wide' : ''}`}>
             <div className="sx-panel-title">{g.title}</div>
             <div className={`sx-panel-links${g.links.length > 5 ? ' two-col' : ''}`}>
               {g.links.map((l) => <MenuItem key={l.href + l.label} l={l} onPick={onPick} />)}
@@ -228,7 +229,7 @@ export function SiteHeader({ compact = false, onBookDemo }: { compact?: boolean;
                       <div className="sx-mnav-title">{g.title}</div>
                       {g.links.map((l) => (
                         <SiteLink key={l.href + l.label} href={l.href} className="sx-mnav-link" onClick={() => setSidebarOpen(false)}>
-                          <span className="material-icons" aria-hidden="true">{l.icon}</span>
+                          <span className="sx-menu-ico" aria-hidden="true"><SiteIcon name={l.icon} /></span>
                           {l.label}
                           {l.badge && <span className="sx-menu-badge">{l.badge}</span>}
                         </SiteLink>
