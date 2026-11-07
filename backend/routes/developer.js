@@ -26,7 +26,8 @@ router.get('/keys', async (req, res) => {
 
 router.post('/keys', async (req, res) => {
   try {
-    assertFeature(req.business, 'templates');
+    // The template API is a plan feature (Basic and up).
+    assertFeature(req.business, 'api');
     const key = await createKey(req.business._id, req.body?.name);
     logger.info('api key created', { business: req.business.name, prefix: key.prefix });
     res.json({ success: true, data: key });

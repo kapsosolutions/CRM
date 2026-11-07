@@ -282,3 +282,74 @@
   margin-left: auto;
   flex-shrink: 0;
 }
+
+/* The crown: something the plan doesn't include (PlanCrown, CrownIcon). */
+.crown-svg {
+  display: block;
+  flex: none;
+}
+.plan-crown {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #d97706;
+  line-height: 0;
+  vertical-align: middle;
+}
+:root[data-theme='dark'] .plan-crown {
+  color: #fbbf24;
+}
+.pl-lock {
+  background: #f59e0b;
+}
+.pl-mini .crown-svg {
+  color: #d97706;
+}
+
+/* Crowns next to other things (chat + menu, call button, Flows tab, Channel Status). */
+.ax-crown {
+  margin-left: auto;
+  padding-left: 10px;
+}
+.th-call.plan-locked {
+  position: relative;
+  opacity: 0.85;
+}
+.th-call.plan-locked .th-call-crown {
+  position: absolute;
+  top: -3px;
+  right: -4px;
+  background: #fff;
+  border-radius: 50%;
+  padding: 1px;
+  box-shadow: 0 0 0 1px rgba(217, 119, 6, 0.35);
+}
+:root[data-theme='dark'] .th-call.plan-locked .th-call-crown {
+  background: #1f2328;
+}
+.flow-tab-crown,
+.cs-tab-crown,
+.cs-item-crown,
+.cs-row-crown,
+.cs-head-crown {
+  margin-left: 6px;
+}
+.cs-row-crown {
+  margin-left: auto;
+  margin-right: 6px;
+}
+.tl-api-keys .plan-crown,
+.tl-api-btn .plan-crown {
+  margin-left: 4px;
+}
+
+/* A template format outside the plan: clickable, with a crown in the corner. */
+.tc-opt.plan-locked {
+  position: relative;
+  opacity: 0.8;
+}
+.tc-opt-crown {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+}

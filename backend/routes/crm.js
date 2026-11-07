@@ -371,8 +371,10 @@ router.post('/send', async (req, res) => {
 // ---------------- Polls and events (the composer's + menu) ----------------
 // WhatsApp's API has no native poll or event message: services/chatExtras.js
 // builds them from buttons / lists and a calendar button. WhatsApp chats only.
-async function sendExtra(req, res, what, send) {
+async function sendExtra(req, res, what, send, feature) {
   try {
+    // Polls and events are plan features (Basic and up).
+    assertFeature(req.business, feature);
     const clean = String(req.body?.phone || '').replace(/\D/g, '');
     if (!clean) return res.status(400).json({ success: false, message: 'phone required' });
     const otherChannel = await chatChannel(req.business, clean);
@@ -382,6 +384,7 @@ async function sendExtra(req, res, what, send) {
     return res.json({ success: true, ...out });
   } catch (err) {
     if (err instanceof ExtraError) return res.status(400).json({ success: false, message: err.message });
+    if (sendPlanError(res, err)) return undefined;
     logger.error(`crm send ${what} failed`, { error: errMessage(err) });
     return sendFailure(res, err);
   }
@@ -389,13 +392,13 @@ async function sendExtra(req, res, what, send) {
 
 router.post('/send-poll', (req, res) => {
   const b = req.body || {};
-  return sendExtra(req, res, `📊 ${String(b.question || 'Poll').slice(0, 80)}`, (c, phone) => sendPoll(c, phone, b));
+  return sendExtra(req, res, `📊 ${String(b.question || 'Poll').slice(0, 80)}`, (c, phone) => sendPoll(c, phone, b), 'polls');
 });
 
 router.post('/send-event', (req, res) => {
   const b = req.body || {};
   const own = req.business.meta?.displayPhoneNumber || req.business.whatsappNumber || '';
-  return sendExtra(req, res, `📅 ${String(b.name || 'Event').slice(0, 80)}`, (c, phone) => sendEvent(c, phone, b, own));
+  return sendExtra(req, res, `📅 ${String(b.name || 'Event').slice(0, 80)}`, (c, phone) => sendEvent(c, phone, b, own), 'events');
 });
 
 // ---------------- Send a published Flow (interactive form) ----------------
@@ -405,6 +408,13 @@ router.post('/send-event', (req, res) => {
 router.post('/send-flow', async (req, res) => {
   try {
     const { phone, flowId } = req.body || {};
+    // Native WhatsApp Flows are a plan feature (Basic and up).
+    try {
+      assertFeature(req.business, 'flows');
+    } catch (e) {
+      if (sendPlanError(res, e)) return undefined;
+      throw e;
+    }
     if (!phone || !flowId) {
       return res.status(400).json({ success: false, message: 'phone and flowId required' });
     }

@@ -1,4 +1,5 @@
 // The CRM sidebar: grouped sections with labels (collapses to icons, and is a drawer on small screens).
+import { CrownIcon } from './PlanLocked';
 import type { ReactNode } from 'react';
 
 export type CrmView = 'chats' | 'templates' | 'campaigns' | 'flows' | 'catalog' | 'categories' | 'members' | 'offers' | 'orders' | 'ads' | 'create' | 'payment-config' | 'profile' | 'settings' | 'channel-status'
@@ -311,7 +312,8 @@ export function NavRail({
                 const label = labels?.[it.key] || it.label;
                 const count = badges?.[it.key] || 0;
                 const isSoon = !!soon?.[it.key];
-                const needs = !isSoon ? planLocked?.[it.key] : undefined;
+                // A plan lock shows even on a "Soon" item (Ads, Create): the crown.
+                const needs = planLocked?.[it.key];
                 const locked = isSoon || !!needs;
                 return (
                   <button
@@ -320,7 +322,7 @@ export function NavRail({
                     className={`rail-btn crm-side-item${view === it.key ? ' active' : ''}${locked ? ' soon' : ''}`}
                     onClick={() => onChange(it.key)}
                     title={needs ? `${label} · ${needs} plan` : label}
-                    aria-label={isSoon ? `${label}, coming soon` : needs ? `${label}, needs the ${needs} plan` : count > 0 ? `${label}, ${count} unread` : label}
+                    aria-label={isSoon ? `${label}, coming soon${needs ? `, needs the ${needs} plan` : ''}` : needs ? `${label}, needs the ${needs} plan` : count > 0 ? `${label}, ${count} unread` : label}
                     aria-current={view === it.key ? 'page' : undefined}
                     data-soon={isSoon ? 'true' : undefined}
                     data-plan-locked={needs || undefined}
@@ -329,12 +331,17 @@ export function NavRail({
                     <span className="crm-side-icon">
                       {it.svg ? it.svg : <span className="material-icons">{it.icon}</span>}
                       {locked && (
-                        <span className="rail-soon" aria-hidden="true"><span className="material-icons">lock</span></span>
+                        <span className={`rail-soon${needs ? ' crown' : ''}`} aria-hidden="true">
+                          {needs ? <CrownIcon size={11} /> : <span className="material-icons">lock</span>}
+                        </span>
                       )}
                     </span>
                     <span className="crm-side-text">{label}</span>
                     {isSoon && <span className="crm-side-pill soon" aria-hidden="true">Soon</span>}
-                    {needs && <span className="crm-side-pill plan" aria-hidden="true">{needs}</span>}
+                    {needs && (
+                      <span className="crm-side-crown" aria-hidden="true" data-testid="rail-crown"><CrownIcon size={15} /></span>
+                    )}
+                    {needs && !isSoon && <span className="crm-side-pill plan" aria-hidden="true">{needs}</span>}
                     {count > 0 && (
                       <span className="rail-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>
                     )}

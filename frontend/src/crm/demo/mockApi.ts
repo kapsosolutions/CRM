@@ -623,8 +623,8 @@ export class MockCrmApi extends CrmApi {
           daysLeft: 6,
           endingSoon: false,
           limits: {
-            features: ['chats', 'templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders', 'payment-config', 'ads', 'create', 'instagram', 'messenger'],
-            contacts: null, templates: null, campaignsPerMonth: null, carousel: true, authTemplates: true,
+            features: ['chats', 'templates', 'campaigns', 'journeys', 'flows', 'calls', 'polls', 'events', 'api', 'catalog', 'categories', 'members', 'offers', 'orders', 'payment-config', 'ads', 'create', 'instagram', 'messenger'],
+            contacts: null, templates: null, campaignsPerMonth: null, templateKinds: ['standard', 'carousel', 'lto'], sendRate: 40, carousel: true, authTemplates: true,
           },
           customerSince: new Date(Date.now() - 1 * 86400000).toISOString(),
         },

@@ -8,7 +8,9 @@ import type { CrmApi } from '../api';
 import type { BusinessProfile, TemplateItem, TemplateSource, TemplateVariable, TriggerEvent } from '../types';
 import { Dropdown, type KOption } from './Dropdown';
 import { usePlan } from '../PlanContext';
-import { TIER_NAMES, tierFor } from '../plans';
+import { KIND_NAMES, TIER_NAMES, kindsOf, tierFor } from '../plans';
+import { CrownIcon } from './PlanLocked';
+import type { PlanTierKey } from '../types';
 import { TemplatePhonePreview, type PreviewHeader } from './TemplatePhonePreview';
 import { AutoSendFields, triggerHasRules, type TriggerDraft } from './TemplateAutoSend';
 import { useConfirm, useNotify } from './Dialogs';
@@ -235,17 +237,23 @@ function OptionRow<T extends string>({
   value,
   onChange,
   disabled,
+  locked,
+  onLocked,
 }: {
   label: string;
   options: { value: T; label: string; icon: string | ReactNode; hint?: string; disabled?: boolean }[];
   value: T;
   onChange: (v: T) => void;
   disabled?: (v: T) => string | false;
+  /** Outside the plan: the plan that has it (shown with a crown; clicking calls onLocked). */
+  locked?: (v: T) => PlanTierKey | false;
+  onLocked?: (v: T) => void;
 }) {
   return (
     <div className="tc-opts" role="radiogroup" aria-label={label}>
       {options.map((o) => {
-        const why = disabled?.(o.value) || false;
+        const needs = locked?.(o.value) || false;
+        const why = needs ? `Needs the ${TIER_NAMES[needs]} plan` : disabled?.(o.value) || false;
         const on = o.value === value;
         return (
           <button
@@ -253,11 +261,15 @@ function OptionRow<T extends string>({
             role="radio"
             aria-checked={on}
             key={o.value}
-            className={`tc-opt${on ? ' on' : ''}${o.hint ? ' has-hint' : ''}`}
-            disabled={!!why}
+            className={`tc-opt${on ? ' on' : ''}${o.hint ? ' has-hint' : ''}${needs ? ' plan-locked' : ''}`}
+            disabled={!!why && !needs}
             title={why || o.hint || o.label}
-            onClick={() => onChange(o.value)}
+            onClick={() => (needs ? onLocked?.(o.value) : onChange(o.value))}
+            data-plan-locked={needs || undefined}
           >
+            {needs && (
+              <span className="tc-opt-crown plan-crown" aria-hidden="true"><CrownIcon size={14} /></span>
+            )}
             {typeof o.icon === 'string' ? (
               <span className="material-icons">{o.icon}</span>
             ) : (
@@ -875,10 +887,19 @@ export function TemplateComposerPage({
   // The plan: authentication templates (Pro and up) and carousels (Basic and
   // up). A locked choice opens the plans dialog; the server refuses it too.
   const authLocked = !readOnly && !!planLimits && !planLimits.authTemplates;
-  const carouselLocked = !readOnly && !!planLimits && !planLimits.carousel;
+  // Formats the plan doesn't include (Starter: standard only; Basic: no
+  // limited-time offers), each with the plan that has it.
+  const allowedKinds = kindsOf(planLimits);
+  const kindLock = (k: Kind): PlanTierKey | false => (!readOnly && !!planLimits && !allowedKinds.includes(k) ? tierFor(k) : false);
+  const lockedKinds = KINDS.map((k) => k.value).filter((k) => kindLock(k));
+  const carouselLocked = !!kindLock('carousel');
+  const openKindPlans = (k: Kind) => {
+    const need = tierFor(k);
+    openPlans({ tier: need, reason: `${KIND_NAMES[k]} templates are included from the ${TIER_NAMES[need]} plan.` });
+  };
   const baseCategories = authLocked
     ? CATEGORY_OPTIONS.map((o) => (o.value === 'AUTHENTICATION'
-      ? { ...o, label: `${o.label} · ${TIER_NAMES[tierFor('authTemplates')]} plan`, icon: <span className="material-icons" style={{ fontSize: 15 }} aria-hidden="true">lock</span> }
+      ? { ...o, label: `${o.label} · ${TIER_NAMES[tierFor('authTemplates')]} plan`, icon: <span className="plan-crown" aria-hidden="true"><CrownIcon size={15} /></span> }
       : o))
     : CATEGORY_OPTIONS;
   const categoryOptions = baseCategories.some((o) => o.value === category)
@@ -1059,19 +1080,15 @@ export function TemplateComposerPage({
               options={KINDS}
               value={kind}
               onChange={chooseKind}
-              disabled={(v) => (v === 'carousel' && carouselLocked
-                ? `Carousel templates need the ${TIER_NAMES[tierFor('carousel')]} plan`
-                : v !== 'standard' && category !== 'MARKETING' ? 'Marketing templates only' : false)}
+              disabled={(v) => (v !== 'standard' && category !== 'MARKETING' ? 'Marketing templates only' : false)}
+              locked={kindLock}
+              onLocked={openKindPlans}
             />
-            {carouselLocked && (
-              <p className="k-hint" data-testid="tc-carousel-locked">
-                <span className="material-icons" style={{ fontSize: 14, verticalAlign: '-2px' }} aria-hidden="true">lock</span>{' '}
-                Carousel templates are part of the {TIER_NAMES[tierFor('carousel')]} plan.{' '}
-                <button
-                  type="button"
-                  className="k-link-btn"
-                  onClick={() => openPlans({ tier: tierFor('carousel'), reason: `Carousel templates are included from the ${TIER_NAMES[tierFor('carousel')]} plan.` })}
-                >
+            {lockedKinds.length > 0 && (
+              <p className="k-hint" data-testid={carouselLocked ? 'tc-carousel-locked' : 'tc-kind-locked'}>
+                <span className="plan-crown" style={{ verticalAlign: '-2px' }} aria-hidden="true"><CrownIcon size={14} /></span>{' '}
+                {lockedKinds.map((k) => `${KIND_NAMES[k]} templates are part of the ${TIER_NAMES[tierFor(k)]} plan.`).join(' ')}{' '}
+                <button type="button" className="k-link-btn" onClick={() => openKindPlans(lockedKinds[0])}>
                   See plans
                 </button>
               </p>

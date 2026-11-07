@@ -8,7 +8,7 @@ import { CrmApi } from '../api';
 import { CrmSocket } from '../socket';
 import type { AppNotification, PlanFeature, PlanState, PlanTierKey } from '../types';
 import { PlanContext, type PlanContextValue } from '../PlanContext';
-import { hasFeature, tierFor, TIER_NAMES } from '../plans';
+import { hasFeature, tierFor, TIER_NAMES, LIMITS } from '../plans';
 import { PlanLockedPage } from './PlanLocked';
 import { WalletButton } from './WalletButton';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
@@ -186,7 +186,7 @@ interface PlanTopBarProps {
  * what the plan needs attention for (from the server's plan state):
  *   trial      "Your trial ends in N days." (a live HH:MM:SS on the last day) + Buy Now
  *   paid       from 5 days before the end: "Your Pro plan ends in N days." + Renew
- *   free       nothing bought: "Only Chats and 3 templates are open." + Choose a plan
+ *   free       nothing bought: "Only the Starter features are open." + Choose a plan
  * A paid plan with time left, or a business from before plans: nothing in the middle.
  */
 function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: PlanTopBarProps) {
@@ -253,7 +253,7 @@ function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: Plan
       <>
         <span className="crm-top-bar-text" data-testid="topbar-plan-text">
           {plan.ended?.kind === 'plan' ? `Your ${plan.ended.name} plan has ended.` : plan.ended?.kind === 'trial' ? 'Your trial has ended.' : ''}{' '}
-          Only <strong>Chats and 3 templates</strong> are open.
+          Only the <strong>Starter features</strong> are open.
         </span>
         <button type="button" className="crm-top-bar-btn" onClick={onBuyNow} data-testid="topbar-buy">
           <BuyNowSvg width={16} height={16} stroke="currentColor" />
@@ -700,12 +700,16 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   /** The plan feature a rail page needs (null = part of every plan). */
   // A form page lists form submissions, which the plan opens with Orders
   // (the same records as Orders → Form submissions; /api/registrations).
+  // Automation opens with journeys (every plan); its WhatsApp Flows tab
+  // needs 'flows' (FlowsPage).
   const featureOf = (v: CrmView): PlanFeature | null =>
     isFormView(v)
       ? 'orders'
-      : ['templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders', 'ads', 'create', 'payment-config'].includes(v)
-        ? (v as PlanFeature)
-        : null;
+      : v === 'flows'
+        ? 'journeys'
+        : ['templates', 'campaigns', 'catalog', 'categories', 'members', 'offers', 'orders', 'ads', 'create', 'payment-config'].includes(v)
+          ? (v as PlanFeature)
+          : null;
   /** The page is outside the plan: show its upgrade screen instead. */
   const planLocked = (v: CrmView) => {
     const f = featureOf(v);
@@ -714,7 +718,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   const lockedRail = useMemo(() => {
     const out: Partial<Record<CrmView, string>> = {};
     for (const v of ['templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders', 'ads', 'create', 'payment-config'] as CrmView[]) {
-      const f = v as PlanFeature;
+      const f = featureOf(v) as PlanFeature;
       if (!hasFeature(planState, f)) out[v] = TIER_NAMES[tierFor(f)];
     }
     return out;
@@ -1425,8 +1429,29 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   );
 }
 
-/** The demo's plan: the free trial (every feature), 6 days left. */
+/**
+ * The demo's plan: the free trial (every feature), 6 days left. Setting
+ * localStorage '__demoPlan' to a tier ('free', 'basic', 'pro') shows that
+ * plan instead, to see its locks.
+ */
 function demoPlan(): PlanState {
+  let tier: PlanTierKey | '' = '';
+  try {
+    const t = localStorage.getItem('__demoPlan') || '';
+    if (t === 'free' || t === 'basic' || t === 'pro' || t === 'premium') tier = t;
+  } catch { /* private mode */ }
+  if (tier) {
+    return {
+      tier,
+      name: TIER_NAMES[tier],
+      status: 'active',
+      endsAt: new Date(Date.now() + 20 * 24 * 60 * 60 * 1000).toISOString(),
+      daysLeft: 20,
+      endingSoon: false,
+      cycle: 'monthly',
+      limits: LIMITS[tier],
+    };
+  }
   return {
     tier: 'premium',
     name: 'Premium',
@@ -1434,13 +1459,6 @@ function demoPlan(): PlanState {
     endsAt: new Date(Date.now() + 6 * 24 * 60 * 60 * 1000 - 60000).toISOString(),
     daysLeft: 6,
     endingSoon: false,
-    limits: {
-      features: ['chats', 'templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders', 'payment-config', 'ads', 'create', 'instagram', 'messenger'],
-      contacts: null,
-      templates: null,
-      campaignsPerMonth: null,
-      carousel: true,
-      authTemplates: true,
-    },
+    limits: LIMITS.premium,
   };
 }

@@ -1,16 +1,21 @@
 // The SaaS plans: what each one includes, what it costs, and which plan a
 // business is on right now.
 //
-// Plans (cheapest first):
+// Plans (cheapest first). No plan limits contacts.
 //   free     "Starter", ₹499/month (the key is still 'free' so stored
-//            subscriptions keep working) — Chats with any number of
-//            contacts, and up to 3 templates (no carousel, no
-//            authentication templates). Nothing else.
-//   basic    No template limit, campaigns (monthly cap), and every
-//            page except Ads, Instagram, Messenger and Create. No
-//            authentication templates.
-//   pro      Everything except Ads (campaigns: a higher monthly cap).
-//   premium  Everything.
+//            subscriptions keep working): the WhatsApp team inbox, 50
+//            templates (standard format; Marketing and Utility), 10
+//            campaigns a month at 5 messages/s, and journeys (basic
+//            automation, no native WhatsApp Flows). No calls, polls,
+//            events, template API keys, catalog / orders / payments,
+//            Instagram, Messenger, Ads or Create.
+//   basic    100 templates (standard + carousel; Authentication too), 25
+//            campaigns a month at 10/s, journeys + native WhatsApp Flows,
+//            calls, polls, events, API keys, catalog, orders, payment
+//            configuration, Instagram and Messenger. No Ads or Create.
+//   pro      Every feature and template format (limited-time offers too),
+//            300 templates, 50 campaigns a month at 20/s, Ads and Create.
+//   premium  Everything, with no template or campaign limits, at 40/s.
 //
 // Which plan applies, in order:
 //   1. a paid (or admin-granted) subscription that hasn't ended;
@@ -46,37 +51,55 @@ export const PLANS_LAUNCHED_AT = new Date(process.env.PLANS_LAUNCHED_AT || '2026
 
 /**
  * Pages / features, by the CRM's rail keys, plus the channel connections.
- * `flows` covers Automation and Journeys (and the chatbot that runs them).
+ *   journeys  Automation → Journeys and keyword auto-replies (the chatbot)
+ *   flows     native WhatsApp Flows (the Flow builder, flow maps, sending one)
+ *   calls     WhatsApp voice calls · polls / events: those chat messages
+ *   api       the template API (developer API keys, /api/v1)
  */
 export const FEATURES = [
-  'chats', 'templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders',
+  'chats', 'templates', 'campaigns', 'journeys', 'flows', 'calls', 'polls', 'events', 'api',
+  'catalog', 'categories', 'members', 'offers', 'orders',
   'payment-config', 'ads', 'create', 'instagram', 'messenger',
 ];
+/** Template formats the builder makes (Template.kind). */
+export const TEMPLATE_KINDS = ['standard', 'carousel', 'lto'];
+export const KIND_NAMES = { standard: 'Standard', carousel: 'Carousel', lto: 'Limited-time offer' };
 const ALL = FEATURES;
 const without = (...f) => ALL.filter((x) => !f.includes(x));
 
+// contacts: no plan limits them (null) · templates: in its account, any
+// status (null = no limit) · templateKinds: formats it may create ·
+// authTemplates: Authentication (one-time code) category · sendRate:
+// campaign messages per second · carousel: kept for older clients
+// (= templateKinds includes 'carousel').
 export const LIMITS = {
   free: {
-    features: ['chats', 'templates'],
-    contacts: null, // no plan limits the contacts it can chat with
-    templates: 3, // templates in its account (any status)
-    campaignsPerMonth: 0,
+    features: ['chats', 'templates', 'campaigns', 'journeys'],
+    contacts: null,
+    templates: 50,
+    templateKinds: ['standard'],
+    campaignsPerMonth: 10,
+    sendRate: 5,
     carousel: false,
     authTemplates: false,
   },
   basic: {
-    features: without('ads', 'create', 'instagram', 'messenger'),
+    features: without('ads', 'create'),
     contacts: null,
-    templates: null,
-    campaignsPerMonth: 15,
+    templates: 100,
+    templateKinds: ['standard', 'carousel'],
+    campaignsPerMonth: 25,
+    sendRate: 10,
     carousel: true,
-    authTemplates: false,
+    authTemplates: true,
   },
   pro: {
-    features: without('ads'),
+    features: ALL,
     contacts: null,
-    templates: null,
+    templates: 300,
+    templateKinds: TEMPLATE_KINDS,
     campaignsPerMonth: 50,
+    sendRate: 20,
     carousel: true,
     authTemplates: true,
   },
@@ -84,7 +107,9 @@ export const LIMITS = {
     features: ALL,
     contacts: null,
     templates: null,
+    templateKinds: TEMPLATE_KINDS,
     campaignsPerMonth: null,
+    sendRate: 40,
     carousel: true,
     authTemplates: true,
   },
@@ -103,11 +128,21 @@ export function pricePaise(tier, cycle) {
   return perMonth * CYCLES[cycle] * 100;
 }
 
-/** The cheapest plan that includes `feature` (for "Upgrade to Basic"). */
+/** The cheapest plan that includes `feature` (for "Upgrade to Basic"); a template kind works too. */
 export function tierFor(feature) {
   if (feature === 'authTemplates') return TIERS.find((t) => LIMITS[t].authTemplates);
-  if (feature === 'carousel') return TIERS.find((t) => LIMITS[t].carousel);
+  if (TEMPLATE_KINDS.includes(feature)) return TIERS.find((t) => LIMITS[t].templateKinds.includes(feature)) || 'premium';
   return TIERS.find((t) => LIMITS[t].features.includes(feature)) || 'premium';
+}
+
+/** May this plan create templates of `kind`? */
+export const kindAllowed = (limits, kind) => (limits?.templateKinds || ['standard']).includes(kind || 'standard');
+
+/** The next plan up from `tier` with more of a numeric limit (null = no limit counts as more). */
+export function tierWithMore(tier, field) {
+  const cur = LIMITS[tier]?.[field];
+  const later = TIERS.slice(tierRank(tier) + 1);
+  return later.find((t) => LIMITS[t][field] === null || (cur !== null && LIMITS[t][field] > cur)) || 'premium';
 }
 
 const asDate = (v) => {
@@ -201,7 +236,12 @@ const FEATURE_LABEL = {
   chats: 'Chats',
   templates: 'Templates',
   campaigns: 'Campaigns',
-  flows: 'Automation',
+  journeys: 'Automation (journeys)',
+  flows: 'WhatsApp Flows',
+  calls: 'WhatsApp calls',
+  polls: 'Polls',
+  events: 'Events',
+  api: 'Template API keys',
   catalog: 'Catalog',
   categories: 'Categories',
   members: 'Members',
@@ -226,6 +266,6 @@ export function assertFeature(biz, feature, now = new Date()) {
 }
 
 export default {
-  TIERS, TIER_NAMES, CYCLES, PRICES, LIMITS, FEATURES, TRIAL_DAYS, REMIND_DAYS, PLANS_LAUNCHED_AT,
-  pricePaise, tierFor, trialEndsAt, isLegacy, planState, hasFeature, assertFeature, PlanLimitError, tierRank, isPaidTier,
+  TIERS, TIER_NAMES, CYCLES, PRICES, LIMITS, FEATURES, TEMPLATE_KINDS, KIND_NAMES, TRIAL_DAYS, REMIND_DAYS, PLANS_LAUNCHED_AT,
+  pricePaise, tierFor, kindAllowed, tierWithMore, trialEndsAt, isLegacy, planState, hasFeature, assertFeature, PlanLimitError, tierRank, isPaidTier,
 };

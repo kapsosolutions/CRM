@@ -4,6 +4,7 @@
 // WhatsApp's Cloud API has no native poll or event message, so the backend
 // (services/chatExtras.js) sends a poll as tap-to-answer buttons or a list,
 // and an event as its details with an "Add to calendar" button.
+import { CrownIcon } from './PlanLocked';
 import { lazy, Suspense, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import type { EventInput, PollInput } from '../types';
@@ -46,7 +47,15 @@ const ITEMS: { kind: AttachKind; label: string; icon: ExtraIcon }[] = [
 ];
 
 /** The + menu above the composer. `kinds` limits it (Messenger / Instagram have no polls). */
-export function AttachMenu({ kinds, onPick, onClose }: { kinds: AttachKind[]; onPick: (k: AttachKind) => void; onClose: () => void }) {
+export function AttachMenu({
+  kinds, onPick, onClose, locked,
+}: {
+  kinds: AttachKind[];
+  onPick: (k: AttachKind) => void;
+  onClose: () => void;
+  /** Items outside the plan: shown with a crown (picking one opens the plans dialog). */
+  locked?: Partial<Record<AttachKind, boolean>>;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
@@ -79,9 +88,13 @@ export function AttachMenu({ kinds, onPick, onClose }: { kinds: AttachKind[]; on
             all[(at + (e.key === 'ArrowDown' ? 1 : all.length - 1)) % all.length]?.focus();
           }}
           data-testid={`attach-${i.kind}`}
+          data-plan-locked={locked?.[i.kind] ? 'true' : undefined}
         >
           <span className="ax-ico"><ExtraSvg name={i.icon} /></span>
           {i.label}
+          {locked?.[i.kind] && (
+            <span className="ax-crown plan-crown" aria-label="Needs a higher plan"><CrownIcon size={15} /></span>
+          )}
         </button>
       ))}
     </div>

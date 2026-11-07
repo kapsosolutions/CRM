@@ -40,7 +40,7 @@ export function AdminPlanPanel({ biz, onChanged }: { biz: Business; onChanged: (
   async function restartTrial() {
     const ok = await confirm({
       title: `Restart the free trial for ${biz.name}?`,
-      message: 'Every feature for 7 days from now; after that only Chats and 3 templates stay open unless they buy a plan. Any current plan is replaced.',
+      message: 'Every feature for 7 days from now; after that only the Starter features stay open unless they buy a plan. Any current plan is replaced.',
       confirmLabel: 'Restart trial',
       tone: 'primary',
     });

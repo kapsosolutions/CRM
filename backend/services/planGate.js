@@ -9,6 +9,7 @@ import { businessFromToken } from '../middleware/auth.js';
 import logger from './logger.js';
 import {
   planState, hasFeature, assertFeature, PlanLimitError, tierFor, TIER_NAMES,
+  TEMPLATE_KINDS, KIND_NAMES, LIMITS, kindAllowed, tierWithMore,
 } from './plans.js';
 
 const PLAN_FIELDS = 'createdAt trialEndsAt subscription name';
@@ -97,11 +98,12 @@ export async function assertTemplateAllowed(biz, { name, category, kind }) {
       { feature: 'authTemplates', needs },
     );
   }
-  if (kind === 'carousel' && !L.carousel) {
-    const needs = tierFor('carousel');
+  const k = TEMPLATE_KINDS.includes(kind) ? kind : 'standard';
+  if (!kindAllowed(L, k)) {
+    const needs = tierFor(k);
     throw new PlanLimitError(
-      `Carousel templates aren't included in your ${state.name} plan. Upgrade to ${TIER_NAMES[needs]} to create them.`,
-      { feature: 'carousel', needs },
+      `${KIND_NAMES[k]} templates aren't included in your ${state.name} plan. Upgrade to ${TIER_NAMES[needs]} to create them.`,
+      { feature: k, needs },
     );
   }
   if (L.templates) {
@@ -111,9 +113,11 @@ export async function assertTemplateAllowed(biz, { name, category, kind }) {
     if (!existing) {
       const count = await Template.countDocuments({ businessId: biz._id });
       if (count >= L.templates) {
+        const needs = tierWithMore(state.tier, 'templates');
+        const more = LIMITS[needs].templates;
         throw new PlanLimitError(
-          `Your ${state.name} plan includes ${L.templates} templates, and you have ${count}. Delete one or upgrade to ${TIER_NAMES.basic} for unlimited templates.`,
-          { code: 'TEMPLATE_LIMIT', feature: 'templates', needs: 'basic', limit: L.templates },
+          `Your ${state.name} plan includes ${L.templates} templates, and you have ${count}. Delete one or upgrade to ${TIER_NAMES[needs]} for ${more ? more : 'unlimited'} templates.`,
+          { code: 'TEMPLATE_LIMIT', feature: 'templates', needs, limit: L.templates },
         );
       }
     }
@@ -141,7 +145,7 @@ export async function assertCampaignAllowed(biz, { channel = 'whatsapp', exceptI
   if (cap === null || cap === undefined) return state;
   const used = await campaignsThisMonth(biz._id, { exceptId });
   if (used >= cap) {
-    const needs = state.tier === 'basic' ? 'pro' : 'premium';
+    const needs = tierWithMore(state.tier, 'campaignsPerMonth');
     throw new PlanLimitError(
       `Your ${state.name} plan includes ${cap} campaigns a month, and ${used} have been launched this month. Upgrade to ${TIER_NAMES[needs]} for more, or wait until next month.`,
       { code: 'CAMPAIGN_LIMIT', feature: 'campaigns', needs, limit: cap },

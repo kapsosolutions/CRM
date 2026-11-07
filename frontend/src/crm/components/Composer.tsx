@@ -1,4 +1,5 @@
 // Message composer: templates, attach, emoji, text input, and voice recording.
+import { useFeatureLock } from './PlanLocked';
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import { useNotify } from './Dialogs';
 import type { EventInput, PollInput } from '../types';
@@ -94,8 +95,15 @@ export function Composer({
     ...(whatsapp && onSendPoll ? ['poll' as const] : []),
     ...(whatsapp && onSendEvent ? ['event' as const] : []),
   ];
+  // Polls and events are plan features (Basic and up): shown with a crown.
+  const lockOf = useFeatureLock();
+  const pollPlan = whatsapp && onSendPoll ? lockOf('polls') : null;
+  const eventPlan = whatsapp && onSendEvent ? lockOf('events') : null;
+  const lockedKinds = { poll: !!pollPlan, event: !!eventPlan };
   function pick(kind: AttachKind) {
     setMenuOpen(false);
+    if (kind === 'poll' && pollPlan) return pollPlan.open();
+    if (kind === 'event' && eventPlan) return eventPlan.open();
     if (kind === 'document') fileRef.current?.click();
     else if (kind === 'media') mediaRef.current?.click();
     else if (kind === 'audio') audioRef.current?.click();
@@ -353,7 +361,7 @@ export function Composer({
                   <path d="M11 13H6q-.42 0-.71-.29A1 1 0 0 1 5 12q0-.42.29-.71A1 1 0 0 1 6 11h5V6q0-.42.29-.71A1 1 0 0 1 12 5q.42 0 .71.29.3.29.29.71v5h5q.42 0 .71.29.3.29.29.71 0 .42-.29.71A1 1 0 0 1 18 13h-5v5q0 .42-.29.71A1 1 0 0 1 12 19a1 1 0 0 1-.71-.29A1 1 0 0 1 11 18z" />
                 </svg>
               </button>
-              {menuOpen && <AttachMenu kinds={kinds} onPick={pick} onClose={closeMenu} />}
+              {menuOpen && <AttachMenu kinds={kinds} onPick={pick} onClose={closeMenu} locked={lockedKinds} />}
             </div>
             {whatsapp && (
             <button

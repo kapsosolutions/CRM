@@ -7,6 +7,7 @@
 //   multimedia send/receive · emoji reactions · templates (list/preview/send/
 //   create) · delivery & read ticks · live socket · desktop notifications.
 // =============================================================================
+import { PlanCrown, useFeatureLock } from './PlanLocked';
 import { Fragment, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { CrmApi } from '../api';
 import { CrmSocket } from '../socket';
@@ -134,6 +135,8 @@ export function CrmApp({
 
   // The plans dialog, for a chat outside the plan (a plan with a contact limit).
   const { openPlans } = usePlan();
+  // WhatsApp calls are a plan feature (Basic and up).
+  const callsPlan = useFeatureLock()('calls');
   // WhatsApp voice calls (the shell's CallProvider; absent outside the shell).
   const calls = useCalls();
 
@@ -1444,8 +1447,24 @@ export function CrmApp({
 
               <SessionTimer expiresAt={windowExpiresAt} metaChat={metaChat} />
 
+              {/* Outside the plan: the call button with a crown opens the plans. */}
+              {!metaChat && callsPlan && activePhone && (
+                <div className="th-call-group">
+                  <button
+                    type="button"
+                    className="th-call plan-locked"
+                    onClick={callsPlan.open}
+                    title="WhatsApp calls are included from the Basic plan"
+                    aria-label="Voice call (needs a higher plan)"
+                    data-testid="th-call-locked"
+                  >
+                    <CallIcon />
+                    <PlanCrown tier={callsPlan.tier} size={13} className="th-call-crown" />
+                  </button>
+                </div>
+              )}
               {/* WhatsApp voice call; video isn't in Meta's Calling API yet (Soon). */}
-              {!metaChat && calls?.available && activePhone && (
+              {!metaChat && !callsPlan && calls?.available && activePhone && (
                 <div className="th-call-group">
                   <button
                     type="button"
@@ -1598,14 +1617,14 @@ export function CrmApp({
                 <div>
                   <strong>Upgrade to reply to this contact</strong>
                   {isMetaChannelChat(activeChat)
-                    ? `${activeChat.channel === 'instagram' ? 'Instagram' : 'Messenger'} chats are part of the Pro plan.`
+                    ? `${activeChat.channel === 'instagram' ? 'Instagram' : 'Messenger'} chats are part of the Basic plan.`
                     : 'Your plan doesn’t include chats with this contact. Their messages are saved for when you upgrade.'}
                 </div>
                 <button
                   type="button"
                   className="pl-btn"
                   onClick={() => openPlans(isMetaChannelChat(activeChat)
-                    ? { tier: 'pro', reason: 'Instagram and Messenger chats are included from the Pro plan.' }
+                    ? { tier: 'basic', reason: 'Instagram and Messenger chats are included from the Basic plan.' }
                     : { tier: 'basic', reason: 'Your plan limits the contacts you can chat with.' })}
                 >
                   <span className="material-icons" aria-hidden="true">workspace_premium</span>

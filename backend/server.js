@@ -261,9 +261,9 @@ app.use('/api/crm', crmRouter);
 // (public callbacks), pass straight through.
 app.use('/api/catalog', requireFeature((req) => (/^\/categories(\/|$)/.test(req.path) ? 'categories' : 'catalog')), catalogRouter);
 app.use('/api/offers', requireFeature('offers'), offersRouter);
-app.use('/api/flows', requireFeature('flows'), flowsRouter);
+app.use('/api/flows', requireFeature('flows'), flowsRouter); // native WhatsApp Flows (Basic and up)
 app.use('/api/orders', requireFeature('orders'), ordersRouter);
-app.use('/api/journeys', requireFeature('flows'), journeysRouter);
+app.use('/api/journeys', requireFeature('journeys'), journeysRouter); // basic automation (every plan)
 app.use('/api/members', requireFeature('members'), membersRouter);
 app.use('/api/registrations', requireFeature('orders'), registrationsRouter);
 app.use('/api/media', mediaRouter);
@@ -273,7 +273,7 @@ app.use('/api/onboarding', onboardingRouter);
 app.use('/api/settings', requireFeature('payment-config', { only: (req) => req.path === '/' }), settingsRouter);
 app.use('/api/sandbox', sandboxRouter); // shared "try it" number panel
 app.use('/api/channel', channelRouter); // Channel Status: live number status from Meta
-app.use('/api/calls', callsRouter); // WhatsApp voice calls: settings, answer, call, permission
+app.use('/api/calls', requireFeature('calls'), callsRouter); // WhatsApp voice calls: settings, answer, call, permission (Basic and up)
 // Cancelling or deleting a campaign stays possible after a downgrade.
 app.use('/api/campaigns', requireFeature('campaigns', { only: (req) => req.method !== 'DELETE' && !/\/cancel$/.test(req.path) }), campaignsRouter); // Campaigns: server-side sends and real stats
 app.use('/api/notifications', notificationsRouter); // header bell + notification drawer

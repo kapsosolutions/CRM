@@ -1,3 +1,4 @@
+import { PlanCrown, useFeatureLock } from './PlanLocked';
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type {
@@ -662,6 +663,11 @@ export function ChannelStatusPage({
   const isWaConnected = hasOwnNumber && status?.connected !== false;
   // Until the server answers, the flags from /api/auth/me.
   const isIgConnected = metaInfo ? igConn?.status === 'connected' : !!business?.instagramConnected;
+  // Outside the plan: a crown beside the channel (and beside "Soon").
+  const lockOf = useFeatureLock();
+  const igPlan = lockOf('instagram');
+  const msgPlan = lockOf('messenger');
+  const callsPlan = lockOf('calls');
   const isMessengerConnected = metaInfo ? msgConn?.status === 'connected' : !!business?.messengerConnected;
   const isConnected = isWaConnected;
   const isCurrentChannelConnected =
@@ -771,6 +777,7 @@ export function ChannelStatusPage({
                 <img src="/channel-instagram.svg" alt="Instagram" className="cs-channel-row-icon" />
                 <span className="cs-channel-row-name">Instagram</span>
               </div>
+              {igPlan && <PlanCrown tier={igPlan.tier} className="cs-row-crown" />}
               {COMING_SOON.instagram && !isIgConnected ? (
                 <SoonPill />
               ) : (
@@ -790,6 +797,7 @@ export function ChannelStatusPage({
                 <img src="/channel-messenger.svg" alt="Messenger" className="cs-channel-row-icon" />
                 <span className="cs-channel-row-name">Messenger</span>
               </div>
+              {msgPlan && <PlanCrown tier={msgPlan.tier} className="cs-row-crown" />}
               {COMING_SOON.messenger && !isMessengerConnected ? (
                 <SoonPill />
               ) : (
@@ -829,6 +837,7 @@ export function ChannelStatusPage({
                 ) : COMING_SOON.instagram ? (
                   <span className="cs-tab-badge-new" style={SOON_BADGE} data-testid="cs-tab-soon-instagram">Soon</span>
                 ) : null}
+                {!isIgConnected && igPlan && <PlanCrown tier={igPlan.tier} size={14} className="cs-tab-crown" />}
               </button>
 
               <button
@@ -848,6 +857,7 @@ export function ChannelStatusPage({
                 ) : (
                   <span className="cs-tab-badge-new">New</span>
                 )}
+                {!isMessengerConnected && msgPlan && <PlanCrown tier={msgPlan.tier} size={14} className="cs-tab-crown" />}
               </button>
             </div>
 
@@ -1013,7 +1023,7 @@ export function ChannelStatusPage({
                       <span className="material-icons" style={{ fontSize: 13 }}>call</span>
                     </div>
                     <div className="cs-item-info">
-                      <span className="cs-item-title">Calling</span>
+                      <span className="cs-item-title">Calling{callsPlan && <PlanCrown tier={callsPlan.tier} size={14} className="cs-item-crown" />}</span>
                       <span className="cs-item-desc">Voice calls on WhatsApp · video <SoonPill /></span>
                     </div>
                   </button>
@@ -1122,7 +1132,7 @@ export function ChannelStatusPage({
                 isIgConnected ? (
                   <span className="cs-badge-status completed">Connected</span>
                 ) : COMING_SOON.instagram ? (
-                  <SoonPill className="lg" />
+                  <>{igPlan && <PlanCrown tier={igPlan.tier} size={18} className="cs-head-crown" />}<SoonPill className="lg" /></>
                 ) : (
                   <span className="cs-badge-not-started">Not Started</span>
                 )
@@ -1130,7 +1140,7 @@ export function ChannelStatusPage({
                 isMessengerConnected ? (
                   <span className="cs-badge-status completed">Connected</span>
                 ) : COMING_SOON.messenger ? (
-                  <SoonPill className="lg" />
+                  <>{msgPlan && <PlanCrown tier={msgPlan.tier} size={18} className="cs-head-crown" />}<SoonPill className="lg" /></>
                 ) : (
                   <span className="cs-badge-not-started">Not Started</span>
                 )

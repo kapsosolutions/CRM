@@ -85,8 +85,8 @@ function ready(biz) {
   if (!isWhatsAppConnected(biz)) {
     throw new ApiFail(409, 'whatsapp_not_connected', 'Connect your own WhatsApp number in the CRM before using the API.');
   }
-  // Templates are part of the plan (every paid plan and the trial today).
-  assertFeature(biz, 'templates');
+  // The template API is a plan feature (Basic and up).
+  assertFeature(biz, 'api');
 }
 
 async function approvedTemplate(businessId, name) {

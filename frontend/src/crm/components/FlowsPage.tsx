@@ -2,6 +2,7 @@
 // Rich WhatsApp blocks: media header + body + reply buttons (each button has
 // its own output port for branching), CTA URL, Call, Ask location, List menu
 // (each row branches), and an approved-Template block.
+import { PlanCrown, useFeatureLock } from './PlanLocked';
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { UndoIcon, RedoIcon } from './AppIcons';
 import ReactFlow, {
@@ -2170,6 +2171,8 @@ export function FlowsPage({
   // WhatsApp Flows open once the number may message FLOWS_MIN_LIMIT customers
   // a day. A limit that isn't known (not loaded, not connected) doesn't lock.
   const { data: limitData } = useMessagingLimit();
+  // Native WhatsApp Flows are a plan feature (Basic and up); Journeys are in every plan.
+  const flowsPlan = useFeatureLock()('flows');
   const flowsLimit = limitData?.connected && limitData.limit && !limitData.limit.unlimited ? Number(limitData.limit.limit) : null;
   const flowsLocked = !limitBypass && flowsLimit !== null && Number.isFinite(flowsLimit) && flowsLimit < FLOWS_MIN_LIMIT;
   // 'flows' = native WhatsApp Flow builder, 'journeys' = chatbot node builder.
@@ -2224,22 +2227,25 @@ export function FlowsPage({
             <span className="material-icons">hub</span> Journeys
           </button>
           <button
-            className={`flow-tab${tab === 'flows' ? ' on' : ''}${flowsLocked ? ' locked' : ''}`}
-            onClick={() => switchTab('flows')}
-            title={flowsLocked ? `Flows open at a daily messaging limit of ${FLOWS_MIN_LIMIT.toLocaleString('en-IN')}` : undefined}
+            className={`flow-tab${tab === 'flows' ? ' on' : ''}${flowsLocked || flowsPlan ? ' locked' : ''}`}
+            onClick={() => (flowsPlan ? flowsPlan.open() : switchTab('flows'))}
+            title={flowsPlan ? 'WhatsApp Flows are included from the Basic plan' : flowsLocked ? `Flows open at a daily messaging limit of ${FLOWS_MIN_LIMIT.toLocaleString('en-IN')}` : undefined}
             data-testid="flows-tab"
-            data-locked={flowsLocked ? 'true' : undefined}
+            data-locked={flowsLocked || flowsPlan ? 'true' : undefined}
+            data-plan-locked={flowsPlan ? flowsPlan.tier : undefined}
           >
             <span className="material-icons">account_tree</span> Flows
-            {flowsLocked && <span className="material-icons flow-tab-lock" aria-label="Locked">lock</span>}
+            {flowsPlan ? (
+              <PlanCrown tier={flowsPlan.tier} className="flow-tab-crown" />
+            ) : flowsLocked && <span className="material-icons flow-tab-lock" aria-label="Locked">lock</span>}
           </button>
         </div>
       </header>
-      {tab === 'flows' && flowsLocked ? (
+      {tab === 'flows' && flowsLocked && !flowsPlan ? (
         <div className="page-body">
           <FlowsLockedPanel limit={flowsLimit || 0} />
         </div>
-      ) : tab === 'flows' ? (
+      ) : tab === 'flows' && !flowsPlan ? (
         <div className="page-body">
           <FlowBuilderPage api={api} registerDirty={registerChildDirty} vertical={vertical} />
         </div>

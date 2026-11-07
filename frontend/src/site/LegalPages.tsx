@@ -187,7 +187,7 @@ export function TermsPage() {
         <h2>6. Plans, free trial and payment</h2>
         <ul>
           <li><strong>Free trial.</strong> A new account gets 7 days of Premium features from the moment it signs up. No card is needed.</li>
-          <li><strong>After the trial or a plan ends.</strong> When nothing new is bought, only Chats and up to 3 message templates stay open (the Starter plan's features, shown in our <a href="#/">pricing section</a>). Your data is kept, but the other features are locked until you buy a plan.</li>
+          <li><strong>After the trial or a plan ends.</strong> When nothing new is bought, only the Starter plan's features stay open (shown in our <a href="#/">pricing section</a>). Your data is kept, but the other features are locked until you buy a plan.</li>
           <li><strong>Paid plans.</strong> Starter, Basic, Pro and Premium are paid in advance for a monthly, quarterly or annual period through Razorpay. The price shown at checkout is the amount you pay.</li>
           <li><strong>No automatic renewal.</strong> We never charge you again on our own. To continue, renew before the period ends; a renewal starts when the current period ends.</li>
           <li><strong>Upgrades.</strong> You can upgrade at any time. The unused value of your current plan is credited against the new plan, as shown before you pay. If you buy a plan during the free trial, the unused trial days are added to it.</li>
@@ -496,7 +496,7 @@ export function RefundPage() {
         <h2>2. Cancellation</h2>
         <p>
           Plans are paid in advance for one period (monthly, quarterly or annual) and never renew automatically, so there is no subscription to
-          cancel and no future charge. If you do not renew, your plan stays active until its end date; after that only Chats and 3 templates stay open until you buy a plan.
+          cancel and no future charge. If you do not renew, your plan stays active until its end date; after that only the Starter plan's features stay open until you buy a plan.
           Your data stays in your account.
         </p>
       </section>

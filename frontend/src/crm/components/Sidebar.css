@@ -320,3 +320,22 @@
     display: none;
   }
 }
+
+/* A page outside the plan: a gold crown beside its name (and on the icon when collapsed). */
+.crm-side-crown {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: #d97706;
+  flex: none;
+}
+:root[data-theme='dark'] .crm-side-crown {
+  color: #fbbf24;
+}
+.rail-soon.crown {
+  background: #f59e0b;
+  color: #fff;
+}
+.crm-sidebar.collapsed .crm-side-crown {
+  display: none;
+}

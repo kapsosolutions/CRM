@@ -4,8 +4,9 @@
 // button under each price differs (`action`). Styles: site/site.css (lp-plan-*).
 import type { ReactNode } from 'react';
 import {
-  BILLING_CYCLES, META_PRICING_PDF, PLANS, billedText, monthlyPrice, type BillingCycle, type PlanTier,
+  BILLING_CYCLES, LIMITS, META_PRICING_PDF, PLANS, billedText, monthlyPrice, type BillingCycle, type PlanTier,
 } from '../plans';
+import type { PlanTierKey } from '../types';
 
 export function CycleToggle({ value, onChange }: { value: BillingCycle; onChange: (c: BillingCycle) => void }) {
   return (
@@ -59,6 +60,14 @@ interface Props {
   highlightTier?: string;
 }
 
+/** "50 templates · 10 campaigns a month" (from the plan's limits). */
+function specLine(tier: PlanTierKey): string {
+  const l = LIMITS[tier];
+  const t = l.templates === null ? 'Unlimited templates' : `${l.templates} templates`;
+  const c = l.campaignsPerMonth === null ? 'unlimited campaigns' : `${l.campaignsPerMonth} campaigns a month`;
+  return `${t} · ${c}`;
+}
+
 export function PlanCards({ cycle, action, currentTier, highlightTier }: Props) {
   return (
     <div className="lp-pricing-grid-flat">
@@ -89,7 +98,7 @@ export function PlanCards({ cycle, action, currentTier, highlightTier }: Props) 
 
           <div className="lp-plan-specs">
             <div className="lp-plan-spec-main">
-              {plan.key === 'free' ? 'Unlimited contacts · 3 templates' : 'Unlimited contacts & templates'}
+              {specLine(plan.key)}
             </div>
             <div className="lp-plan-spec-sub">
               Every feature free for 7 days

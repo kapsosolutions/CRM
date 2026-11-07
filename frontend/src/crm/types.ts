@@ -1644,8 +1644,11 @@ export interface PlanSummary {
 // ---------- SaaS plans (backend services/plans.js, frontend crm/plans.ts) ----------
 export type PlanTierKey = 'free' | 'basic' | 'pro' | 'premium';
 export type PlanFeature =
-  | 'chats' | 'templates' | 'campaigns' | 'flows' | 'catalog' | 'categories' | 'members' | 'offers' | 'orders'
+  | 'chats' | 'templates' | 'campaigns' | 'journeys' | 'flows' | 'calls' | 'polls' | 'events' | 'api'
+  | 'catalog' | 'categories' | 'members' | 'offers' | 'orders'
   | 'payment-config' | 'ads' | 'create' | 'instagram' | 'messenger';
+/** Template formats the builder makes (Template.kind). */
+export type TemplateKind = 'standard' | 'carousel' | 'lto';
 
 export interface PlanLimits {
   features: PlanFeature[];
@@ -1655,6 +1658,10 @@ export interface PlanLimits {
   templates: number | null;
   /** Campaigns launched per calendar month; null = unlimited. */
   campaignsPerMonth: number | null;
+  /** Template formats it may create (older servers: from `carousel`). */
+  templateKinds?: TemplateKind[];
+  /** Campaign messages per second. */
+  sendRate?: number;
   carousel: boolean;
   authTemplates: boolean;
 }

@@ -3,18 +3,21 @@
 // by the server (backend/services/plans.js): the tiers, prices and limits
 // here must match it.
 //
-//   Starter  ₹499 (tier key 'free') — Chats with unlimited contacts + 3
-//            templates (no carousel, no authentication templates).
-//   Basic    No template limit, campaigns, automation, catalog,
-//            orders… everything except Ads, Instagram, Messenger, Create.
-//            No authentication templates.
-//   Pro      Everything except Ads.
-//   Premium  Everything.
+//   Starter  ₹499 (tier key 'free'): WhatsApp team inbox, 50 templates
+//            (standard; Marketing + Utility), 10 campaigns/month at 5/s,
+//            journeys (no native WhatsApp Flows).
+//   Basic    100 templates (standard + carousel, Authentication too), 25
+//            campaigns at 10/s, journeys + WhatsApp Flows, calls, polls,
+//            events, API keys, catalog, orders, payments, Instagram and
+//            Messenger. No Ads or Create.
+//   Pro      Every feature and template format, 300 templates, 50
+//            campaigns at 20/s, Ads and Create.
+//   Premium  Everything, no template or campaign limits, 40/s.
 // Every new business gets every feature for 7 days first (the free trial).
 // No plan limits contacts.
 // Prices are per month and are what the customer pays; quarterly and annual
 // are paid upfront.
-import type { PlanFeature, PlanLimits, PlanState, PlanTierKey } from './types';
+import type { PlanFeature, PlanLimits, PlanState, PlanTierKey, TemplateKind } from './types';
 
 export type BillingCycle = 'monthly' | 'quarterly' | 'annual';
 
@@ -30,16 +33,31 @@ export const TRIAL_DAYS = 7;
 export const META_PRICING_PDF = '/meta-whatsapp-pricing.pdf';
 
 const ALL: PlanFeature[] = [
-  'chats', 'templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders',
+  'chats', 'templates', 'campaigns', 'journeys', 'flows', 'calls', 'polls', 'events', 'api',
+  'catalog', 'categories', 'members', 'offers', 'orders',
   'payment-config', 'ads', 'create', 'instagram', 'messenger',
 ];
+export const TEMPLATE_KINDS: TemplateKind[] = ['standard', 'carousel', 'lto'];
+export const KIND_NAMES: Record<TemplateKind, string> = { standard: 'Standard', carousel: 'Carousel', lto: 'Limited-time offer' };
 const without = (...f: PlanFeature[]) => ALL.filter((x) => !f.includes(x));
 
 export const LIMITS: Record<PlanTierKey, PlanLimits> = {
-  free: { features: ['chats', 'templates'], contacts: null, templates: 3, campaignsPerMonth: 0, carousel: false, authTemplates: false },
-  basic: { features: without('ads', 'create', 'instagram', 'messenger'), contacts: null, templates: null, campaignsPerMonth: 15, carousel: true, authTemplates: false },
-  pro: { features: without('ads'), contacts: null, templates: null, campaignsPerMonth: 50, carousel: true, authTemplates: true },
-  premium: { features: ALL, contacts: null, templates: null, campaignsPerMonth: null, carousel: true, authTemplates: true },
+  free: {
+    features: ['chats', 'templates', 'campaigns', 'journeys'], contacts: null, templates: 50, templateKinds: ['standard'],
+    campaignsPerMonth: 10, sendRate: 5, carousel: false, authTemplates: false,
+  },
+  basic: {
+    features: without('ads', 'create'), contacts: null, templates: 100, templateKinds: ['standard', 'carousel'],
+    campaignsPerMonth: 25, sendRate: 10, carousel: true, authTemplates: true,
+  },
+  pro: {
+    features: ALL, contacts: null, templates: 300, templateKinds: TEMPLATE_KINDS,
+    campaignsPerMonth: 50, sendRate: 20, carousel: true, authTemplates: true,
+  },
+  premium: {
+    features: ALL, contacts: null, templates: null, templateKinds: TEMPLATE_KINDS,
+    campaignsPerMonth: null, sendRate: 40, carousel: true, authTemplates: true,
+  },
 };
 
 export const TIER_ORDER: PlanTierKey[] = ['free', 'basic', 'pro', 'premium'];
@@ -65,35 +83,59 @@ export interface PlanTier {
   buttonColor: string;
 }
 
+const n = (v: number | null | undefined, what: string) => (v === null || v === undefined ? `Unlimited ${what}` : `${v} ${what}`);
+const speed = (t: PlanTierKey) => `Campaign speed: up to ${LIMITS[t].sendRate} messages a second`;
+const FREE_SERVICE = '1,000 free service messages a month (Meta)';
+
 export const PLANS: PlanTier[] = [
   {
     key: 'free',
     name: 'Starter',
     theme: 'slate',
-    description: 'Start chatting with customers on the official WhatsApp Business API.',
+    description: 'The WhatsApp CRM: a team inbox, templates, campaigns and journeys on the official API.',
     includes: [
-      'Team inbox: chat with unlimited contacts',
-      'Up to 3 message templates',
-      'Connect your own WhatsApp number',
-      'Official Meta Cloud API',
+      'WhatsApp CRM: team inbox, unlimited contacts',
+      n(LIMITS.free.templates, 'message templates'),
+      'Standard templates (text, media, buttons)',
+      'Marketing & Utility templates',
+      `${n(LIMITS.free.campaignsPerMonth, 'campaigns')} a month (broadcast & drip)`,
+      speed('free'),
+      'Basic automation: journeys & keyword replies',
+      FREE_SERVICE,
+      'Your own WhatsApp number · official Meta Cloud API',
     ],
-    excludes: ['Campaigns', 'Carousel & authentication templates', 'Automation, catalog & orders', 'Instagram, Messenger & Ads'],
+    excludes: [
+      'Carousel & limited-time offer templates',
+      'Authentication (OTP) templates',
+      'WhatsApp calls, polls & events',
+      'Template API keys',
+      'WhatsApp Flows (native forms)',
+      'Catalog, orders & payment configuration',
+      'Instagram, Messenger & Ads',
+    ],
     buttonColor: '#e2e8f0',
   },
   {
     key: 'basic',
     name: 'Basic',
     theme: 'blue',
-    description: 'Unlimited chats and templates, campaigns, automation and your catalog on WhatsApp.',
+    description: 'Advanced automation with WhatsApp Flows, calls, your catalog and Instagram & Messenger.',
     includes: [
-      'Everything in Starter',
-      'Unlimited templates, incl. carousel',
-      `${LIMITS.basic.campaignsPerMonth} campaigns a month (broadcast & drip)`,
-      'Automation: journeys & WhatsApp Flows',
+      'WhatsApp CRM: team inbox, unlimited contacts',
+      n(LIMITS.basic.templates, 'message templates'),
+      'Standard & carousel templates',
+      'Marketing, Utility & Authentication (OTP) templates',
+      `${n(LIMITS.basic.campaignsPerMonth, 'campaigns')} a month (broadcast & drip)`,
+      speed('basic'),
+      'Advanced automation: journeys + native WhatsApp Flows',
+      'WhatsApp calls, polls & events in chats',
+      'Template API keys (send from your website or app)',
       'Catalog, offers, orders & bookings',
       'WhatsApp Pay configuration',
+      'Instagram & Messenger accounts',
+      FREE_SERVICE,
     ],
-    excludes: ['Authentication (OTP) templates', 'Instagram & Messenger', 'Ads'],
+    excludes: ['Limited-time offer templates', 'Ads', 'Create: Facebook & Instagram posts'],
     buttonColor: '#38bdf8',
   },
   {
@@ -101,26 +143,48 @@ export const PLANS: PlanTier[] = [
     name: 'Pro',
     badge: 'Best Value',
     theme: 'green',
-    description: 'Every channel: WhatsApp, Instagram and Messenger in one inbox, with authentication templates.',
+    description: 'Every feature and template format, with Click-to-WhatsApp ads.',
     includes: [
-      'Everything in Basic',
-      `${LIMITS.pro.campaignsPerMonth} campaigns a month`,
-      'Authentication (OTP) templates',
-      'Instagram & Messenger inbox and campaigns',
+      'WhatsApp CRM: team inbox, unlimited contacts',
+      n(LIMITS.pro.templates, 'message templates'),
+      'All template formats: standard, carousel & limited-time offer',
+      'Marketing, Utility & Authentication (OTP) templates',
+      `${n(LIMITS.pro.campaignsPerMonth, 'campaigns')} a month (broadcast & drip)`,
+      speed('pro'),
+      'Advanced automation: journeys + native WhatsApp Flows',
+      'WhatsApp calls, polls & events in chats',
+      'Template API keys (send from your website or app)',
+      'Catalog, offers, orders & bookings',
+      'WhatsApp Pay configuration',
+      'Instagram & Messenger accounts',
+      'Ads: Click-to-WhatsApp ads & lead forms',
       'Create: Facebook & Instagram posts',
+      FREE_SERVICE,
     ],
-    excludes: ['Ads'],
+    excludes: [],
     buttonColor: '#00d084',
   },
   {
     key: 'premium',
     name: 'Premium',
     theme: 'purple',
-    description: 'Everything unlocked, with unlimited campaigns and Click-to-WhatsApp ads.',
+    description: 'Everything unlocked, with no limits on templates or campaigns.',
     includes: [
-      'Everything in Pro',
-      'Unlimited campaigns',
+      'WhatsApp CRM: team inbox, unlimited contacts',
+      'Unlimited message templates',
+      'All template formats: standard, carousel & limited-time offer',
+      'Marketing, Utility & Authentication (OTP) templates',
+      'Unlimited campaigns (broadcast & drip)',
+      speed('premium'),
+      'Advanced automation: journeys + native WhatsApp Flows',
+      'WhatsApp calls, polls & events in chats',
+      'Template API keys (send from your website or app)',
+      'Catalog, offers, orders & bookings',
+      'WhatsApp Pay configuration',
+      'Instagram & Messenger accounts',
       'Ads: Click-to-WhatsApp ads & lead forms',
+      'Create: Facebook & Instagram posts',
+      FREE_SERVICE,
       'Priority support',
     ],
     excludes: [],
@@ -153,11 +217,17 @@ export function priceText(tier: PlanTierKey, cycle: BillingCycle): string {
 export const hasFeature = (state: PlanState | null | undefined, f: PlanFeature) =>
   !state || state.limits.features.includes(f);
 
-/** The cheapest plan that unlocks a feature (for "Upgrade to Basic"). */
-export function tierFor(f: PlanFeature | 'carousel' | 'authTemplates'): PlanTierKey {
-  if (f === 'carousel') return TIER_ORDER.find((t) => LIMITS[t].carousel) || 'premium';
+/** The template formats a plan may create (an older server only says `carousel`). */
+export function kindsOf(l: PlanLimits | null | undefined): TemplateKind[] {
+  if (!l) return TEMPLATE_KINDS;
+  return l.templateKinds?.length ? l.templateKinds : l.carousel ? ['standard', 'carousel', 'lto'] : ['standard'];
+}
+
+/** The cheapest plan that unlocks a feature or template format (for "Upgrade to Basic"). */
+export function tierFor(f: PlanFeature | TemplateKind | 'authTemplates'): PlanTierKey {
   if (f === 'authTemplates') return TIER_ORDER.find((t) => LIMITS[t].authTemplates) || 'premium';
-  return TIER_ORDER.find((t) => LIMITS[t].features.includes(f)) || 'premium';
+  if ((TEMPLATE_KINDS as string[]).includes(f)) return TIER_ORDER.find((t) => kindsOf(LIMITS[t]).includes(f as TemplateKind)) || 'premium';
+  return TIER_ORDER.find((t) => LIMITS[t].features.includes(f as PlanFeature)) || 'premium';
 }
 
 export const tierRank = (t: PlanTierKey) => TIER_ORDER.indexOf(t);

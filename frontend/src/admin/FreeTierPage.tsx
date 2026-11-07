@@ -3,7 +3,7 @@
 //
 // Onboarding is identical to a normal business (same Meta credentials, same
 // Graph verification): the tenant gets the free trial (every feature), then
-// only Chats + 3 templates unless it buys a plan in
+// only the Starter features unless it buys a plan in
 // Settings → Billing. The generated username + passcode are what you pass to
 // the trial user.
 //
@@ -191,7 +191,7 @@ export function FreeTierPage({ onOpen }: { onOpen: (id: string) => void }) {
                 onChange={(e) => setDays(Math.min(90, Math.max(1, Number(e.target.value) || 1)))}
               />
               <small className="pa-hint">
-                Every feature during the trial; after it only Chats and 3 templates stay open unless they buy a
+                Every feature during the trial; after it only the Starter features stay open unless they buy a
                 plan in Settings → Billing.
               </small>
             </label>

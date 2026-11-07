@@ -2,6 +2,7 @@
 // last updated) with sort, search and a status filter. Click a name or the eye
 // to open it read-only with its auto-send settings; the copy icon starts a new
 // template from it; the bin deletes it (from WhatsApp too).
+import { PlanCrown, useFeatureLock } from './PlanLocked';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type { BusinessProfile, TemplateItem, TriggerEvent } from '../types';
@@ -108,6 +109,9 @@ export function TemplatesPage({
   const [samplePreview, setSamplePreview] = useState<TemplateItem | null>(null);
   // "Use from your apps": one template's API (or just the keys, when null).
   const [apiFor, setApiFor] = useState<{ template: TemplateItem | null } | null>(null);
+  // The template API is a plan feature (Basic and up): a crown, and the plans dialog.
+  const apiPlan = useFeatureLock()('api');
+  const openApi = (template: TemplateItem | null) => (apiPlan ? apiPlan.open() : setApiFor({ template }));
   const [tab, setTab] = useState<ChannelTab>(() => {
     try {
       const saved = localStorage.getItem(TAB_KEY) as ChannelTab | null;
@@ -357,8 +361,16 @@ export function TemplatesPage({
     <div className="page tl-page">
       <header className="page-head">
         <span className="page-head-fill" />
-        <button type="button" className="k-btn ghost tl-api-keys" onClick={() => setApiFor({ template: null })} data-testid="tl-api-keys">
+        <button
+          type="button"
+          className={`k-btn ghost tl-api-keys${apiPlan ? ' plan-locked' : ''}`}
+          onClick={() => openApi(null)}
+          data-testid="tl-api-keys"
+          data-plan-locked={apiPlan ? apiPlan.tier : undefined}
+          title={apiPlan ? 'Template API keys are included from the Basic plan' : undefined}
+        >
           <span className="material-icons" aria-hidden="true">key</span> API keys
+          {apiPlan && <PlanCrown tier={apiPlan.tier} />}
         </button>
         <button className="k-btn tl-new" onClick={() => setView({ mode: 'create' })}>
           <TemplateCreateSvg width={18} height={18} /> Create Template
@@ -482,14 +494,16 @@ export function TemplatesPage({
                       ) : (
                         <button
                           type="button"
-                          className="tl-api-btn"
-                          onClick={() => setApiFor({ template: t })}
-                          title={`Send ${t.name} from your website, app or server`}
+                          className={`tl-api-btn${apiPlan ? ' plan-locked' : ''}`}
+                          onClick={() => openApi(t)}
+                          title={apiPlan ? 'Template API keys are included from the Basic plan' : `Send ${t.name} from your website, app or server`}
                           aria-label={`API for ${t.name}`}
                           data-testid="tl-api"
+                          data-plan-locked={apiPlan ? apiPlan.tier : undefined}
                         >
                           <span className="material-icons" aria-hidden="true">code</span>
                           API
+                          {apiPlan && <PlanCrown tier={apiPlan.tier} size={13} />}
                         </button>
                       )}
                     </td>

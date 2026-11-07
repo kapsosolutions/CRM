@@ -36,7 +36,8 @@ import logger from './logger.js';
 
 const TICK_MS = 20 * 1000; // how often due campaigns are looked for
 const LEASE_MS = 2 * 60 * 1000; // a run's claim, renewed while it sends
-const SPACING_MS = 200; // between two sends, as the browser loop did
+const DEFAULT_RATE = 5; // messages per second when the plan doesn't say
+const MAX_IN_FLIGHT = 40; // parallel sends per campaign, whatever the plan
 const FLUSH_EVERY = 10; // recipients between progress saves
 const FLUSH_MS = 10 * 1000;
 const MAX_ACTIVE = 3; // campaigns sent at once by this process
@@ -54,6 +55,17 @@ const UNCONFIRMED = {
   message: 'WhatsApp didn’t confirm this message in time. It may still have been delivered, so it isn’t sent again.',
   details: '',
 };
+
+/**
+ * How fast a campaign may send: the plan's messages per second (Starter 5,
+ * Basic 10, Pro 20, Premium 40), as the gap between two sends starting and
+ * how many may wait on Meta at once. CAMPAIGN_SEND_RATE overrides it (tests).
+ */
+export function sendPace(limits) {
+  const env = Number(process.env.CAMPAIGN_SEND_RATE);
+  const rate = Math.max(1, Math.min(80, Number.isFinite(env) && env > 0 ? env : Number(limits?.sendRate) || DEFAULT_RATE));
+  return { rate, spacingMs: Math.ceil(1000 / rate), inFlight: Math.max(1, Math.min(MAX_IN_FLIGHT, Math.ceil(rate))) };
+}
 
 export const NOT_CONNECTED_MSG = 'Campaigns need your own WhatsApp number. Connect it to send templates; '
   + 'the shared test number can only reply to customers within 24 hours.';
@@ -207,8 +219,21 @@ async function execute(id, lease) {
       }
 
       const ctx = { c, id, biz, meta: getClientForBusiness(biz), tplByName, steps };
+      const pace = sendPace(pState?.limits);
       let sinceFlush = 0;
       let flushedAt = Date.now();
+      // One progress save at a time; a save asked for meanwhile is skipped
+      // (the next one, or the final one, carries it).
+      let saving = null;
+      const flush = async (force = false) => {
+        sinceFlush += 1;
+        if (!force && sinceFlush < FLUSH_EVERY && Date.now() - flushedAt < FLUSH_MS) return;
+        if (saving) return;
+        sinceFlush = 0;
+        flushedAt = Date.now();
+        saving = save().finally(() => { saving = null; });
+        await saving;
+      };
       // Before each send: still ours (the lease is renewed here, so a long
       // run never lapses into a second run), and not cancelled.
       const gate = async () => {
@@ -223,34 +248,46 @@ async function execute(id, lease) {
         return false;
       };
       const progress = async () => {
-        sinceFlush += 1;
-        if (sinceFlush >= FLUSH_EVERY || Date.now() - flushedAt >= FLUSH_MS) {
-          await save();
-          sinceFlush = 0;
-          flushedAt = Date.now();
-        }
-        await sleep(SPACING_MS);
+        await flush();
+        await sleep(pace.spacingMs);
         return !lost;
       };
 
-      // 1. The main template, to everyone still queued.
+      // 1. The main template, to everyone still queued: a new send starts
+      // every pace.spacingMs, with at most pace.inFlight waiting on Meta.
+      // Each recipient is still booked in the ledger before it goes out
+      // (deliver), so parallel sends can't send anyone twice.
+      const inFlight = new Set();
+      let stopWith = null;
+      let crash = null;
       for (const r of recipients) {
         if (r.state !== 'queued') continue;
+        if (stopWith || crash || lost) break;
+        // eslint-disable-next-line no-await-in-loop
+        while (inFlight.size >= pace.inFlight) await Promise.race(inFlight);
+        if (stopWith || crash) break;
         // eslint-disable-next-line no-await-in-loop
         if (!(await gate())) break;
+        const job = (async () => {
+          const res = await deliver(ctx, r, 0);
+          Object.assign(r, {
+            state: res.state, metaMessageId: res.metaMessageId || '', error: res.error || null,
+            ...(res.state === 'sent' ? { sentAt: res.sentAt || new Date().toISOString() } : {}),
+          });
+          if (res.stop && !stopWith) stopWith = res.error || { code: null, title: '', message: 'The campaign stopped.', details: '' };
+          await flush();
+        })().catch((err) => { crash = crash || err; });
+        const tracked = job.finally(() => inFlight.delete(tracked));
+        inFlight.add(tracked);
         // eslint-disable-next-line no-await-in-loop
-        const res = await deliver(ctx, r, 0);
-        Object.assign(r, {
-          state: res.state, metaMessageId: res.metaMessageId || '', error: res.error || null,
-          ...(res.state === 'sent' ? { sentAt: res.sentAt || new Date().toISOString() } : {}),
-        });
-        if (res.stop) {
-          stopError = res.error?.message || 'The campaign stopped.';
-          failQueued(recipients, res.error);
-          break;
-        }
-        // eslint-disable-next-line no-await-in-loop
-        if (!(await progress())) break;
+        await sleep(pace.spacingMs);
+      }
+      await Promise.all(inFlight);
+      // Unexpected (database down): handled like before, by the catch below.
+      if (crash) throw crash;
+      if (stopWith) {
+        stopError = stopWith.message || 'The campaign stopped.';
+        failQueued(recipients, stopWith);
       }
 
       // 2. Drip: every follow-up that is due now.

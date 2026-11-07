@@ -270,9 +270,14 @@ export async function handleMessage(msg, ctx = {}) {
     logger.debug('automation paused, skipping auto-reply', { phone });
     return;
   }
-  // Automation (journeys, flows, auto-replies) is a plan feature: on the Free
-  // plan the message is only logged for the team inbox (services/plans.js).
-  if (ctx.tenantId && !(await tenantHasFeature(ctx.tenantId, 'flows'))) {
+  // Automation is a plan feature (services/plans.js): journeys and keyword
+  // replies on every plan, native WhatsApp Flows (flow maps, finished Flow
+  // forms continuing the chat) from Basic. Without either the message is
+  // only logged for the team inbox.
+  const can = ctx.tenantId
+    ? { journeys: await tenantHasFeature(ctx.tenantId, 'journeys'), flows: await tenantHasFeature(ctx.tenantId, 'flows') }
+    : { journeys: true, flows: true };
+  if (!can.journeys && !can.flows) {
     logger.debug('automation not in this plan, skipping auto-reply', { tenant: ctx.tenantName || String(ctx.tenantId) });
     return;
   }
@@ -346,7 +351,8 @@ export async function handleMessage(msg, ctx = {}) {
             ? new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' })
             : ''),
       };
-      const sent = await runFlowCompletion(meta, phone, msg.formData || {}, tokens, ctx.tenantId, result?.action);
+      // The answers are saved either way; only a plan with Flows continues the chat.
+      const sent = can.flows && (await runFlowCompletion(meta, phone, msg.formData || {}, tokens, ctx.tenantId, result?.action));
       if (sent) await touchOutbound(phone, '[flow]', ctx.tenantId);
     } catch (e) {
       logger.warn('flow submission handling failed', { error: e.message, stack: e.stack });
@@ -365,7 +371,7 @@ export async function handleMessage(msg, ctx = {}) {
   // A keyword-triggered template is checked first, and only first: the flow map
   // below treats *any* message as "start", so anything downstream of it would
   // never see the keyword.
-  if (ctx.tenantId && !ctx.sandbox) {
+  if (ctx.tenantId && !ctx.sandbox && can.journeys) {
     try {
       const fired = await runKeywordTrigger(meta, ctx.tenantId, msg);
       if (fired) return;
@@ -378,7 +384,7 @@ export async function handleMessage(msg, ctx = {}) {
   // `f:…`. If a Flow has a Start node wired to an entry (entryTarget), it drives
   // the conversation; otherwise this is a no-op and journeys take over.
   try {
-    const handled = !ctx.sandbox && (await runFlowMap(meta, ctx.tenantId, msg, convo));
+    const handled = !ctx.sandbox && can.flows && (await runFlowMap(meta, ctx.tenantId, msg, convo));
     if (handled) {
       await touchOutbound(phone, '[flow]', ctx.tenantId);
       return;
@@ -396,7 +402,7 @@ export async function handleMessage(msg, ctx = {}) {
 
   // Then the tenant's journey (welcome on first contact + advance on reply-
   // button / list / shared-location). Reply ids are `n:…`. If it handled it, stop.
-  if (ctx.tenantId) {
+  if (ctx.tenantId && can.journeys) {
     try {
       const handled = await runJourney(meta, ctx.tenantId, msg, convo);
       if (handled) {
