@@ -95,13 +95,20 @@ location /assets/ {
 # frontend/build/sitePages.ts), so they get the same headers. Only files
 # named index.html: auth-callback.html and instagram-callback.html keep
 # their own rules.
-location ~ ^/([a-z0-9-]+/)*index\.html$ {
+location ~ /index\.html$ {
     add_header Cache-Control "no-cache";
     include /etc/nginx/snippets/crm-security-headers.conf;
     include /etc/nginx/snippets/crm-csp.conf;
+    # A path that isn't a built page (/no-such-page) gets the app, which shows its 404.
+    try_files $uri /index.html;
 }
 location / {
-    try_files $uri $uri/ /index.html;
+    try_files $uri @page;
+}
+# /pricing and /pricing/ -> /pricing/index.html, with no redirect (the pages'
+# canonical addresses have no trailing slash).
+location @page {
+    rewrite ^(.*?)/?$ $1/index.html last;
 }
 EOF
 
