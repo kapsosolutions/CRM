@@ -18,8 +18,8 @@ import { prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, isFormView, type CrmView, type FormRailItem, SettingsRailSvg, ProfileRailSvg } from './NavRail';
 import { FormSubmissionsPage } from './FormSubmissionsPage';
-import { formPagesFor, formPageOf } from '../flowForms';
-import type { Registration, WaFlowDef } from '../types';
+import { formPagesFor, formPageOf, presetOfSubmission, OTHER_FORMS } from '../flowForms';
+import type { Order, Registration, WaFlowDef } from '../types';
 import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
 import { useCrmScale } from '../uiScale';
 import { ProfileSidebarDrawer } from './ProfileSidebarDrawer';
@@ -759,6 +759,96 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     return out;
   }, [lockedRail, formRail]);
 
+  // ---- Count badges on Orders and the form pages ---------------------------
+  // Like the Chats badge: how many records arrived since the page was last
+  // opened (the server remembers when, per page, so every device agrees).
+  // Finished and cancelled ones don't count. Opening the page clears it.
+  const ordersShown = vertical.showsPage('orders') && formsAllowed;
+  const [seenAt, setSeenAt] = useState<Record<string, string> | null>(null);
+  const [badgeOrders, setBadgeOrders] = useState<Order[]>([]);
+  const loadSeen = useCallback(() => {
+    api.getPagesSeen().then((r) => setSeenAt(r.data || {})).catch(() => {});
+  }, [api]);
+  const loadBadgeOrders = useCallback(() => {
+    if (!ordersShown) return;
+    api.getOrders().then((r) => setBadgeOrders(r.data || [])).catch(() => {});
+  }, [api, ordersShown]);
+  useEffect(() => {
+    if (!ready || !formsAllowed) return;
+    loadSeen();
+    loadBadgeOrders();
+  }, [ready, formsAllowed, loadSeen, loadBadgeOrders]);
+  // New records arrive as notifications (a new order, booking, form answer,
+  // a payment): read again, once for a burst of them.
+  const recount = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const refreshCounts = useCallback(() => {
+    if (recount.current) clearTimeout(recount.current);
+    recount.current = setTimeout(() => {
+      recount.current = null;
+      loadBadgeOrders();
+      loadFormIndex();
+      loadSeen();
+    }, 800);
+  }, [loadBadgeOrders, loadFormIndex, loadSeen]);
+  useEffect(() => {
+    if (!notificationSocket || !formsAllowed) return undefined;
+    return notificationSocket.onNotification((e) => {
+      const n = e?.notification;
+      if (n && (/^(order_|booking_|payment_)/.test(n.type || '') || n.target?.view === 'orders')) refreshCounts();
+    });
+  }, [notificationSocket, formsAllowed, refreshCounts]);
+  // Back to the tab after a while (another device may have opened a page,
+  // or a status changed elsewhere): read again.
+  useEffect(() => {
+    if (!ready || !formsAllowed) return undefined;
+    let last = Date.now();
+    const on = () => {
+      if (document.visibilityState !== 'visible' || Date.now() - last < 30_000) return;
+      last = Date.now();
+      refreshCounts();
+    };
+    window.addEventListener('focus', on);
+    document.addEventListener('visibilitychange', on);
+    return () => {
+      window.removeEventListener('focus', on);
+      document.removeEventListener('visibilitychange', on);
+    };
+  }, [ready, formsAllowed, refreshCounts]);
+  const pageBadges = useMemo(() => {
+    const out: Partial<Record<CrmView, number>> = {};
+    if (!seenAt) return out;
+    const since = (page: string) => Date.parse(seenAt[page] || seenAt._since || '') || 0;
+    const isNew = (iso: string | undefined, page: string) => !!iso && Date.parse(iso) > since(page);
+    if (ordersShown) {
+      const n = badgeOrders.filter((o) => o.status !== 'cancelled' && o.status !== 'delivered' && isNew(o.createdAt, 'orders')).length;
+      if (n) out.orders = n;
+    }
+    const byId = new Map(formIndex.flows.map((f) => [f._id, f]));
+    for (const r of formIndex.regs) {
+      if (r.status === 'cancelled' || r.status === 'done') continue;
+      const key = `form:${presetOfSubmission(r, byId) || OTHER_FORMS}` as CrmView;
+      if (isNew(r.createdAt, key)) out[key] = (out[key] || 0) + 1;
+    }
+    return out;
+  }, [seenAt, badgeOrders, formIndex, ordersShown]);
+  // On the page (or a record arrives while it's open): it's been seen.
+  const openCount = pageBadges[view] || 0;
+  const marking = useRef('');
+  useEffect(() => {
+    if (!seenAt || (view !== 'orders' && !isFormView(view))) return;
+    if (marking.current === view) return;
+    const page = view;
+    marking.current = page;
+    setSeenAt((s) => (s ? { ...s, [page]: new Date().toISOString() } : s));
+    api.markPageSeen(page)
+      .then((r) => r.data && setSeenAt(r.data))
+      .catch(() => {})
+      .finally(() => {
+        if (marking.current === page) marking.current = '';
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view, openCount, seenAt === null, api]);
+
   // If the active view isn't available for this vertical, fall back to chats.
   // A form page belongs to the business's forms rather than its type.
   useEffect(() => {
@@ -1062,7 +1152,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
             navigate(v);
           }}
           allowed={vertical.pages}
-          badges={{ chats: unreadChats }}
+          badges={{ ...pageBadges, chats: unreadChats }}
           soon={{ ads: COMING_SOON.ads, create: COMING_SOON.create }}
           locked={railLocks}
           labels={railLabels}

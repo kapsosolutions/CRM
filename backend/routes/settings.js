@@ -12,6 +12,7 @@ import {
   getProfile, clearProfileCache, mirrorProfile,
 } from '../services/businessProfile.js';
 import logger from '../services/logger.js';
+import Business from '../models/Business.js';
 
 const router = express.Router();
 router.use(requireBusiness);
@@ -25,6 +26,51 @@ const view = (biz) => ({
 });
 
 router.get('/', (req, res) => res.json({ success: true, data: view(req.business) }));
+
+// ---------------------------------------------------------------------------
+// When each sidebar page was last opened (the CRM counts what arrived since).
+// ---------------------------------------------------------------------------
+const SEEN_PAGE = /^(orders|form:[a-z0-9_]{1,48})$/;
+const SEEN_MAX_PAGES = 60;
+
+/** The stored map, started (with _since = now) the first time it's asked for. */
+async function seenMap(biz) {
+  const m = biz.pagesSeenAt && typeof biz.pagesSeenAt === 'object' ? biz.pagesSeenAt : null;
+  if (m?._since) return m;
+  const fresh = { _since: new Date().toISOString() };
+  await Business.updateOne({ _id: biz._id }, { $set: { pagesSeenAt: fresh } });
+  return fresh;
+}
+
+router.get('/pages-seen', async (req, res) => {
+  try {
+    return res.json({ success: true, data: await seenMap(req.business), now: new Date().toISOString() });
+  } catch (err) {
+    logger.warn('pages-seen read failed', { business: req.business.name, error: err.message });
+    return res.status(500).json({ success: false, message: 'Could not read the page counts.' });
+  }
+});
+
+router.post('/pages-seen', async (req, res) => {
+  const page = String(req.body?.page || '');
+  if (!SEEN_PAGE.test(page)) return res.status(400).json({ success: false, message: 'Unknown page.' });
+  try {
+    const now = new Date().toISOString();
+    const before = await seenMap(req.business);
+    const next = { ...before, [page]: now };
+    // Keep it small: the oldest pages drop off (they count from _since again).
+    const pages = Object.keys(next).filter((k) => k !== '_since');
+    if (pages.length > SEEN_MAX_PAGES) {
+      pages.sort((a, b) => String(next[a]).localeCompare(String(next[b])));
+      for (const k of pages.slice(0, pages.length - SEEN_MAX_PAGES)) delete next[k];
+    }
+    await Business.updateOne({ _id: req.business._id }, { $set: { pagesSeenAt: next } });
+    return res.json({ success: true, data: next, now });
+  } catch (err) {
+    logger.warn('pages-seen save failed', { business: req.business.name, error: err.message });
+    return res.status(500).json({ success: false, message: 'Could not save.' });
+  }
+});
 
 router.put('/', async (req, res) => {
   const biz = req.business;

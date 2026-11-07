@@ -435,6 +435,20 @@ export class CrmApi {
     });
   }
 
+  /** When each sidebar page (orders, form:<id>) was last opened; _since = the baseline. */
+  getPagesSeen(): Promise<{ success: boolean; data: Record<string, string> }> {
+    return this.request('/api/settings/pages-seen', { headers: this.authHeaders() });
+  }
+
+  /** The page is open now: its count starts again from here. */
+  markPageSeen(page: string): Promise<{ success: boolean; data: Record<string, string> }> {
+    return this.request('/api/settings/pages-seen', {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ page }),
+    });
+  }
+
   saveSettings(body: { catalogId?: string; payment?: PaymentSettings }): Promise<{ success: boolean; data: BusinessSettings }> {
     return this.request('/api/settings', {
       method: 'PUT',

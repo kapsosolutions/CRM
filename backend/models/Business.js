@@ -168,6 +168,10 @@ const BusinessSchema = new Schema(
     // Which plan reminders were sent (services/planReminders.js), so each is sent once:
     // { endingFor: <endsAt ISO>, endedFor: <endsAt ISO> }
     planNotices: { type: Schema.Types.Mixed, default: null },
+    // When each sidebar page (Orders, a form page) was last opened, for the
+    // count of new records on it: { _since: ISO, orders: ISO, 'form:<id>': ISO }.
+    // _since is when this started, the baseline for a page never opened.
+    pagesSeenAt: { type: Schema.Types.Mixed, default: null },
 
     // ----- Generated tenant login -----
     // A stable handle for every business (admin list, support logins with the

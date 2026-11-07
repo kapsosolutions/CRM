@@ -543,6 +543,16 @@ export class MockCrmApi extends CrmApi {
     whatsappConnected: true,
   };
 
+  // Demo: the sidebar counts start two days back, so the demo's records show as new.
+  private demoSeen: Record<string, string> = { _since: new Date(Date.now() - 48 * 3600e3).toISOString() };
+  override getPagesSeen(): Promise<{ success: boolean; data: Record<string, string> }> {
+    return delay({ success: true, data: { ...this.demoSeen } }, 50);
+  }
+  override markPageSeen(page: string): Promise<{ success: boolean; data: Record<string, string> }> {
+    this.demoSeen = { ...this.demoSeen, [page]: new Date().toISOString() };
+    return delay({ success: true, data: { ...this.demoSeen } }, 50);
+  }
+
   override getSettings(): Promise<{ success: boolean; data: BusinessSettings }> {
     // Development: __demoBulk() also connects the demo catalog, so its products show.
     if (import.meta.env.DEV && bulkCampaigns && !this.demoSettings.catalogId) {
