@@ -13,13 +13,28 @@ import { useEffect, useState } from 'react';
 import { ADMIN_TOKEN_KEY, platformApi } from '../admin/platformApi';
 
 export type Tone = 'dark' | 'light';
+/** One CRM announcement. */
+export interface EventAnnouncementItem { text?: string; linkLabel?: string; linkUrl?: string; bg?: string; color?: string; image?: string }
 export interface EventTheme {
   logos?: { site?: string; crmLight?: string; crmDark?: string };
-  landing?: { heroBg?: string; heroArt?: string; badge?: string; titleAccent?: string; titleMain?: string; desc?: string; accent?: string; tone?: Tone; overlay?: number };
-  pages?: { heroBg?: string; tone?: Tone; overlay?: number };
+  /** heroBgTablet / heroBgMobile: screens up to 1024 / 640 px wide (empty = the next larger one). */
+  landing?: { heroBg?: string; heroBgTablet?: string; heroBgMobile?: string; heroArt?: string; badge?: string; titleAccent?: string; titleMain?: string; desc?: string; accent?: string; tone?: Tone; overlay?: number };
+  pages?: { heroBg?: string; heroBgTablet?: string; heroBgMobile?: string; tone?: Tone; overlay?: number };
   whatsapp?: { image?: string; tooltip?: string };
-  announcement?: { enabled?: boolean; text?: string; linkLabel?: string; linkUrl?: string; bg?: string; color?: string; image?: string };
+  /** `items` are shown one after another, `seconds` each; the single fields are the first item (older themes have only those). */
+  announcement?: EventAnnouncementItem & { enabled?: boolean; seconds?: number; items?: EventAnnouncementItem[] };
 }
+
+/** The announcements to show, in order (an older theme's single one is a list of one). */
+export function announcementItems(a?: EventTheme['announcement']): EventAnnouncementItem[] {
+  if (!a) return [];
+  const list = Array.isArray(a.items) && a.items.length ? a.items : [a];
+  return list.filter((x) => x && String(x.text || '').trim());
+}
+
+/** Screens up to these widths use the tablet / mobile background. */
+export const TABLET_MAX = 1024;
+export const MOBILE_MAX = 640;
 export interface LiveEvent {
   id: string;
   name: string;
@@ -113,3 +128,35 @@ export function useLiveEvent(): LiveEvent | null {
 
 /** A CSS url() value for an image URL the server already checked (https, no quotes). */
 export const cssUrl = (u?: string) => (u && /^https:\/\/[^\s"'()<>\\]+$/i.test(u) ? `url("${u}")` : undefined);
+
+// Height ÷ width of images, once each is loaded (a hero is made at least as
+// tall as its background at full width, so the bottom is never cut off).
+const ratios = new Map<string, number>();
+/** The image's height ÷ width, or 0 while it loads (or with no image). */
+export function useImageRatio(url?: string): number {
+  const [r, setR] = useState(() => (url ? ratios.get(url) || 0 : 0));
+  useEffect(() => {
+    if (!url) {
+      setR(0);
+      return undefined;
+    }
+    const known = ratios.get(url);
+    if (known) {
+      setR(known);
+      return undefined;
+    }
+    setR(0);
+    let live = true;
+    const img = new Image();
+    img.onload = () => {
+      const v = img.naturalWidth ? img.naturalHeight / img.naturalWidth : 0;
+      if (v) ratios.set(url, v);
+      if (live) setR(v);
+    };
+    img.src = url;
+    return () => {
+      live = false;
+    };
+  }, [url]);
+  return r;
+}

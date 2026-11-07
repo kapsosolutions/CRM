@@ -1778,11 +1778,65 @@ a.sx-chip:hover {
    Admin panel → Events. SiteChrome's eventHeroProps() sets --ev-hero-bg
    (an image or GIF), --ev-hero-overlay (0–0.9, a wash so the text stays
    readable) and --ev-accent; .ev-light switches the hero text to white. */
+/* The background in use: desktop, then (≤1024 px) the tablet one, then
+   (≤640 px) the mobile one; a size not uploaded falls back to the next
+   larger. --ev-ratio-now is that image's height ÷ width. */
+.sx-page.ev-hero,
+.lp-hero-centered.ev-hero {
+  --ev-bg-now: var(--ev-hero-bg);
+  --ev-ratio-now: var(--ev-hero-ratio, 0);
+}
+@media (max-width: 1024px) {
+  .sx-page.ev-hero,
+  .lp-hero-centered.ev-hero {
+    --ev-bg-now: var(--ev-hero-bg-tablet, var(--ev-hero-bg));
+    --ev-ratio-now: var(--ev-hero-ratio-tablet, var(--ev-hero-ratio, 0));
+  }
+}
+@media (max-width: 640px) {
+  .sx-page.ev-hero,
+  .lp-hero-centered.ev-hero {
+    --ev-bg-now: var(--ev-hero-bg-mobile, var(--ev-hero-bg-tablet, var(--ev-hero-bg)));
+    --ev-ratio-now: var(--ev-hero-ratio-mobile, var(--ev-hero-ratio-tablet, var(--ev-hero-ratio, 0)));
+  }
+}
 .sx-page.ev-hero .sx-hero,
 .lp-hero-centered.ev-hero {
   position: relative;
   isolation: isolate;
-  background: var(--ev-hero-bg) center / cover no-repeat, #ffffff;
+  background: var(--ev-bg-now) center top / cover no-repeat, #ffffff;
+}
+/* Landing: never shorter than the picture at full width, so its bottom
+   (diyas, rangoli…) always shows; taller content only trims the sides. */
+.lp-hero-centered.ev-hero {
+  min-height: calc(100vw * var(--ev-ratio-now, 0));
+}
+/* …and it starts behind the header: the header is see-through over it at
+   the top of the page, and white again once the page scrolls. */
+.lp.ev-stage .lp-header {
+  background: transparent;
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+.lp.ev-stage .lp-header.scrolled {
+  background: #ffffff;
+  box-shadow: 0 1px 0 rgba(15, 23, 42, 0.06), 0 6px 16px rgba(15, 23, 42, 0.05);
+}
+.lp.ev-stage .lp-hero-centered.ev-hero {
+  margin-top: calc(-1 * var(--lp-header-h, 0px));
+  padding-top: calc(clamp(48px, 6vw, 76px) + var(--lp-header-h, 0px));
+}
+@media (max-width: 640px) {
+  .lp.ev-stage .lp-hero-centered.ev-hero {
+    padding-top: calc(36px + var(--lp-header-h, 0px));
+  }
+}
+/* White hero text: the header's menu is white too while it's on the picture. */
+.lp.ev-stage-light .lp-header:not(.scrolled) .sx-nav-btn {
+  color: #ffffff;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.35);
+}
+.lp.ev-stage-light .lp-header:not(.scrolled) .burger span {
+  background: #ffffff;
 }
 .sx-page.ev-hero .sx-hero::before,
 .lp-hero-centered.ev-hero::before {

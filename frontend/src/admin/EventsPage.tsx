@@ -6,39 +6,52 @@
 //   the CRM sidebar logo (light and dark theme) and a CRM announcement bar
 // One event is live at a time (optionally only between two dates). Preview
 // shows a saved event on the site / the demo CRM in this browser only.
-import { useCallback, useEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
 import { platformApi, type SiteEventRow, type SiteEventStatus } from './platformApi';
-import type { EventTheme } from '../event/liveEvent';
+import { useImageRatio, type EventTheme, type LiveEvent } from '../event/liveEvent';
+import { EventAnnouncement } from '../crm/components/EventAnnouncement';
 import { useConfirm, useNotify } from '../crm/components/Dialogs';
 import { CloseIcon, ImageIcon } from './AdminIcons';
 import '../event/event.css';
 import './EventsPage.css';
 
+type AnnItem = { text: string; linkLabel: string; linkUrl: string; bg: string; color: string; image: string };
 type Theme = {
   logos: { site: string; crmLight: string; crmDark: string };
-  landing: { heroBg: string; heroArt: string; badge: string; titleAccent: string; titleMain: string; desc: string; accent: string; tone: 'dark' | 'light'; overlay: number };
-  pages: { heroBg: string; tone: 'dark' | 'light'; overlay: number };
+  landing: { heroBg: string; heroBgTablet: string; heroBgMobile: string; heroArt: string; badge: string; titleAccent: string; titleMain: string; desc: string; accent: string; tone: 'dark' | 'light'; overlay: number };
+  pages: { heroBg: string; heroBgTablet: string; heroBgMobile: string; tone: 'dark' | 'light'; overlay: number };
   whatsapp: { image: string; tooltip: string };
-  announcement: { enabled: boolean; text: string; linkLabel: string; linkUrl: string; bg: string; color: string; image: string };
+  /** Shown one after another in the CRM, `seconds` each. */
+  announcement: { enabled: boolean; seconds: number; items: AnnItem[] };
 };
+
+/** CRM announcements an event may have (the server's MAX_ANNOUNCEMENTS). */
+const MAX_ANNOUNCEMENTS = 5;
+const blankItem = (): AnnItem => ({ text: '', linkLabel: '', linkUrl: '', bg: '#16a34a', color: '#ffffff', image: '' });
 
 const blankTheme = (): Theme => ({
   logos: { site: '', crmLight: '', crmDark: '' },
-  landing: { heroBg: '', heroArt: '', badge: '', titleAccent: '', titleMain: '', desc: '', accent: '', tone: 'dark', overlay: 0 },
-  pages: { heroBg: '', tone: 'dark', overlay: 0 },
+  landing: { heroBg: '', heroBgTablet: '', heroBgMobile: '', heroArt: '', badge: '', titleAccent: '', titleMain: '', desc: '', accent: '', tone: 'dark', overlay: 0 },
+  pages: { heroBg: '', heroBgTablet: '', heroBgMobile: '', tone: 'dark', overlay: 0 },
   whatsapp: { image: '', tooltip: '' },
-  announcement: { enabled: false, text: '', linkLabel: '', linkUrl: '', bg: '#16a34a', color: '#ffffff', image: '' },
+  announcement: { enabled: false, seconds: 6, items: [blankItem()] },
 });
 
 /** A saved theme over the blank one, so every field has a value. */
 function fullTheme(t: EventTheme = {}): Theme {
   const b = blankTheme();
+  const a = t.announcement || {};
+  // An event saved before the list: its single announcement is the first item.
+  const saved = Array.isArray(a.items) && a.items.length ? a.items : [a];
+  const items: AnnItem[] = saved.map((x) => ({
+    text: x.text || '', linkLabel: x.linkLabel || '', linkUrl: x.linkUrl || '', bg: x.bg || '#16a34a', color: x.color || '#ffffff', image: x.image || '',
+  }));
   return {
     logos: { ...b.logos, ...t.logos },
     landing: { ...b.landing, ...t.landing } as Theme['landing'],
     pages: { ...b.pages, ...t.pages } as Theme['pages'],
     whatsapp: { ...b.whatsapp, ...t.whatsapp },
-    announcement: { ...b.announcement, ...t.announcement, bg: t.announcement?.bg || b.announcement.bg, color: t.announcement?.color || b.announcement.color },
+    announcement: { enabled: !!a.enabled, seconds: Number(a.seconds) || 6, items: items.length ? items : [blankItem()] },
   };
 }
 
@@ -196,38 +209,171 @@ function ColorField({ label, value, onChange, fallback, testId }: { label: strin
   );
 }
 
-/** A small copy of the landing hero, as the event will look. */
-function HeroPreview({ t }: { t: Theme['landing'] }) {
-  const style = {
-    ...(t.heroBg ? { backgroundImage: `url("${t.heroBg}")` } : {}),
+// ------------------------------------------------------------------ previews
+
+type Device = 'desktop' | 'tablet' | 'mobile';
+/** The width each preview is drawn at (then scaled down to fit). */
+const DEVICE_W: Record<Device, number> = { desktop: 1280, tablet: 820, mobile: 390 };
+const DEVICE_LABEL: Record<Device, string> = { desktop: 'Desktop', tablet: 'Tablet', mobile: 'Mobile' };
+
+/** The background a screen of this size uses: its own, else the next larger one (as on the site). */
+const bgFor = (t: Theme['landing'], d: Device) =>
+  d === 'mobile' ? t.heroBgMobile || t.heroBgTablet || t.heroBg : d === 'tablet' ? t.heroBgTablet || t.heroBg : t.heroBg;
+
+/**
+ * The website's sizes at a given screen width (site.css / site-pages.css:
+ * the same clamp()s), so the preview is the real layout, only smaller.
+ */
+function siteMetrics(w: number) {
+  const vw = w / 100;
+  const c = (min: number, v: number, max: number) => Math.min(max, Math.max(min, v));
+  const phone = w <= 640;
+  const narrow = w <= 820; // the menu and the trust line hide (lp-desktop-only)
+  return {
+    headerPad: `13px ${c(16, 4.5 * vw, 64)}px`,
+    logoH: c(48, 4 * vw, 56),
+    nav: !narrow,
+    heroPad: phone ? '36px 16px 40px' : `${c(48, 6 * vw, 76)}px ${c(20, 4 * vw, 56)}px ${c(32, 4.5 * vw, 48)}px`,
+    title: phone ? 32 : c(38, 5.2 * vw, 68),
+    desc: c(16, 1.3 * vw, 19),
+    art: w <= 768
+      ? { width: 210, left: -20, top: '35%', opacity: 0.22 }
+      : { width: c(260, 28 * vw, 440), left: c(20, 4 * vw, 90), top: '50%', opacity: 0.9 },
+    stack: phone,
+    trust: !narrow,
+  };
+}
+
+/**
+ * The landing page as the event will look: the black top bar, the header on
+ * the picture, the hero. Drawn at a real screen width and scaled to fit, so
+ * the picture is cropped exactly as on the site. Desktop / Tablet / Mobile.
+ */
+function HeroPreview({ t, logo }: { t: Theme['landing']; logo: string }) {
+  const [device, setDevice] = useState<Device>('desktop');
+  const W = DEVICE_W[device];
+  const m = siteMetrics(W);
+  const bg = bgFor(t, device);
+  const ratio = useImageRatio(bg);
+  const box = useRef<HTMLDivElement>(null);
+  const page = useRef<HTMLDivElement>(null);
+  const [scale, setScale] = useState(0.3);
+  const [height, setHeight] = useState(0);
+  useLayoutEffect(() => {
+    const measure = () => {
+      if (box.current) setScale(box.current.clientWidth / W);
+      if (page.current) setHeight(page.current.offsetHeight);
+    };
+    measure();
+    if (typeof ResizeObserver === 'undefined') return undefined;
+    const ro = new ResizeObserver(measure);
+    if (box.current) ro.observe(box.current);
+    if (page.current) ro.observe(page.current);
+    return () => ro.disconnect();
+  }, [W]);
+  const light = t.tone === 'light' && !!bg;
+  const stage = {
+    ...(bg ? { backgroundImage: `url("${bg}")` } : {}),
+    ...(bg && ratio ? { minHeight: Math.round(W * ratio) } : {}),
     '--evp-wash': t.tone === 'light' ? `rgba(2,6,23,${t.overlay / 100})` : `rgba(255,255,255,${t.overlay / 100})`,
   } as CSSProperties;
   return (
-    <div className={`evp-hero${t.tone === 'light' && t.heroBg ? ' light' : ''}`} style={style} data-testid="evp-hero-preview">
-      <img src={t.heroArt || '/design1.png'} alt="" className="evp-hero-art" />
-      <div className="evp-hero-body">
-        <div className="evp-hero-badge">{t.badge || '✨ — AI-Powered WhatsApp Marketing Platform'}</div>
-        <div className="evp-hero-title">
-          <span style={{ color: t.accent || '#00d084' }}>{t.titleAccent || '5X Your Revenue'}</span>
-          <span className="main">{t.titleMain || 'with the Power of WhatsApp'}</span>
-        </div>
-        <p>{t.desc || 'Broadcast, Automate, Engage, Sell - do everything with the AI-powered WhatsApp Marketing & Engagement Platform.'}</p>
+    <div className="evp-pv">
+      <div className="evp-pv-tabs" role="tablist" aria-label="Screen size">
+        {(Object.keys(DEVICE_W) as Device[]).map((d) => (
+          <button
+            key={d}
+            type="button"
+            role="tab"
+            aria-selected={device === d}
+            className={`evp-pv-tab${device === d ? ' on' : ''}`}
+            onClick={() => setDevice(d)}
+            data-testid={`evp-device-${d}`}
+          >
+            {DEVICE_LABEL[d]}
+            {d !== 'desktop' && (d === 'tablet' ? t.heroBgTablet : t.heroBgMobile) ? <i className="evp-pv-own" title="Has its own background" /> : null}
+          </button>
+        ))}
       </div>
+      <div className={`evp-pv-box ${device}`} ref={box} style={{ height: height * scale || undefined }}>
+        <div className="evp-pv-page" ref={page} style={{ width: W, transform: `scale(${scale})` }} data-device={device}>
+          <div className="evp-pv-topbar"><span>Help</span><span>Contact</span><b>Log in</b></div>
+          <div className={`evp-pv-stage${light ? ' light' : ''}`} style={stage} data-testid="evp-hero-preview" data-ratio={ratio ? ratio.toFixed(3) : ''}>
+            <div className="evp-pv-header" style={{ padding: m.headerPad }}>
+              <img src={logo || '/logo.png'} alt="" style={{ height: m.logoH }} />
+              {m.nav && (
+                <div className="evp-pv-nav">
+                  {['Solutions', 'Product', 'Resources', 'API'].map((x) => <span key={x}>{x} ▾</span>)}
+                  <span>Pricing</span>
+                </div>
+              )}
+              {m.nav ? (
+                <div className="evp-pv-actions"><span className="ghost">Book a demo</span><span className="dark">Try for free</span></div>
+              ) : (
+                <div className="evp-pv-burger"><i /><i /><i /></div>
+              )}
+            </div>
+            <div className="evp-pv-hero" style={{ padding: m.heroPad }}>
+              <img
+                src={t.heroArt || '/design1.png'}
+                alt=""
+                className="evp-pv-art"
+                style={{ width: m.art.width, left: m.art.left, top: m.art.top, opacity: m.art.opacity }}
+              />
+              <div className="evp-pv-body">
+                <div className="evp-hero-badge">{t.badge || '✨ — AI-Powered WhatsApp Marketing Platform'}</div>
+                <div className="evp-hero-title" style={{ fontSize: m.title }}>
+                  <span style={{ color: t.accent || '#00d084' }}>{t.titleAccent || '5X Your Revenue'}</span>
+                  <span className="main">{t.titleMain || 'with the Power of WhatsApp'}</span>
+                </div>
+                <p style={{ fontSize: m.desc }}>{t.desc || 'Broadcast, Automate, Engage, Sell - do everything with the AI-powered WhatsApp Marketing & Engagement Platform. Powered by Official WhatsApp APIs ⚡'}</p>
+                <div className={`evp-pv-btns${m.stack ? ' stack' : ''}`}>
+                  <span className="primary">Start 7-Day FREE Trial →</span>
+                  <span className="secondary">Join Live Demo →</span>
+                </div>
+                {m.trust && (
+                  <div className="evp-pv-trust">
+                    <span>✓ Official Meta Cloud API</span><span>✓ No credit card required</span><span>✓ 2-minute instant setup</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <small className="pa-hint">
+        {DEVICE_LABEL[device]} · {W} px wide.{' '}
+        {!bg
+          ? 'No background for this size: the normal white hero.'
+          : device !== 'desktop' && bg === t.heroBg
+            ? 'Uses the desktop background (no own one uploaded).'
+            : device === 'mobile' && bg === t.heroBgTablet
+              ? 'Uses the tablet background (no mobile one uploaded).'
+              : 'The whole picture shows; a taller hero only trims its sides.'}
+      </small>
     </div>
   );
 }
 
+/** The CRM's own announcement bar with these announcements, taking turns as in the CRM. */
 function AnnouncementPreview({ a }: { a: Theme['announcement'] }) {
-  const style = { '--ev-ann-bg': a.bg || '#16a34a', '--ev-ann-color': a.color || '#ffffff' } as CSSProperties;
+  const items = a.items.map((x) => ({ ...x, text: x.text || 'Your announcement appears here' }));
+  const event: LiveEvent = {
+    id: 'admin-preview',
+    name: 'Preview',
+    preview: true,
+    theme: { announcement: { enabled: true, seconds: a.seconds, items } },
+  };
   return (
     <div className="evp-ann-preview">
-      <div className="ev-announce" style={style}>
-        {a.image && <img className="ev-announce-img" src={a.image} alt="" />}
-        <span className="ev-announce-text">{a.text || 'Your announcement appears here'}</span>
-        {a.linkUrl && <span className="ev-announce-link">{a.linkLabel || 'Learn more'}</span>}
-        <span className="ev-announce-close" aria-hidden="true">✕</span>
-      </div>
-      <small className="pa-hint">{a.enabled ? 'Shown across the top of the CRM. Businesses can close it.' : 'Switched off: not shown.'}</small>
+      <EventAnnouncement event={event} />
+      <small className="pa-hint">
+        {!a.enabled
+          ? 'Switched off: not shown.'
+          : items.length > 1
+            ? `Across the top of the CRM: ${items.length} announcements, one after another, ${a.seconds} seconds each, then round again. Businesses can close the bar.`
+            : 'Shown across the top of the CRM. Businesses can close it.'}
+      </small>
     </div>
   );
 }
@@ -247,6 +393,31 @@ function EventEditor({ draft: start, onClose, onSaved }: { draft: Draft; onClose
     setD((x) => ({ ...x, theme: { ...x.theme, [section]: { ...x.theme[section], [key]: value } } }));
   }
   const err = (k: string) => (fields[k] ? <small className="evp-error">{fields[k]}</small> : null);
+  // Announcements: a list (the server's error names: announcement.text for the first, announcement.items.N.text after).
+  const annKey = (i: number, k: string) => (i === 0 ? `announcement.${k}` : `announcement.items.${i}.${k}`);
+  const annId = (base: string, i: number) => (i === 0 ? base : `${base}-${i}`);
+  const setAnn = (patch: Partial<Theme['announcement']>) =>
+    setD((x) => ({ ...x, theme: { ...x.theme, announcement: { ...x.theme.announcement, ...patch } } }));
+  const setItem = (i: number, patch: Partial<AnnItem>) =>
+    setD((x) => ({
+      ...x,
+      theme: { ...x.theme, announcement: { ...x.theme.announcement, items: x.theme.announcement.items.map((it, n) => (n === i ? { ...it, ...patch } : it)) } },
+    }));
+  const addItem = () => {
+    const items = d.theme.announcement.items;
+    if (items.length >= MAX_ANNOUNCEMENTS) return;
+    // A new one starts with the last one's colours.
+    const last = items[items.length - 1] || blankItem();
+    setAnn({ items: [...items, { ...blankItem(), bg: last.bg, color: last.color }] });
+  };
+  const removeItem = (i: number) => setAnn({ items: d.theme.announcement.items.filter((_, n) => n !== i) });
+  const moveItem = (i: number, by: -1 | 1) => {
+    const items = [...d.theme.announcement.items];
+    const j = i + by;
+    if (j < 0 || j >= items.length) return;
+    [items[i], items[j]] = [items[j], items[i]];
+    setAnn({ items });
+  };
 
   async function save(): Promise<SiteEventRow | null> {
     setSaving(true);
@@ -323,8 +494,10 @@ function EventEditor({ draft: start, onClose, onSaved }: { draft: Draft; onClose
         </label>
       </Section>
 
-      <Section title="Landing page hero" sub="The first thing visitors see at kapsosolutions.com." aside={<HeroPreview t={L} />}>
-        <ImageField label="Background (image or GIF)" hint="Wide images work best, at least 1600 × 700. GIFs play." value={L.heroBg} onChange={(v) => set('landing', 'heroBg', v)} testId="landing-bg" />
+      <Section title="Landing page hero" sub="The first thing visitors see at kapsosolutions.com." aside={<HeroPreview t={L} logo={d.theme.logos.site} />}>
+        <ImageField label="Background (image or GIF)" hint="Runs behind the header and the hero, and always shows whole. Wide: about 1920 × 900. GIFs play." value={L.heroBg} onChange={(v) => set('landing', 'heroBg', v)} testId="landing-bg" />
+        <ImageField label="Tablet background (optional)" hint="Screens up to 1024 px wide, about 1024 × 900. Empty: the background above." value={L.heroBgTablet} onChange={(v) => set('landing', 'heroBgTablet', v)} testId="landing-bg-tablet" />
+        <ImageField label="Mobile background (optional)" hint="Phones, up to 640 px wide. A tall picture, about 1080 × 1700. Empty: the tablet one, else the one above." value={L.heroBgMobile} onChange={(v) => set('landing', 'heroBgMobile', v)} testId="landing-bg-mobile" />
         <ImageField label="Side artwork" hint="Replaces the green shape on the left. A transparent PNG or GIF." value={L.heroArt} onChange={(v) => set('landing', 'heroArt', v)} testId="landing-art" />
         <label className="pa-field wide">
           <span>Badge</span>
@@ -345,11 +518,14 @@ function EventEditor({ draft: start, onClose, onSaved }: { draft: Draft; onClose
         <ColorField label="Highlight colour" value={L.accent} onChange={(v) => set('landing', 'accent', v)} fallback="#00d084" testId="landing-accent" />
         <ToneField value={L.tone} onChange={(v) => set('landing', 'tone', v)} testId="landing-tone" />
         <OverlayField value={L.overlay} onChange={(n) => set('landing', 'overlay', n)} tone={L.tone} testId="landing-overlay" />
-        {err('landing.heroBg')}{err('landing.heroArt')}{err('landing.accent')}
+        {err('landing.heroBg')}{err('landing.heroBgTablet')}{err('landing.heroBgMobile')}{err('landing.heroArt')}{err('landing.accent')}
       </Section>
 
       <Section title="Other website pages" sub="The top section of Pricing, Product, Solutions, API docs, Contact and every other page.">
         <ImageField label="Hero background (image or GIF)" hint="Shown behind each page’s title." value={P.heroBg} onChange={(v) => set('pages', 'heroBg', v)} testId="pages-bg" />
+        <ImageField label="Tablet background (optional)" hint="Screens up to 1024 px wide. Empty: the background above." value={P.heroBgTablet} onChange={(v) => set('pages', 'heroBgTablet', v)} testId="pages-bg-tablet" />
+        <ImageField label="Mobile background (optional)" hint="Phones, up to 640 px wide. Empty: the tablet one, else the one above." value={P.heroBgMobile} onChange={(v) => set('pages', 'heroBgMobile', v)} testId="pages-bg-mobile" />
+        {err('pages.heroBg')}{err('pages.heroBgTablet')}{err('pages.heroBgMobile')}
         <div className="evp-stack">
           <ToneField value={P.tone} onChange={(v) => set('pages', 'tone', v)} testId="pages-tone" />
           <OverlayField value={P.overlay} onChange={(n) => set('pages', 'overlay', n)} tone={P.tone} testId="pages-overlay" />
@@ -367,28 +543,59 @@ function EventEditor({ draft: start, onClose, onSaved }: { draft: Draft; onClose
         </label>
       </Section>
 
-      <Section title="CRM announcement" sub="A bar across the top of every business’s CRM." aside={<AnnouncementPreview a={A} />}>
+      <Section
+        title="CRM announcements"
+        sub="A bar across the top of every business’s CRM. With several, they take turns: the first, then the next, and round again."
+        aside={<AnnouncementPreview a={A} />}
+      >
         <label className="pa-check wide evp-wide">
-          <input type="checkbox" checked={A.enabled} onChange={(e) => set('announcement', 'enabled', e.target.checked)} data-testid="ann-enabled" />
-          Show the announcement
+          <input type="checkbox" checked={A.enabled} onChange={(e) => setAnn({ enabled: e.target.checked })} data-testid="ann-enabled" />
+          Show the announcements
         </label>
-        <label className="pa-field wide">
-          <span>Text</span>
-          <input value={A.text} onChange={(e) => set('announcement', 'text', e.target.value)} placeholder="🪔 Diwali offer: 25% off every annual plan till 5 Nov" maxLength={200} data-testid="ann-text" />
-          {err('announcement.text')}
-        </label>
-        <label className="pa-field">
-          <span>Button text</span>
-          <input value={A.linkLabel} onChange={(e) => set('announcement', 'linkLabel', e.target.value)} placeholder="See plans" maxLength={30} />
-        </label>
-        <label className="pa-field">
-          <span>Button link</span>
-          <input value={A.linkUrl} onChange={(e) => set('announcement', 'linkUrl', e.target.value)} placeholder="/pricing or https://…" maxLength={500} data-testid="ann-link" />
-          {err('announcement.linkUrl')}
-        </label>
-        <ColorField label="Bar colour" value={A.bg} onChange={(v) => set('announcement', 'bg', v)} fallback="#16a34a" testId="ann-bg" />
-        <ColorField label="Text colour" value={A.color} onChange={(v) => set('announcement', 'color', v)} fallback="#ffffff" testId="ann-color" />
-        <ImageField label="Small image or GIF (optional)" hint="Shown before the text, 26 px tall." value={A.image} onChange={(v) => set('announcement', 'image', v)} testId="ann-image" />
+        {A.items.length > 1 && (
+          <label className="pa-field wide">
+            <span>Each one shows for: {A.seconds} seconds</span>
+            <input type="range" min={3} max={30} step={1} value={A.seconds} onChange={(e) => setAnn({ seconds: Number(e.target.value) })} data-testid="ann-seconds" />
+          </label>
+        )}
+        {A.items.map((it, i) => (
+          <div className="evp-ann-item evp-wide" key={i} data-testid="ann-item">
+            <div className="evp-ann-item-head">
+              <strong>{i === 0 ? 'Announcement 1 (the event’s)' : `Announcement ${i + 1}`}</strong>
+              {A.items.length > 1 && (
+                <div className="evp-ann-item-actions">
+                  <button type="button" className="pa-btn ghost sm" onClick={() => moveItem(i, -1)} disabled={i === 0} title="Show earlier" aria-label="Move up">↑</button>
+                  <button type="button" className="pa-btn ghost sm" onClick={() => moveItem(i, 1)} disabled={i === A.items.length - 1} title="Show later" aria-label="Move down">↓</button>
+                  <button type="button" className="pa-btn ghost sm" onClick={() => removeItem(i)} data-testid={annId('ann-remove', i)}>Remove</button>
+                </div>
+              )}
+            </div>
+            <div className="pa-form-grid">
+              <label className="pa-field wide">
+                <span>Text</span>
+                <input value={it.text} onChange={(e) => setItem(i, { text: e.target.value })} placeholder={i === 0 ? '🪔 Diwali offer: 25% off every annual plan till 5 Nov' : '✨ New: book appointments straight from Journeys'} maxLength={200} data-testid={annId('ann-text', i)} />
+                {err(annKey(i, 'text'))}
+              </label>
+              <label className="pa-field">
+                <span>Button text</span>
+                <input value={it.linkLabel} onChange={(e) => setItem(i, { linkLabel: e.target.value })} placeholder="See plans" maxLength={30} />
+              </label>
+              <label className="pa-field">
+                <span>Button link</span>
+                <input value={it.linkUrl} onChange={(e) => setItem(i, { linkUrl: e.target.value })} placeholder="/pricing or https://…" maxLength={500} data-testid={annId('ann-link', i)} />
+                {err(annKey(i, 'linkUrl'))}
+              </label>
+              <ColorField label="Bar colour" value={it.bg} onChange={(v) => setItem(i, { bg: v })} fallback="#16a34a" testId={annId('ann-bg', i)} />
+              <ColorField label="Text colour" value={it.color} onChange={(v) => setItem(i, { color: v })} fallback="#ffffff" testId={annId('ann-color', i)} />
+              <ImageField label="Small image or GIF (optional)" hint="Shown before the text, 26 px tall." value={it.image} onChange={(v) => setItem(i, { image: v })} testId={annId('ann-image', i)} />
+            </div>
+          </div>
+        ))}
+        {A.items.length < MAX_ANNOUNCEMENTS && (
+          <button type="button" className="pa-btn ghost evp-wide evp-ann-add" onClick={addItem} data-testid="ann-add">
+            + Add another announcement ({A.items.length}/{MAX_ANNOUNCEMENTS})
+          </button>
+        )}
       </Section>
 
       <div className="evp-footer">

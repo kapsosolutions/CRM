@@ -7,7 +7,7 @@ import { BookDemoSvg } from '../crm/components/TemplateIcons';
 import { platformApi } from '../admin/platformApi';
 import { FOOTER_COLUMNS, MENUS, type Menu, type MenuLink } from './siteMenus';
 import { SiteIcon } from './SiteIcons';
-import { cssUrl, useLiveEvent } from '../event/liveEvent';
+import { cssUrl, useImageRatio, useLiveEvent } from '../event/liveEvent';
 import { EventPreviewBadge } from '../event/EventPreviewBadge';
 import { onSiteLinkClick, useSitePath, useSeo } from './siteNav';
 import type { SitePageMeta } from './siteMeta';
@@ -104,6 +104,26 @@ export function SiteHeader({ compact = false, onBookDemo }: { compact?: boolean;
   const path = useSitePath();
   const signedIn = platformApi.businessLoggedIn();
   const logo = useLiveEvent()?.theme.logos?.site || '/logo.png';
+  // With an event hero the header sits on the hero's image while the page is
+  // at the top (site-pages.css .ev-stage), and turns white once scrolled.
+  // Its height lets the hero reach up under it (--lp-header-h).
+  const headerRef = useRef<HTMLElement>(null);
+  const [scrolled, setScrolled] = useState(false);
+  useEffect(() => {
+    const on = () => setScrolled(window.scrollY > 4);
+    on();
+    window.addEventListener('scroll', on, { passive: true });
+    return () => window.removeEventListener('scroll', on);
+  }, []);
+  useEffect(() => {
+    const el = headerRef.current;
+    if (!el) return undefined;
+    const set = () => document.documentElement.style.setProperty('--lp-header-h', `${el.offsetHeight}px`);
+    set();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(set) : null;
+    ro?.observe(el);
+    return () => ro?.disconnect();
+  }, []);
 
   // A new page closes every menu.
   useEffect(() => {
@@ -167,7 +187,7 @@ export function SiteHeader({ compact = false, onBookDemo }: { compact?: boolean;
         </div>
       )}
 
-      <header className={`lp-header sx-header${compact ? ' compact' : ''}`}>
+      <header ref={headerRef} className={`lp-header sx-header${compact ? ' compact' : ''}${scrolled ? ' scrolled' : ''}`}>
         <SiteLink className="lp-brand" href="/" aria-label={BRAND}>
           <img className="lp-brand-logo" src={logo} alt={BRAND} />
         </SiteLink>
@@ -364,14 +384,41 @@ export function WhatsAppFloat() {
  * The live event's hero background for a section: class names and the CSS
  * variables site-pages.css reads (image, overlay strength, text tone).
  */
-export function eventHeroProps(h?: { heroBg?: string; tone?: 'dark' | 'light'; overlay?: number; accent?: string }): { className: string; style?: CSSProperties } {
+type EventHero = { heroBg?: string; heroBgTablet?: string; heroBgMobile?: string; tone?: 'dark' | 'light'; overlay?: number; accent?: string };
+/** Height ÷ width of the desktop, tablet and mobile backgrounds (0 = not known). */
+type HeroRatios = { desktop?: number; tablet?: number; mobile?: number };
+
+/**
+ * The live event's hero background for a section: class names and the CSS
+ * variables site-pages.css reads (the image for desktop / tablet / mobile,
+ * their height ÷ width, the overlay strength, the text tone).
+ */
+export function eventHeroProps(h?: EventHero, ratios: HeroRatios = {}): { className: string; style?: CSSProperties } {
   const bg = cssUrl(h?.heroBg);
-  if (!bg && !h?.accent) return { className: '' };
+  const tablet = cssUrl(h?.heroBgTablet);
+  const mobile = cssUrl(h?.heroBgMobile);
+  const any = !!(bg || tablet || mobile);
+  if (!any && !h?.accent) return { className: '' };
+  // A size not uploaded is simply not set: the CSS falls back to the next larger one.
   const style = {
-    ...(bg ? { '--ev-hero-bg': bg, '--ev-hero-overlay': String(Math.min(90, Math.max(0, h?.overlay || 0)) / 100) } : {}),
+    ...(bg ? { '--ev-hero-bg': bg } : {}),
+    ...(tablet ? { '--ev-hero-bg-tablet': tablet } : {}),
+    ...(mobile ? { '--ev-hero-bg-mobile': mobile } : {}),
+    ...(bg && ratios.desktop ? { '--ev-hero-ratio': String(ratios.desktop) } : {}),
+    ...(tablet && ratios.tablet ? { '--ev-hero-ratio-tablet': String(ratios.tablet) } : {}),
+    ...(mobile && ratios.mobile ? { '--ev-hero-ratio-mobile': String(ratios.mobile) } : {}),
+    ...(any ? { '--ev-hero-overlay': String(Math.min(90, Math.max(0, h?.overlay || 0)) / 100) } : {}),
     ...(h?.accent ? { '--ev-accent': h.accent } : {}),
   } as CSSProperties;
-  return { className: `${bg ? ' ev-hero' : ''}${bg && h?.tone === 'light' ? ' ev-light' : ''}`, style };
+  return { className: `${any ? ' ev-hero' : ''}${any && h?.tone === 'light' ? ' ev-light' : ''}`, style };
+}
+
+/** eventHeroProps with the backgrounds' proportions read from the images. */
+export function useEventHeroProps(h?: EventHero) {
+  const desktop = useImageRatio(h?.heroBg);
+  const tablet = useImageRatio(h?.heroBgTablet);
+  const mobile = useImageRatio(h?.heroBgMobile);
+  return eventHeroProps(h, { desktop, tablet, mobile });
 }
 
 /** A content page: header, the page, the footer, the WhatsApp button, the demo dialog. */
@@ -380,7 +427,7 @@ export function SitePage({ meta, children, className = '', noindex = false }: { 
   const [demoOpen, setDemoOpen] = useState(false);
   const openDemo = () => setDemoOpen(true);
   // Every page's hero (.sx-hero) takes the event's background.
-  const hero = eventHeroProps(useLiveEvent()?.theme.pages);
+  const hero = useEventHeroProps(useLiveEvent()?.theme.pages);
   return (
     <div className={`lp sx-page ${className}${hero.className}`} style={hero.style}>
       <SiteHeader onBookDemo={openDemo} />

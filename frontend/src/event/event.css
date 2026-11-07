@@ -44,6 +44,63 @@
   font-weight: 600;
   line-height: 1.35;
   text-align: center;
+  overflow: hidden;
+  transition: background-color 0.45s ease, color 0.45s ease;
+}
+/* One announcement: its image, text and button, sliding in on its turn. */
+.ev-announce-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-width: 0;
+  animation: evAnnIn 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+}
+@keyframes evAnnIn {
+  from {
+    opacity: 0;
+    transform: translateY(70%);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ev-announce-item {
+    animation: none;
+  }
+}
+/* Several: dots (which one, and jump to one) before the close button. */
+.ev-announce.many {
+  padding-right: 96px;
+}
+.ev-announce-dots {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 5px;
+}
+.ev-announce-dot {
+  width: 7px;
+  height: 7px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.4;
+  cursor: pointer;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+.ev-announce-dot.on {
+  opacity: 1;
+  transform: scale(1.15);
+}
+.ev-announce-dot:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
 }
 .ev-announce-img {
   height: 26px;
@@ -98,5 +155,16 @@
     text-align: left;
     padding: 6px 40px 6px 12px;
     font-size: 12.5px;
+  }
+  .ev-announce-item {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+  .ev-announce.many {
+    padding-right: 84px;
+  }
+  .ev-announce-dots {
+    right: 38px;
+    gap: 4px;
   }
 }

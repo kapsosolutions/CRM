@@ -7,7 +7,7 @@ import { useSmoothScroll } from './useSmoothScroll';
 import { BuyNowSvg } from '../crm/components/TemplateIcons';
 import { CycleToggle, PlanCards } from '../crm/components/PlanCards';
 import type { BillingCycle } from '../crm/plans';
-import { SiteFooter, SiteHeader, WhatsAppFloat, eventHeroProps } from './SiteChrome';
+import { SiteFooter, SiteHeader, WhatsAppFloat, useEventHeroProps } from './SiteChrome';
 import { useLiveEvent } from '../event/liveEvent';
 import { HOME_META } from './siteMeta';
 import { useSeo } from './siteNav';
@@ -104,13 +104,15 @@ export function LandingPage() {
   useSmoothScroll();
   useSeo(HOME_META);
   const ev = useLiveEvent()?.theme.landing || {};
-  const hero = eventHeroProps(ev);
+  const hero = useEventHeroProps(ev);
+  // An event background also runs behind the header (one picture from the top).
+  const stage = hero.className.includes('ev-hero');
   const [demoOpen, setDemoOpen] = useState(false);
   const [billingCycle, setBillingCycle] = useState<BillingCycle>('quarterly');
   const openDemo = () => setDemoOpen(true);
 
   return (
-    <div className="lp">
+    <div className={`lp${stage ? ' ev-stage' : ''}${stage && ev.tone === 'light' ? ' ev-stage-light' : ''}`}>
       <SiteHeader onBookDemo={openDemo} />
       {demoOpen && <DemoModal onClose={() => setDemoOpen(false)} />}
 

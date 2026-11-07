@@ -3,12 +3,20 @@
 //
 //   theme = {
 //     logos:        { site, crmLight, crmDark }                  image URLs
-//     landing:      { heroBg, heroArt, badge, titleAccent, titleMain, desc,
-//                     accent, tone: 'dark'|'light', overlay: 0–90 }
-//     pages:        { heroBg, tone, overlay }                    every other website page
+//     landing:      { heroBg, heroBgTablet, heroBgMobile, heroArt, badge,
+//                     titleAccent, titleMain, desc, accent,
+//                     tone: 'dark'|'light', overlay: 0–90 }
+//     pages:        { heroBg, heroBgTablet, heroBgMobile, tone, overlay }   every other website page
 //     whatsapp:     { image, tooltip }                           the floating chat button
-//     announcement: { enabled, text, linkLabel, linkUrl, bg, color, image }   CRM top bar
+//     announcement: { enabled, seconds, items: [{ text, linkLabel, linkUrl, bg, color, image }],
+//                     text, linkLabel, linkUrl, bg, color, image }   CRM top bar
 //   }
+//
+// heroBgTablet / heroBgMobile: the background on screens up to 1024 / 640 px
+// wide (empty = the next larger one). Announcements: up to MAX_ANNOUNCEMENTS,
+// shown one after another, `seconds` each. The first one is also copied to
+// the old single fields (text, linkLabel, …) for CRM pages loaded before
+// the list existed; an old theme with only those fields reads as one item.
 //
 // Every field is optional: an empty one keeps the normal design. Images must
 // be https URLs (the admin uploads them to our storage), so a theme can never
@@ -30,6 +38,12 @@ const tone = (v) => (v === 'light' ? 'light' : 'dark');
 const overlay = (v) => {
   const n = Math.round(Number(v));
   return Number.isFinite(n) ? Math.min(90, Math.max(0, n)) : 0;
+};
+/** CRM announcements: how many, and how long each shows (seconds). */
+export const MAX_ANNOUNCEMENTS = 5;
+const seconds = (v) => {
+  const n = Math.round(Number(v));
+  return Number.isFinite(n) && n > 0 ? Math.min(30, Math.max(3, n)) : 6;
 };
 
 /** A field that isn't an allowed value: { field: message } for the admin. */
@@ -64,8 +78,27 @@ export function sanitizeTheme(raw = {}) {
   const P = r.pages || {};
   const W = r.whatsapp || {};
   const A = r.announcement || {};
-  const linkUrl = String(A.linkUrl ?? '').trim();
-  if (linkUrl && !LINK.test(linkUrl)) errors['announcement.linkUrl'] = 'Use a page of the site (like /pricing) or an https:// link.';
+  // The list, or (an older theme) the single announcement as its one item.
+  const rawItems = (Array.isArray(A.items) ? A.items : [A]).filter((x) => x && typeof x === 'object').slice(0, MAX_ANNOUNCEMENTS);
+  // The first item's errors keep their old names (announcement.text…).
+  const at = (i, k) => (i === 0 ? `announcement.${k}` : `announcement.items.${i}.${k}`);
+  const items = rawItems.map((it, i) => {
+    const linkUrl = String(it.linkUrl ?? '').trim();
+    if (linkUrl && !LINK.test(linkUrl)) errors[at(i, 'linkUrl')] = 'Use a page of the site (like /pricing) or an https:// link.';
+    return {
+      text: text(it.text, 200),
+      linkLabel: text(it.linkLabel, 30),
+      linkUrl: LINK.test(linkUrl) ? linkUrl : '',
+      bg: pickColor(at(i, 'bg'), it.bg),
+      color: pickColor(at(i, 'color'), it.color),
+      image: pickUrl(at(i, 'image'), it.image),
+    };
+  });
+  // Empty items in the middle of the list are an error; trailing empty ones are dropped.
+  while (items.length > 1 && !items[items.length - 1].text) items.pop();
+  const enabled = A.enabled === true;
+  if (enabled) items.forEach((it, i) => { if (!it.text) errors[at(i, 'text')] = 'Write the announcement, or switch it off.'; });
+  const first = items[0] || { text: '', linkLabel: '', linkUrl: '', bg: '', color: '', image: '' };
   const theme = {
     logos: {
       site: pickUrl('logos.site', L.site),
@@ -74,6 +107,8 @@ export function sanitizeTheme(raw = {}) {
     },
     landing: {
       heroBg: pickUrl('landing.heroBg', H.heroBg),
+      heroBgTablet: pickUrl('landing.heroBgTablet', H.heroBgTablet),
+      heroBgMobile: pickUrl('landing.heroBgMobile', H.heroBgMobile),
       heroArt: pickUrl('landing.heroArt', H.heroArt),
       badge: text(H.badge, 80),
       titleAccent: text(H.titleAccent, 60),
@@ -85,6 +120,8 @@ export function sanitizeTheme(raw = {}) {
     },
     pages: {
       heroBg: pickUrl('pages.heroBg', P.heroBg),
+      heroBgTablet: pickUrl('pages.heroBgTablet', P.heroBgTablet),
+      heroBgMobile: pickUrl('pages.heroBgMobile', P.heroBgMobile),
       tone: tone(P.tone),
       overlay: overlay(P.overlay),
     },
@@ -93,16 +130,12 @@ export function sanitizeTheme(raw = {}) {
       tooltip: text(W.tooltip, 40),
     },
     announcement: {
-      enabled: A.enabled === true,
-      text: text(A.text, 200),
-      linkLabel: text(A.linkLabel, 30),
-      linkUrl: LINK.test(linkUrl) ? linkUrl : '',
-      bg: pickColor('announcement.bg', A.bg),
-      color: pickColor('announcement.color', A.color),
-      image: pickUrl('announcement.image', A.image),
+      enabled,
+      seconds: seconds(A.seconds),
+      items,
+      ...first,
     },
   };
-  if (theme.announcement.enabled && !theme.announcement.text) errors['announcement.text'] = 'Write the announcement, or switch it off.';
   if (Object.keys(errors).length) throw new ThemeError(errors);
   return theme;
 }
