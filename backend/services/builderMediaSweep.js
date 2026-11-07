@@ -1,4 +1,5 @@
-// Daily safety net for the journey / flow builders' uploads.
+// Daily safety net for the journey / flow builders' uploads, and the admin's
+// event images (shared/events: kept while any saved event uses them).
 //
 // The builders delete a file as soon as it's replaced or removed, and on
 // leaving the editor they delete what was uploaded but never saved; saving
@@ -15,6 +16,7 @@ import Business from '../models/Business.js';
 import Flow from '../models/Flow.js';
 import Journey from '../models/Journey.js';
 import FlowTemplate from '../models/FlowTemplate.js';
+import SiteEvent from '../models/SiteEvent.js';
 import storage, { collectCdnUrls, keyFromUrl } from './storage.js';
 import logger from './logger.js';
 
@@ -72,11 +74,39 @@ export async function sweepUnusedBuilderMedia({ dryRun = false } = {}) {
     }
   }
   const bytes = batch.reduce((s, f) => s + f.size, 0);
-  const summary = { checked, unused: doomed.length, deleted, bytes, keys: batch.map((f) => f.key) };
+  // The admin's event images (shared/events): the same rules, against every event.
+  const ev = await sweepEventImages({ dryRun, cutoff, limit: MAX_DELETES_PER_RUN - batch.length });
+  checked += ev.checked;
+  deleted += ev.deleted;
+  const summary = { checked, unused: doomed.length + ev.unused, deleted, bytes: bytes + ev.bytes, keys: [...batch.map((f) => f.key), ...ev.keys] };
   if (doomed.length) {
     logger.info('builder media sweep', { checked, unused: doomed.length, deleted, mb: +(bytes / 1048576).toFixed(1), dryRun });
   }
   return summary;
+}
+
+/** Event images (admin → Events) no saved event uses, older than the cutoff. */
+async function sweepEventImages({ dryRun, cutoff, limit }) {
+  const out = { checked: 0, unused: 0, deleted: 0, bytes: 0, keys: [] };
+  const files = await storage.listFolder('shared/events');
+  out.checked = files.length;
+  if (!files.length) return out;
+  const rows = await SiteEvent.find({}).lean();
+  const used = new Set();
+  for (const r of rows) for (const u of collectCdnUrls(r.theme)) used.add(keyFromUrl(u));
+  // Files there but no event at all: more likely a failed read than "all unused".
+  if (!rows.length) return out;
+  const doomed = files.filter((f) => !used.has(f.key) && f.createdAt.getTime() < cutoff).slice(0, Math.max(0, limit));
+  out.unused = doomed.length;
+  out.keys = doomed.map((f) => f.key);
+  out.bytes = doomed.reduce((s, f) => s + f.size, 0);
+  if (!dryRun) {
+    for (const f of doomed) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await storage.deleteByUrl(storage.urlOf(f.key))) out.deleted += 1;
+    }
+  }
+  return out;
 }
 
 let timer = null;

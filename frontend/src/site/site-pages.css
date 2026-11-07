@@ -1811,6 +1811,33 @@ a.sx-chip:hover {
 .lp-hero-centered.ev-hero {
   min-height: calc(100vw * var(--ev-ratio-now, 0));
 }
+/* A tablet / phone without its own picture shows the larger one whole,
+   across the full width from the top (nothing cut off), the hero's colour
+   below it. Upload a tablet / mobile picture to fill the hero instead. */
+@media (max-width: 1024px) {
+  .lp-hero-centered.ev-hero.ev-fit-tablet,
+  .sx-page.ev-hero.ev-fit-tablet .sx-hero {
+    background-size: 100% auto;
+  }
+  .lp-hero-centered.ev-hero.ev-light.ev-fit-tablet,
+  .sx-page.ev-hero.ev-light.ev-fit-tablet .sx-hero {
+    background-color: #0f172a;
+  }
+}
+@media (max-width: 640px) {
+  .lp-hero-centered.ev-hero.ev-fit-tablet:not(.ev-fit-mobile),
+  .sx-page.ev-hero.ev-fit-tablet:not(.ev-fit-mobile) .sx-hero {
+    background-size: cover;
+  }
+  .lp-hero-centered.ev-hero.ev-fit-mobile,
+  .sx-page.ev-hero.ev-fit-mobile .sx-hero {
+    background-size: 100% auto;
+  }
+  .lp-hero-centered.ev-hero.ev-light.ev-fit-mobile,
+  .sx-page.ev-hero.ev-light.ev-fit-mobile .sx-hero {
+    background-color: #0f172a;
+  }
+}
 /* …and it starts behind the header: the header is see-through over it at
    the top of the page, and white again once the page scrolls. */
 .lp.ev-stage .lp-header {

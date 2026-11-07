@@ -6,7 +6,7 @@
 //   the CRM sidebar logo (light and dark theme) and a CRM announcement bar
 // One event is live at a time (optionally only between two dates). Preview
 // shows a saved event on the site / the demo CRM in this browser only.
-import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type DragEvent, type ReactNode } from 'react';
 import { platformApi, type SiteEventRow, type SiteEventStatus } from './platformApi';
 import { useImageRatio, type EventTheme, type LiveEvent } from '../event/liveEvent';
 import { EventAnnouncement } from '../crm/components/EventAnnouncement';
@@ -62,6 +62,7 @@ interface Draft {
   endsAt: string;
   theme: Theme;
 }
+const draftOf = (r: SiteEventRow): Draft => ({ id: r._id, name: r.name, startsAt: toLocalInput(r.startsAt), endsAt: toLocalInput(r.endsAt), theme: fullTheme(r.theme) });
 
 const STATUS: Record<SiteEventStatus, { label: string; tone: string; hint: string }> = {
   live: { label: 'Live', tone: 'on', hint: 'Showing on the website and in the CRM now' },
@@ -91,6 +92,10 @@ const previewUrls = (id: string) => ({
 
 const ACCEPT = 'image/png,image/jpeg,image/gif,image/webp';
 const MAX_BYTES = 10 * 1024 * 1024;
+/** The editor hears of every upload, to discard the ones it doesn't keep. */
+const UploadTrackCtx = createContext<(url: string) => void>(() => {});
+/** Every image URL in a theme. */
+const urlsOf = (t: unknown) => new Set<string>(JSON.stringify(t ?? {}).match(/https:\/\/[^"\\\s]+/g) || []);
 
 function ImageField({ label, hint, value, onChange, dark = false, round = false, testId }: {
   label: string; hint?: string; value: string; onChange: (url: string) => void; dark?: boolean; round?: boolean; testId: string;
@@ -99,6 +104,7 @@ function ImageField({ label, hint, value, onChange, dark = false, round = false,
   const [error, setError] = useState('');
   const [over, setOver] = useState(false);
   const input = useRef<HTMLInputElement>(null);
+  const track = useContext(UploadTrackCtx);
 
   async function take(file?: File | null) {
     if (!file) return;
@@ -107,7 +113,9 @@ function ImageField({ label, hint, value, onChange, dark = false, round = false,
     if (file.size > MAX_BYTES) return setError('The image can be at most 10 MB.');
     setBusy(true);
     try {
-      onChange(await platformApi.uploadEventImage(file));
+      const url = await platformApi.uploadEventImage(file);
+      track(url);
+      onChange(url);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Upload failed.');
     } finally {
@@ -272,8 +280,11 @@ function HeroPreview({ t, logo }: { t: Theme['landing']; logo: string }) {
     return () => ro.disconnect();
   }, [W]);
   const light = t.tone === 'light' && !!bg;
+  // As on the site: a size without its own picture shows the larger one whole across the width.
+  const borrowed = (device === 'tablet' && !t.heroBgTablet) || (device === 'mobile' && !t.heroBgMobile);
   const stage = {
     ...(bg ? { backgroundImage: `url("${bg}")` } : {}),
+    ...(bg && borrowed ? { backgroundSize: '100% auto', ...(light ? { backgroundColor: '#0f172a' } : {}) } : {}),
     ...(bg && ratio ? { minHeight: Math.round(W * ratio) } : {}),
     '--evp-wash': t.tone === 'light' ? `rgba(2,6,23,${t.overlay / 100})` : `rgba(255,255,255,${t.overlay / 100})`,
   } as CSSProperties;
@@ -345,11 +356,9 @@ function HeroPreview({ t, logo }: { t: Theme['landing']; logo: string }) {
         {DEVICE_LABEL[device]} · {W} px wide.{' '}
         {!bg
           ? 'No background for this size: the normal white hero.'
-          : device !== 'desktop' && bg === t.heroBg
-            ? 'Uses the desktop background (no own one uploaded).'
-            : device === 'mobile' && bg === t.heroBgTablet
-              ? 'Uses the tablet background (no mobile one uploaded).'
-              : 'The whole picture shows; a taller hero only trims its sides.'}
+          : borrowed
+            ? `No ${device} picture: the ${bg === t.heroBgTablet ? 'tablet' : 'desktop'} one shows whole across the width. Upload a ${device} picture to fill the hero.`
+            : 'The whole picture shows; a taller hero only trims its sides.'}
       </small>
     </div>
   );
@@ -389,6 +398,31 @@ function EventEditor({ draft: start, onClose, onSaved }: { draft: Draft; onClose
   const [fields, setFields] = useState<Record<string, string>>({});
   const dirty = JSON.stringify(d) !== JSON.stringify(start);
 
+  // Images uploaded here that no saved version uses yet. Saving keeps the
+  // ones in the saved event (the server deletes the saved images it
+  // replaced); the rest (replaced again before saving, or the editor closed
+  // without saving) are deleted from storage. A tab closed mid-edit is left
+  // to the daily sweep.
+  const uploaded = useRef(new Set<string>());
+  const savedTheme = useRef<Theme>(start.theme);
+  const track = useCallback((url: string) => {
+    uploaded.current.add(url);
+  }, []);
+  const discardUnkept = useCallback((keepalive = false) => {
+    const keep = urlsOf(savedTheme.current);
+    const urls = [...uploaded.current].filter((u) => !keep.has(u));
+    uploaded.current = new Set();
+    if (urls.length) platformApi.discardEventImages(urls, { keepalive }).catch(() => {});
+  }, []);
+  useEffect(() => {
+    const onHide = () => discardUnkept(true);
+    window.addEventListener('pagehide', onHide);
+    return () => {
+      window.removeEventListener('pagehide', onHide);
+      discardUnkept(true);
+    };
+  }, [discardUnkept]);
+
   function set<S extends keyof Theme, K extends keyof Theme[S]>(section: S, key: K, value: Theme[S][K]) {
     setD((x) => ({ ...x, theme: { ...x.theme, [section]: { ...x.theme[section], [key]: value } } }));
   }
@@ -426,6 +460,9 @@ function EventEditor({ draft: start, onClose, onSaved }: { draft: Draft; onClose
     try {
       const body = { name: d.name.trim(), startsAt: fromLocalInput(d.startsAt), endsAt: fromLocalInput(d.endsAt), theme: d.theme };
       const r = d.id ? await platformApi.saveEvent(d.id, body) : await platformApi.createEvent(body);
+      // Saved: its images are the event's now; uploads it doesn't use go.
+      savedTheme.current = d.theme;
+      discardUnkept();
       notify('success', 'Event saved', r.data.name);
       onSaved(r.data);
       return r.data;
@@ -461,6 +498,7 @@ function EventEditor({ draft: start, onClose, onSaved }: { draft: Draft; onClose
   const P = d.theme.pages;
   const A = d.theme.announcement;
   return (
+    <UploadTrackCtx.Provider value={track}>
     <div className="pa-page evp-editor" data-testid="event-editor">
       <header className="pa-page-head">
         <div>
@@ -605,6 +643,7 @@ function EventEditor({ draft: start, onClose, onSaved }: { draft: Draft; onClose
         <button type="button" className="pa-btn" onClick={() => save().then((r) => r && onClose())} disabled={saving}>{saving ? 'Saving…' : 'Save'}</button>
       </div>
     </div>
+    </UploadTrackCtx.Provider>
   );
 }
 
@@ -631,9 +670,7 @@ export function EventsPage() {
   }, []);
   useEffect(load, [load]);
 
-  const edit = (r?: SiteEventRow) => setEditing(r
-    ? { id: r._id, name: r.name, startsAt: toLocalInput(r.startsAt), endsAt: toLocalInput(r.endsAt), theme: fullTheme(r.theme) }
-    : { name: '', startsAt: '', endsAt: '', theme: blankTheme() });
+  const edit = (r?: SiteEventRow) => setEditing(r ? draftOf(r) : { name: '', startsAt: '', endsAt: '', theme: blankTheme() });
 
   async function switchOn(r: SiteEventRow) {
     const other = rows.find((x) => x.active && x._id !== r._id);
@@ -674,7 +711,8 @@ export function EventsPage() {
           setEditing(null);
           load();
         }}
-        onSaved={(row) => setEditing((d) => (d && !d.id ? { ...d, id: row._id } : d))}
+        // A new event, once created, carries on as that saved event (its id and what was saved).
+        onSaved={(row) => setEditing((d) => (d && !d.id ? draftOf(row) : d))}
       />
     );
   }

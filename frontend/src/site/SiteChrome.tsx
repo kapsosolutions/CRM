@@ -410,7 +410,11 @@ export function eventHeroProps(h?: EventHero, ratios: HeroRatios = {}): { classN
     ...(any ? { '--ev-hero-overlay': String(Math.min(90, Math.max(0, h?.overlay || 0)) / 100) } : {}),
     ...(h?.accent ? { '--ev-accent': h.accent } : {}),
   } as CSSProperties;
-  return { className: `${any ? ' ev-hero' : ''}${any && h?.tone === 'light' ? ' ev-light' : ''}`, style };
+  // A size without its own picture borrows a larger one: shown whole across
+  // the width (ev-fit-*) rather than scaled up to the hero's height, which on
+  // a narrow, tall hero cut off the picture's sides (garlands, borders).
+  const fit = `${any && !tablet ? ' ev-fit-tablet' : ''}${any && !mobile ? ' ev-fit-mobile' : ''}`;
+  return { className: `${any ? ' ev-hero' : ''}${any && h?.tone === 'light' ? ' ev-light' : ''}${fit}`, style };
 }
 
 /** eventHeroProps with the backgrounds' proportions read from the images. */

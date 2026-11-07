@@ -492,6 +492,14 @@ export const platformApi = {
   deactivateEvent(id: string) {
     return req<{ success: boolean }>(`/api/admin/events/${id}/deactivate`, { method: 'POST' }, adminToken());
   },
+  /** Uploads the editor didn't keep (replaced again before saving, or never saved): deleted from storage. */
+  discardEventImages(urls: string[], { keepalive = false } = {}) {
+    return req<{ success: boolean; deleted: number }>(
+      '/api/admin/events/discard',
+      { method: 'POST', body: JSON.stringify({ urls }), ...(keepalive ? { keepalive: true } : {}) },
+      adminToken(),
+    );
+  },
   deleteEvent(id: string) {
     return req<{ success: boolean }>(`/api/admin/events/${id}`, { method: 'DELETE' }, adminToken());
   },

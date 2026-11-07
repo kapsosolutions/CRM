@@ -12,6 +12,13 @@
 //   POST   /api/admin/events/:id/deactivate
 //   DELETE /api/admin/events/:id            and its uploaded images
 //   POST   /api/admin/events/upload         one image or GIF (field "file") → { url }
+//   POST   /api/admin/events/discard        { urls } uploads the editor didn't keep → deleted
+//
+// Images live on the CDN in shared/events. Saving deletes the images the
+// event stopped using; deleting an event deletes its images; the editor
+// discards uploads it didn't keep; a daily sweep (builderMediaSweep.js)
+// removes anything left over (a tab closed mid-edit). An image another
+// event still uses is never deleted.
 import express from 'express';
 import multer from 'multer';
 import SiteEvent from '../models/SiteEvent.js';
@@ -123,12 +130,52 @@ function fail(res, err, what) {
   return res.status(500).json({ success: false, message: 'Something went wrong. Please try again.' });
 }
 
-/** Delete images an event no longer uses (only from our events folder). */
-async function dropUnused(before, after) {
+/** Every image URL any saved event uses (optionally leaving one event out). */
+async function usedByEvents(exceptId = null) {
+  const rows = await SiteEvent.find({}).lean();
+  const used = new Set();
+  for (const r of rows) {
+    if (exceptId && String(r._id) === String(exceptId)) continue;
+    for (const u of storage.collectCdnUrls(r.theme)) used.add(u);
+  }
+  return used;
+}
+
+/**
+ * Delete images an event no longer uses (a replaced or removed image, or
+ * all of them when the event is deleted): only from our events folder, and
+ * never one another event still uses.
+ */
+async function dropUnused(before, after, eventId) {
   const keep = storage.collectCdnUrls(after);
   const gone = [...storage.collectCdnUrls(before)].filter((u) => !keep.has(u) && storage.isInFolder(u, FOLDER));
-  if (gone.length) storage.deleteMany(gone).catch(() => {});
+  if (!gone.length) return;
+  try {
+    const others = await usedByEvents(eventId);
+    const doomed = gone.filter((u) => !others.has(u));
+    if (doomed.length) await storage.deleteMany(doomed);
+  } catch (err) {
+    logger.warn('event image cleanup failed', { error: err.message });
+  }
 }
+
+// Uploads the editor didn't keep: an image replaced again before saving, or
+// uploaded in an editor that was closed without saving. Deleted unless a
+// saved event uses it; only files in our events folder.
+admin.post('/discard', async (req, res) => {
+  try {
+    const urls = (Array.isArray(req.body?.urls) ? req.body.urls : [])
+      .filter((u) => typeof u === 'string' && storage.isInFolder(u, FOLDER))
+      .slice(0, 50);
+    if (!urls.length) return res.json({ success: true, deleted: 0 });
+    const used = await usedByEvents();
+    const doomed = [...new Set(urls)].filter((u) => !used.has(u));
+    const deleted = doomed.length ? await storage.deleteMany(doomed) : 0;
+    return res.json({ success: true, deleted });
+  } catch (err) {
+    return fail(res, err, 'discard');
+  }
+});
 
 admin.get('/', async (_req, res) => {
   try {
@@ -170,7 +217,7 @@ admin.put('/:id', async (req, res) => {
     const f = fieldsOf(req.body);
     await SiteEvent.updateOne({ _id: before._id }, { $set: f });
     clearEventCache();
-    dropUnused(before.theme, f.theme);
+    dropUnused(before.theme, f.theme, before._id);
     const ev = await SiteEvent.findById(before._id).lean();
     logger.info('event saved', { name: f.name });
     return res.json({ success: true, data: view(ev) });
@@ -214,7 +261,7 @@ admin.delete('/:id', async (req, res) => {
     if (!ev) return res.status(404).json({ success: false, message: 'Not found' });
     await SiteEvent.deleteOne({ _id: ev._id });
     clearEventCache();
-    dropUnused(ev.theme, {});
+    dropUnused(ev.theme, {}, ev._id);
     logger.info('event deleted', { name: ev.name });
     return res.json({ success: true });
   } catch (err) {
