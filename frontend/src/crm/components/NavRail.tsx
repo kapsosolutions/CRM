@@ -344,7 +344,6 @@ export function NavRail({
                     {needs && (
                       <span className="crm-side-crown" aria-hidden="true" data-testid="rail-crown"><CrownIcon size={15} /></span>
                     )}
-                    {needs && !isSoon && <span className="crm-side-pill plan" aria-hidden="true">{needs}</span>}
                     {count > 0 && (
                       <span className="rail-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>
                     )}

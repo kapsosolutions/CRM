@@ -4,6 +4,13 @@
 import type { PlanFeature, PlanTierKey } from '../types';
 import { usePlan } from '../PlanContext';
 import { TIER_NAMES, hasFeature, tierFor } from '../plans';
+import type { VerticalConfig } from '../verticals';
+import {
+  catalogHero, categoriesHero, flowsHero, membersHero, offersHero, ordersHero, type HeroCopy,
+} from '../emptyPages';
+import { BenefitCheckIcon } from './WhatsAppConnectRequired';
+import './WhatsAppConnectRequired.css';
+import './ComingSoon.css';
 import './PlanLocked.css';
 
 /** The crown: marks anything the business's plan doesn't include. */
@@ -83,43 +90,80 @@ const INFO: Partial<Record<PlanFeature, { title: string; icon: string; points: s
   messenger: { title: 'Messenger', icon: 'forum', points: ['Facebook Messenger in your team inbox'] },
 };
 
-export function PlanLockedPage({ feature }: { feature: PlanFeature }) {
+/** The page's own "what you get" words (emptyPages.ts), in the business's terms. */
+function lockedCopy(feature: PlanFeature, v: VerticalConfig | undefined, info: { title: string; points: string[] }): HeroCopy {
+  if (v) {
+    if (feature === 'catalog') return catalogHero(v);
+    if (feature === 'categories') return categoriesHero(v);
+    if (feature === 'members') return membersHero(v);
+    if (feature === 'orders') return ordersHero(v);
+    if (feature === 'flows') return flowsHero(v);
+  }
+  if (feature === 'offers') return offersHero();
+  return {
+    title: `Use ${info.title} in your CRM`,
+    subtitle: `${info.title} ${info.title.endsWith('s') ? 'are' : 'is'} part of the higher plans.`,
+    benefitsTitle: 'What you get',
+    benefits: info.points,
+    actionLabel: '',
+  };
+}
+
+/**
+ * A page outside the plan, laid out like the page's own "connect" screen
+ * (the Ads screen): its icon with a crown, what the page does, what you get,
+ * and "Upgrade to Basic" (opens the plans dialog on that plan).
+ */
+export function PlanLockedPage({ feature, vertical }: { feature: PlanFeature; vertical?: VerticalConfig }) {
   const { plan, openPlans } = usePlan();
   const need = tierFor(feature);
   const info = INFO[feature] || { title: 'This page', icon: 'lock', points: [] };
+  const copy = lockedCopy(feature, vertical, info);
   return (
-    <div className="pl-wrap" data-testid="plan-locked" data-feature={feature}>
-      <div className="pl-card">
+    <div className="wa-req-wrapper pl-screen" data-testid="plan-locked" data-feature={feature}>
+      <div className="wa-req-box">
         <div className="pl-icon" aria-hidden="true">
           <span className="material-icons">{info.icon}</span>
           <span className="pl-lock"><CrownIcon size={15} /></span>
         </div>
-        <span className="pl-pill">{TIER_NAMES[need]} plan</span>
-        <h2 className="pl-title">{info.title} isn&apos;t in your {plan?.name || 'current'} plan</h2>
-        <p className="pl-sub">
-          {plan?.status === 'free' && plan.ended?.kind === 'trial'
-            ? `Your free trial has ended. Upgrade to ${TIER_NAMES[need]} or higher to use ${info.title} again.`
-            : `Upgrade to ${TIER_NAMES[need]} or higher to use ${info.title}.`}
-        </p>
-        {info.points.length > 0 && (
-          <ul className="pl-points">
-            {info.points.map((p) => (
-              <li key={p}>
-                <span className="material-icons" aria-hidden="true">check_circle</span>
-                {p}
-              </li>
-            ))}
-          </ul>
-        )}
-        <button
-          type="button"
-          className="pl-btn"
-          onClick={() => openPlans({ tier: need, reason: `${info.title} is included from the ${TIER_NAMES[need]} plan.` })}
-          data-testid="plan-locked-upgrade"
-        >
-          <span className="material-icons" aria-hidden="true">workspace_premium</span>
-          See plans
-        </button>
+        <span className="pl-pill"><CrownIcon size={13} /> {TIER_NAMES[need]} plan</span>
+
+        <h2 className="wa-req-headline">{copy.title}</h2>
+        <p className="wa-req-subline">{copy.subtitle}</p>
+
+        <div className="wa-req-benefits-box">
+          {copy.benefits.length > 0 && (
+            <>
+              <h3 className="wa-req-benefits-title">{copy.benefitsTitle}</h3>
+              <ul className="wa-req-benefits-list">
+                {copy.benefits.map((b) => (
+                  <li key={b} className="wa-req-benefit-item">
+                    <BenefitCheckIcon />
+                    <span>{b}</span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+          <p className="pl-screen-note">
+            {info.title} isn&apos;t in your {plan?.name || 'current'} plan.{' '}
+            {plan?.status === 'free' && plan.ended?.kind === 'trial'
+              ? `Your free trial has ended. Upgrade to ${TIER_NAMES[need]} or higher to use it again.`
+              : `Upgrade to ${TIER_NAMES[need]} or higher to use it.`}
+          </p>
+          <div className="wa-req-cta-row">
+            <button
+              type="button"
+              className="soon-start-btn"
+              onClick={() => openPlans({ tier: need, reason: `${info.title} is included from the ${TIER_NAMES[need]} plan.` })}
+              data-testid="plan-locked-upgrade"
+            >
+              <CrownIcon size={18} />
+              Upgrade to {TIER_NAMES[need]}
+              <span className="material-icons" aria-hidden="true">arrow_forward</span>
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   );

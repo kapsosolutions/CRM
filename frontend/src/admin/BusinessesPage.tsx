@@ -14,7 +14,8 @@ const shortDate = (s?: string | null) =>
 
 /**
  * The plan in force. "New" while the 7-day free trial runs (it goes when the
- * trial ends); the paid plan with its end date; "Free" after a trial or plan ended.
+ * trial ends); the paid plan (Starter too) with its end date; "No plan" after
+ * a trial or plan ended and nothing new was bought.
  */
 export function PlanCell({ s }: { s?: PlanState }) {
   if (!s) return <span className="pa-muted">—</span>;
@@ -29,7 +30,7 @@ export function PlanCell({ s }: { s?: PlanState }) {
   if (s.status === 'active') {
     return (
       <div className="pa-plan-cell">
-        <span className={`pa-badge plan-${s.tier}`}>{s.name}</span>
+        <span className={`pa-badge plan-${s.tier === 'free' ? 'starter' : s.tier}`}>{s.name}</span>
         <small>until {shortDate(s.endsAt)}{s.source === 'admin' ? ' · given by admin' : ''}</small>
       </div>
     );
@@ -44,7 +45,7 @@ export function PlanCell({ s }: { s?: PlanState }) {
   }
   return (
     <div className="pa-plan-cell">
-      <span className="pa-badge plan-free">Free</span>
+      <span className="pa-badge plan-free">No plan</span>
       {s.ended?.at && <small>{s.ended.kind === 'trial' ? 'trial' : s.ended.name} ended {shortDate(s.ended.at)}</small>}
     </div>
   );

@@ -48,6 +48,7 @@ const PLAN_COLORS: Record<PlanSliceKey, string> = {
   premium: '#8932ff',
   pro: '#15ca20',
   basic: '#008cff',
+  starter: '#14b8a6',
   trial: '#ffc107',
   free: '#6c757d',
 };

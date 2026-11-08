@@ -9,7 +9,7 @@ import { CrmSocket } from '../socket';
 import type { AppNotification, PlanFeature, PlanState, PlanTierKey } from '../types';
 import { PlanContext, type PlanContextValue } from '../PlanContext';
 import { hasFeature, tierFor, TIER_NAMES, LIMITS } from '../plans';
-import { PlanLockedPage } from './PlanLocked';
+import { CrownIcon, PlanLockedPage } from './PlanLocked';
 import { WalletButton } from './WalletButton';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { CallProvider } from './CallCenter';
@@ -177,9 +177,60 @@ function TopBarMarquee({
   );
 }
 
+/** "Pro plan", "Free trial", "No plan": what the business is on now. */
+function planLabel(plan: PlanState | null | undefined): string {
+  if (!plan) return '';
+  if (plan.status === 'trial') return 'Free trial';
+  if (plan.status === 'free') return 'No plan';
+  return `${plan.name} plan`;
+}
+
+/** The plan with a crown (top nav, beside the profile icon): opens Settings → Billing. */
+function NavPlanCrown({ plan, onOpen }: { plan: PlanState | null | undefined; onOpen: () => void }) {
+  if (!plan) return null;
+  const label = planLabel(plan);
+  const on = plan.status === 'active' || plan.status === 'legacy' || plan.status === 'trial';
+  return (
+    <button
+      type="button"
+      className={`crm-nav-icon-btn crm-nav-plan${on ? ' on' : ''}`}
+      onClick={onOpen}
+      title={`${label} · View details`}
+      aria-label={`${label}, view details`}
+      data-testid="nav-plan-crown"
+      data-plan-status={plan.status}
+    >
+      <CrownIcon size={20} />
+    </button>
+  );
+}
+
+/** The plan with a crown, at the bottom of the sidebar: opens Settings → Billing. */
+function SidebarPlan({ plan, onOpen }: { plan: PlanState | null | undefined; onOpen: () => void }) {
+  if (!plan) return null;
+  const label = planLabel(plan);
+  const on = plan.status === 'active' || plan.status === 'legacy' || plan.status === 'trial';
+  return (
+    <button
+      type="button"
+      className={`crm-side-plan${on ? ' on' : ''}`}
+      onClick={onOpen}
+      title={`${label} · View details`}
+      data-testid="side-plan"
+      data-plan-status={plan.status}
+    >
+      <span className="crm-side-plan-crown" aria-hidden="true"><CrownIcon size={16} /></span>
+      <span className="crm-side-plan-text">{label}</span>
+      <span className="crm-side-plan-go" aria-hidden="true">View details</span>
+    </button>
+  );
+}
+
 interface PlanTopBarProps {
   plan: PlanState | null;
   onBuyNow: () => void;
+  /** Settings → Billing (the plan's details). */
+  onViewDetails: () => void;
   view?: CrmView;
   needsConnect?: boolean;
   onConnectClick?: () => void;
@@ -189,12 +240,13 @@ interface PlanTopBarProps {
  * The announcement bar: the page's marquee on both sides, and in the middle
  * what the plan needs attention for (from the server's plan state):
  *   trial      "Your trial ends in N days." (a live HH:MM:SS on the last day) + Buy Now
- *   paid       from 5 days before the end: "Your Pro plan ends in N days." + Renew
+ *   paid       👑 "You're on the Pro plan" + View details (Settings → Billing);
+ *              from 5 days before the end: 👑 "Your Pro plan expires in N days." + View details
  *   free       nothing bought: "Your trial has ended. Choose a plan…" + Choose a plan
  *              (and the plans cover every page but Settings: PlanPaywall)
- * A paid plan with time left, or a business from before plans: nothing in the middle.
+ * A business from before plans (legacy Premium) shows like a paid plan.
  */
-function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: PlanTopBarProps) {
+function PlanTopBar({ plan, onBuyNow, onViewDetails, view, needsConnect, onConnectClick }: PlanTopBarProps) {
   const [now, setNow] = useState<number>(() => Date.now());
   const ONE_DAY_MS = 24 * 60 * 60 * 1000;
   const endsAt = plan?.endsAt ? new Date(plan.endsAt).getTime() : null;
@@ -220,15 +272,31 @@ function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: Plan
     ? (view ? UNCONNECTED_MARQUEE_MESSAGES[view] : undefined) || 'Connect your WhatsApp account to unlock unlimited messaging and features.'
     : (view ? CONNECTED_MARQUEE_MESSAGES[view] : undefined) || 'WhatsApp connected · Channel is active and ready to message.';
 
-  const who = plan?.status === 'trial' ? 'Your trial' : `Your ${plan?.name || ''} plan`;
+  const isTrial = plan?.status === 'trial';
+  const who = isTrial ? 'Your trial' : `Your ${plan?.name || ''} plan`;
+  // A trial "ends"; a bought plan "expires".
+  const ends = isTrial ? 'ends' : 'expires';
   let center: ReactNode = null;
-  if (plan && (plan.status === 'trial' || (plan.status === 'active' && plan.endingSoon))) {
-    const label = plan.status === 'trial' ? 'Buy Now' : 'Renew';
+  if (plan && (plan.status === 'active' || plan.status === 'legacy') && !(plan.status === 'active' && plan.endingSoon)) {
+    // A plan with time left: which one, and its details.
     center = (
       <>
+        <span className="crm-top-bar-text crm-top-bar-plan" data-testid="topbar-plan-text">
+          <span className="crm-top-bar-crown" aria-hidden="true"><CrownIcon size={16} /></span>
+          You&apos;re on the <strong>{plan.name} plan</strong>
+        </span>
+        <button type="button" className="crm-top-bar-btn" onClick={onViewDetails} data-testid="topbar-details">
+          <span>View details</span>
+        </button>
+      </>
+    );
+  } else if (plan && (isTrial || (plan.status === 'active' && plan.endingSoon))) {
+    center = (
+      <>
+        {!isTrial && <span className="crm-top-bar-crown" aria-hidden="true"><CrownIcon size={16} /></span>}
         {msLeft !== null && msLeft <= 0 ? (
           <span className="crm-top-bar-text">
-            {who} has ended:{' '}
+            {who} has {isTrial ? 'ended' : 'expired'}:{' '}
             <strong className="crm-top-bar-timer red">
               <span className="crm-top-bar-pulse-dot" />
               00 : 00 : 00
@@ -236,7 +304,7 @@ function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: Plan
           </span>
         ) : ticking ? (
           <span className="crm-top-bar-text">
-            {who} ends in{' '}
+            {who} {ends} in{' '}
             <strong className="crm-top-bar-timer red">
               <span className="crm-top-bar-pulse-dot" />
               {timerText}
@@ -244,13 +312,19 @@ function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: Plan
           </span>
         ) : (
           <span className="crm-top-bar-text" data-testid="topbar-plan-text">
-            {who} ends in <strong>{daysLeft === 1 ? '1 day.' : `${daysLeft} days.`}</strong>
+            {who} {ends} in <strong>{daysLeft === 1 ? '1 day.' : `${daysLeft} days.`}</strong>
           </span>
         )}
-        <button type="button" className="crm-top-bar-btn" onClick={onBuyNow} data-testid="topbar-buy">
-          <BuyNowSvg width={16} height={16} stroke="currentColor" />
-          <span>{label}</span>
-        </button>
+        {isTrial ? (
+          <button type="button" className="crm-top-bar-btn" onClick={onBuyNow} data-testid="topbar-buy">
+            <BuyNowSvg width={16} height={16} stroke="currentColor" />
+            <span>Buy Now</span>
+          </button>
+        ) : (
+          <button type="button" className="crm-top-bar-btn" onClick={onViewDetails} data-testid="topbar-details">
+            <span>View details</span>
+          </button>
+        )}
       </>
     );
   } else if (plan?.status === 'free') {
@@ -309,9 +383,14 @@ interface CrmTopNavProps {
   onOpenMenu: () => void;
   theme: CrmTheme;
   onToggleTheme: () => void;
+  /** The plan in force: a crown beside the profile icon (opens Billing). */
+  plan?: PlanState | null;
+  onOpenBilling: () => void;
 }
 
 function CrmTopNav({
+  plan,
+  onOpenBilling,
   business,
   demo,
   view,
@@ -447,6 +526,8 @@ function CrmTopNav({
           <SettingsRailSvg />
         </button>
 
+        <NavPlanCrown plan={plan} onOpen={onOpenBilling} />
+
         {/* Profile Icon (Opens Profile Sidebar Drawer) */}
         <button
           type="button"
@@ -538,6 +619,17 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   const handleOpenTemplateCreate = useCallback(() => {
     navigate('templates', { templateMode: 'create' });
+  }, [navigate]);
+
+  // Settings → Billing: the plan's details (top bar, nav crown, sidebar plan, paywall).
+  const openBilling = useCallback(() => {
+    try {
+      localStorage.setItem('crm_settings_active_tab', 'billing');
+      window.dispatchEvent(new CustomEvent('crm_set_profile_tab', { detail: 'billing' }));
+    } catch {
+      // ignore
+    }
+    navigate('profile');
   }, [navigate]);
 
   // Back from any other tab returns to Chats (the home tab), the way a phone
@@ -1182,6 +1274,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
       <PlanTopBar
         plan={planState}
         onBuyNow={() => setPlansFor({})}
+        onViewDetails={openBilling}
         view={view}
         needsConnect={needsConnect}
         onConnectClick={() => navigate('channel-status')}
@@ -1209,12 +1302,21 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
             navigate('chats');
           }}
           footer={(
-            <SidebarMessagingLimit
-              onOpen={() => {
-                setDrawerOpen(false);
-                navigate('campaigns');
-              }}
-            />
+            <>
+              <SidebarPlan
+                plan={planState}
+                onOpen={() => {
+                  setDrawerOpen(false);
+                  openBilling();
+                }}
+              />
+              <SidebarMessagingLimit
+                onOpen={() => {
+                  setDrawerOpen(false);
+                  navigate('campaigns');
+                }}
+              />
+            </>
           )}
         />
         <div className="crm-drawer-backdrop" onClick={() => setDrawerOpen(false)} aria-hidden="true" />
@@ -1235,6 +1337,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         onOpenMenu={() => setDrawerOpen(true)}
         theme={theme}
         onToggleTheme={toggleTheme}
+        plan={planState}
+        onOpenBilling={openBilling}
       />
 
       <div className={`crm-shell${needsConnect ? ' has-connect-bar' : ''}`}>
@@ -1265,20 +1369,12 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
               <PlanPaywall
                 api={api}
                 plan={planState}
-                onOpenBilling={() => {
-                  try {
-                    localStorage.setItem('crm_settings_active_tab', 'billing');
-                    window.dispatchEvent(new CustomEvent('crm_set_profile_tab', { detail: 'billing' }));
-                  } catch {
-                    // ignore
-                  }
-                  navigate('profile');
-                }}
+                onOpenBilling={openBilling}
               />
             )}
             {/* A page outside the business's plan: its upgrade screen (Ads / Create stay 'coming soon'). */}
             {planLocked(view) && !(view === 'ads' && COMING_SOON.ads) && !(view === 'create' && COMING_SOON.create) && (view === 'payment-config' || isFormView(view) || show(view)) && (
-              <PlanLockedPage feature={featureOf(view) as PlanFeature} />
+              <PlanLockedPage feature={featureOf(view) as PlanFeature} vertical={vertical} />
             )}
             {openForm && !planLocked(view) && (
               needsConnect ? (

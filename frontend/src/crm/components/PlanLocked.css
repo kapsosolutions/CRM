@@ -1,4 +1,25 @@
-/* A page outside the business's plan (PlanLocked.tsx). */
+/* A page outside the business's plan (PlanLocked.tsx): the .wa-req-* "connect"
+   layout (WhatsAppConnectRequired.css), with the page's icon and a crown. */
+.pl-screen .pl-icon {
+  margin-bottom: 18px;
+}
+.pl-screen .pl-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-bottom: 14px;
+}
+.pl-screen .pl-pill .crown-svg {
+  color: #d97706;
+}
+.pl-screen-note {
+  margin: 4px 0 18px;
+  font-size: 13px;
+  color: #64748b;
+}
+.pl-screen .soon-start-btn .crown-svg {
+  color: #fff;
+}
 .pl-wrap {
   height: 100%;
   min-height: 0;

@@ -1130,6 +1130,11 @@ body.pa-dark {
   color: var(--ink-2);
   border-color: var(--line-strong);
 }
+.pa-badge.plan-starter {
+  background: rgba(20, 184, 166, 0.15);
+  color: #5eead4;
+  border-color: rgba(20, 184, 166, 0.3);
+}
 .pa-badge.plan-basic {
   background: rgba(0, 140, 255, 0.15);
   color: #6cb8ff;

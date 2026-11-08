@@ -146,7 +146,8 @@ export interface DashboardPayment {
   method: string;
 }
 
-export type PlanSliceKey = 'premium' | 'pro' | 'basic' | 'trial' | 'free';
+/** 'starter' = a bought Starter plan (tier key 'free'); 'free' = nothing bought. */
+export type PlanSliceKey = 'premium' | 'pro' | 'basic' | 'starter' | 'trial' | 'free';
 
 /** GET /api/businesses/stats/dashboard. Days and months are India time. */
 export interface DashboardStats {

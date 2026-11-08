@@ -4668,6 +4668,28 @@ a.msg-btn {
   font-weight: 700;
 }
 
+/* The plan's crown in the top bar ("You're on the Pro plan", "expires in"). */
+.crm-top-bar-crown {
+  display: inline-flex;
+  align-items: center;
+  color: #fbbf24;
+  margin-right: 2px;
+}
+.crm-top-bar-plan {
+  gap: 6px;
+}
+
+/* The plan crown beside the profile icon (top nav). */
+.crm-nav-icon-btn.crm-nav-plan {
+  color: #94a3b8;
+}
+.crm-nav-icon-btn.crm-nav-plan.on {
+  color: #d97706;
+}
+:root[data-theme='dark'] .crm-nav-icon-btn.crm-nav-plan.on {
+  color: #fbbf24;
+}
+
 .crm-top-bar-timer.red {
   color: #ff3b30;
   font-weight: 700;

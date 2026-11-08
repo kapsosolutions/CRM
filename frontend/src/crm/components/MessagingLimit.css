@@ -8,6 +8,81 @@
   border-top: 1px solid #e5e7eb;
 }
 
+/* The plan in force, above the messaging limit (CrmShell SidebarPlan). */
+.crm-side-plan {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border: 1px solid #fde68a;
+  border-radius: 12px;
+  background: #fffbeb;
+  color: #78350f;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+  box-sizing: border-box;
+}
+.crm-side-plan:hover {
+  border-color: #fbbf24;
+}
+.crm-side-plan:not(.on) {
+  border-color: #e5e7eb;
+  background: #f8fafc;
+  color: #475569;
+}
+.crm-side-plan-crown {
+  display: inline-flex;
+  color: #d97706;
+  flex: none;
+}
+.crm-side-plan:not(.on) .crm-side-plan-crown {
+  color: #94a3b8;
+}
+.crm-side-plan-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.crm-side-plan-go {
+  font-size: 11px;
+  font-weight: 600;
+  color: #15803d;
+  white-space: nowrap;
+}
+:root[data-theme='dark'] .crm-side-plan {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.35);
+  color: #fde68a;
+}
+:root[data-theme='dark'] .crm-side-plan:not(.on) {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+  color: #c3c9cf;
+}
+:root[data-theme='dark'] .crm-side-plan-crown {
+  color: #fbbf24;
+}
+:root[data-theme='dark'] .crm-side-plan-go {
+  color: #4ade80;
+}
+@media (min-width: 1025px) {
+  .crm-sidebar.collapsed .crm-side-plan {
+    justify-content: center;
+    padding: 8px 0;
+  }
+  .crm-sidebar.collapsed .crm-side-plan-text,
+  .crm-sidebar.collapsed .crm-side-plan-go {
+    display: none;
+  }
+}
+
 .side-limit {
   display: flex;
   flex-direction: column;

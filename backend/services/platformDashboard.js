@@ -121,15 +121,21 @@ const PLAN_ORDER = [
   { key: 'premium', label: 'Premium' },
   { key: 'pro', label: 'Pro' },
   { key: 'basic', label: 'Basic' },
+  // A bought (or granted) Starter plan; the tier key is still 'free'.
+  { key: 'starter', label: 'Starter' },
   { key: 'trial', label: 'Free trial' },
-  { key: 'free', label: 'Free' },
+  // Nothing bought: the trial or a plan has ended.
+  { key: 'free', label: 'No plan' },
 ];
 
 /** Which slice of the "Plans" chart a business is in right now. */
 export function planSlice(ps) {
   if (!ps) return 'free';
   if (ps.status === 'trial') return 'trial';
-  if (ps.status === 'active' || ps.status === 'legacy') return ['basic', 'pro', 'premium'].includes(ps.tier) ? ps.tier : 'free';
+  if (ps.status === 'active' || ps.status === 'legacy') {
+    if (ps.tier === 'free') return 'starter';
+    return ['basic', 'pro', 'premium'].includes(ps.tier) ? ps.tier : 'free';
+  }
   return 'free';
 }
 
@@ -185,7 +191,7 @@ export function assembleDashboard(raw) {
       payments: num(raw.payTotals?.n),
       daily: days.map((date) => ({ date, paise: num(payD.get(date)?.paise), count: num(payD.get(date)?.n) })),
       monthly: months.map((month) => ({ month, paise: num(payM.get(month)?.paise), count: num(payM.get(month)?.n) })),
-      byTier: ['basic', 'pro', 'premium'].map((tier) => {
+      byTier: ['free', 'basic', 'pro', 'premium'].map((tier) => {
         const r = (raw.payByTier || []).find((x) => x.tier === tier);
         return { tier, name: TIER_NAMES[tier], paise: num(r?.paise), count: num(r?.n) };
       }),
@@ -222,7 +228,13 @@ export function assembleDashboard(raw) {
           active: b.active !== false,
           whatsappConnected: isWhatsAppConnected(b),
           createdAt: b.createdAt ? new Date(b.createdAt).toISOString() : null,
-          plan: { slice: planSlice(ps), name: ps?.name || 'Free', status: ps?.status || 'free', daysLeft: ps?.daysLeft ?? null },
+          plan: {
+            slice: planSlice(ps),
+            // Nothing bought: "No plan" (not "Starter", which is a plan they'd pay for).
+            name: !ps || ps.status === 'free' ? 'No plan' : ps.name,
+            status: ps?.status || 'free',
+            daysLeft: ps?.daysLeft ?? null,
+          },
         };
       }),
     },
