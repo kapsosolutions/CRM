@@ -3561,12 +3561,16 @@ html.lenis .au-page {
   user-select: none !important;
 }
 
-/* Transparent selection highlights so accidental drag selection never turns text blue */
-::selection {
+/* Transparent selection highlights so accidental drag selection never turns text blue.
+   Scoped to the landing page and demo modal: this file is also loaded inside the
+   CRM (billing, plan modal), where chat text must stay selectable and visible. */
+.lp ::selection,
+.dm-overlay ::selection {
   background: transparent;
   color: inherit;
 }
-::-moz-selection {
+.lp ::-moz-selection,
+.dm-overlay ::-moz-selection {
   background: transparent;
   color: inherit;
 }

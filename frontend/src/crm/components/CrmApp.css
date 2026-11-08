@@ -1342,6 +1342,13 @@ video.bubble-media {
   color: #667781;
   margin-top: 2px;
   padding: 0 4px;
+  /* Selecting a message copies its text only, not the time and ticks. */
+  -webkit-user-select: none;
+  user-select: none;
+}
+.meta-spacer {
+  -webkit-user-select: none;
+  user-select: none;
 }
 .msg.out .meta {
   color: #667781;
