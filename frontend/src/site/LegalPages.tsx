@@ -26,7 +26,7 @@ export const LEGAL = {
   grievanceEmail: 'grievance@kapsosolutions.com',
   /** City whose courts hear disputes. Empty → "the courts of India". */
   courtsCity: '',
-  updated: '31 October 2026',
+  updated: '8 November 2026',
 };
 
 const courts = LEGAL.courtsCity ? `the courts at ${LEGAL.courtsCity}, India` : 'the competent courts in India';
@@ -437,9 +437,17 @@ export function PrivacyPage() {
       <section>
         <h2>11. Cookies and browser storage</h2>
         <p>
-          We do not use advertising or analytics cookies. The Service stores your sign-in session and a few preferences in your browser’s
-          local storage. When you connect Meta, pay through Razorpay or sign in with Google, those providers’ own windows may set their cookies,
-          under their own policies.
+          The Service stores your sign-in session and a few preferences in your browser’s local storage. When you connect Meta, pay through
+          Razorpay or sign in with Google, those providers’ own windows may set their cookies, under their own policies.
+        </p>
+        <p>
+          <strong>Advertising measurement (Meta Pixel).</strong> Our public website pages (the home page, pricing and other website pages,
+          log in and sign-up) use the Meta Pixel. It tells Meta (Facebook and Instagram) which of these pages were visited and whether someone
+          booked a demo, sent the contact form or signed up, so we can measure our ads and show them to people likely to be interested. Meta may
+          set cookies for this, under its own{' '}
+          <a href="https://www.facebook.com/privacy/policy/" target="_blank" rel="noopener noreferrer">Privacy Policy</a>. The Pixel is not
+          used inside the CRM or the admin panel, so nothing your business or your customers do in the CRM is sent to Meta this way. You can
+          limit ad personalisation in your Facebook or Instagram ad settings, or block the Pixel with your browser’s tracking protection.
         </p>
       </section>
 

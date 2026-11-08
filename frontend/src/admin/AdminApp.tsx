@@ -17,6 +17,7 @@ import { readOAuthReturn } from '../site/siteApi';
 import { NAV_EVENT, useSitePath } from '../site/siteNav';
 import { Redirect, SiteRoutes } from '../site/SiteRoutes';
 import { DesktopOnly } from '../site/DesktopOnly';
+import { pixelPageView, pixelTrack } from '../site/metaPixel';
 import '../site/site.css';
 import './admin.css';
 
@@ -185,6 +186,15 @@ export function AdminApp() {
     },
     { base: true },
   );
+
+  // The Meta Pixel: public pages only (the website, the landing page, log in,
+  // register), never the CRM, the demo CRM or the admin panel.
+  const publicPage = onSitePage || (!isAdminArea && !route.startsWith('/demo') && !platformApi.businessLoggedIn());
+  useEffect(() => {
+    if (!publicPage) return;
+    pixelPageView(`${path}#${route}`);
+    if (path === '/pricing') pixelTrack('ViewContent', { content_name: 'Pricing' });
+  }, [publicPage, path, route]);
 
   // The login screen and the app share one URL, so once signed in the guard
   // above is what keeps Back from landing on the login screen again.

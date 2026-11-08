@@ -7,6 +7,7 @@ import { Dropdown } from '../crm/components/Dropdown';
 import { VERTICAL_OPTIONS } from '../crm/verticals';
 import { PhoneField, phoneProblem, fullPhone } from './PhoneField';
 import { siteApi, FormError, type DemoCalendar, type DemoSlot } from './siteApi';
+import { pixelTrack } from './metaPixel';
 import './demo.css';
 
 const WEEKDAYS = ['Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa', 'Su'];
@@ -218,6 +219,8 @@ export function DemoModal({ onClose }: { onClose: () => void }) {
       });
       setBooked({ date: r.data.date, slot: r.data.slot, rescheduled: r.rescheduled });
       setStep(3);
+      // A demo booked from the website: a lead for the Meta ads (not sent from inside the CRM).
+      if (!r.rescheduled) pixelTrack('Lead', { content_name: 'Demo booked' });
     } catch (e) {
       const msg = e instanceof Error ? e.message : 'Could not book the demo.';
       setError(msg);

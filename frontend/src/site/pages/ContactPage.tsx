@@ -5,6 +5,7 @@ import { PageHero, SALES_PHONE, SALES_TEL, SitePage, WHATSAPP_HREF } from '../Si
 import { PAGE_META } from '../siteMeta';
 import { FormError, siteApi, type ContactForm, type ContactTopic } from '../siteApi';
 import { GrievanceBlock } from '../LegalPages';
+import { pixelTrack } from '../metaPixel';
 
 const TOPICS: { key: ContactTopic; label: string }[] = [
   { key: 'sales', label: 'Plans & pricing' },
@@ -54,6 +55,7 @@ export function ContactPage() {
     try {
       await siteApi.contact({ ...form, name: form.name.trim(), email: form.email.trim(), message: form.message.trim() });
       setSent(true);
+      pixelTrack('Lead', { content_name: 'Contact form' });
     } catch (err) {
       if (err instanceof FormError && Object.keys(err.fields).length) setErrors(err.fields);
       setFailure(err instanceof Error ? err.message : 'Could not send your message. Please try again.');

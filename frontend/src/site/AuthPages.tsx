@@ -13,6 +13,7 @@ import {
 } from './siteApi';
 import { PhoneField, phoneProblem, fullPhone } from './PhoneField';
 import { useSmoothScroll } from './useSmoothScroll';
+import { pixelTrack } from './metaPixel';
 import './site.css';
 
 const go = (route: string) => {
@@ -390,6 +391,8 @@ export function RegisterPage({ google = false, onSignedIn }: { google?: boolean;
         })
         : await siteApi.register(form);
       clearPendingGoogle();
+      // A new business: the Meta ads' "sign-up" (site/metaPixel.ts).
+      pixelTrack('CompleteRegistration', { content_name: google ? 'Google' : 'Email' });
       onSignedIn(r.token);
     } catch (err) {
       if (err instanceof FormError && Object.keys(err.fields).length) setErrors(err.fields);
