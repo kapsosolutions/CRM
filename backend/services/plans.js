@@ -36,10 +36,7 @@ export const TIERS = ['free', 'basic', 'pro', 'premium'];
 export const TIER_NAMES = { free: 'Starter', basic: 'Basic', pro: 'Pro', premium: 'Premium' };
 export const CYCLES = { monthly: 1, quarterly: 3, annual: 12 };
 export const PRICES = {
-  // TEMPORARY: Starter is ₹1/month to test live Razorpay payments. The real
-  // price is { monthly: 499, quarterly: 449, annual: 374 }; put it back here
-  // and in frontend/src/crm/plans.ts after testing.
-  free: { monthly: 1, quarterly: 1, annual: 1 },
+  free: { monthly: 499, quarterly: 449, annual: 374 },
   basic: { monthly: 999, quarterly: 899, annual: 749 },
   pro: { monthly: 1999, quarterly: 1799, annual: 1499 },
   premium: { monthly: 2499, quarterly: 2249, annual: 1874 },

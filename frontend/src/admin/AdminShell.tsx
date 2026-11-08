@@ -14,16 +14,17 @@ import { FreeTierPage } from './FreeTierPage';
 import { DemoRequestsPage } from './DemoRequestsPage';
 import { TechPartnerPage } from './TechPartnerPage';
 import { EventsPage } from './EventsPage';
+import { StoragePage } from './StoragePage';
 import { platformApi } from './platformApi';
 import {
-  BellIcon, CalendarIcon, CheckCircleIcon, CollapseIcon, DashboardIcon, GlobeIcon, LogoutIcon, MenuIcon, RefreshIcon, SearchIcon, SparkleIcon, StoreIcon, TagIcon,
+  BellIcon, CalendarIcon, CheckCircleIcon, CollapseIcon, DashboardIcon, DatabaseIcon, GlobeIcon, LogoutIcon, MenuIcon, RefreshIcon, SearchIcon, SparkleIcon, StoreIcon, TagIcon,
 } from './AdminIcons';
 import { useLockWindowScroll } from '../crm/useLockWindowScroll';
 import { useBackHandler } from '../crm/useBackHandler';
 import { adminFromHash, useAdminPageHash } from '../crm/pageHash';
 
-export type AdminView = 'dashboard' | 'businesses' | 'demos' | 'freeTier' | 'techPartner' | 'events';
-const ADMIN_VIEWS: readonly AdminView[] = ['dashboard', 'businesses', 'demos', 'freeTier', 'techPartner', 'events'];
+export type AdminView = 'dashboard' | 'businesses' | 'demos' | 'freeTier' | 'techPartner' | 'events' | 'storage';
+const ADMIN_VIEWS: readonly AdminView[] = ['dashboard', 'businesses', 'demos', 'freeTier', 'techPartner', 'events', 'storage'];
 // Pages that can show one business: #/admin/businesses/<id>, #/admin/freeTier/<id>.
 const DETAIL_VIEWS: readonly AdminView[] = ['businesses', 'freeTier'];
 
@@ -40,6 +41,7 @@ const GROUPS: { label?: string; items: { key: AdminView; label: string; icon: Re
   { label: 'Sales', items: [{ key: 'demos', label: 'Demo Requests', icon: <CalendarIcon /> }] },
   { label: 'Meta', items: [{ key: 'techPartner', label: 'Tech Partner', icon: <CheckCircleIcon /> }] },
   { label: 'Website', items: [{ key: 'events', label: 'Events', icon: <SparkleIcon /> }] },
+  { label: 'Platform', items: [{ key: 'storage', label: 'Storage', icon: <DatabaseIcon /> }] },
 ];
 
 const COLLAPSED_KEY = 'pa_sidebar_collapsed';
@@ -246,6 +248,7 @@ export function AdminShell({ onLogout }: { onLogout: () => void }) {
           {view === 'demos' && <DemoRequestsPage />}
           {view === 'techPartner' && <TechPartnerPage onOpenBusiness={openBusiness} />}
           {view === 'events' && <EventsPage />}
+          {view === 'storage' && <StoragePage />}
           {view === 'freeTier' && !detailId && <FreeTierPage onOpen={openTrial} />}
           {view === 'freeTier' && detailId && (
             <BusinessDetailPage id={detailId} onBack={() => setDetailId(null)} />

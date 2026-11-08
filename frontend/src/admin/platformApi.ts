@@ -293,6 +293,28 @@ export interface TechPartnerStats {
   quality: { pct: number | null; rated: number; counts: Record<QualityRating, number>; numbers: TechPartnerNumber[] };
 }
 
+/** GET /api/businesses/stats/storage (backend services/storageStats.js). Sizes in bytes. */
+export interface StorageStats {
+  generatedAt: string;
+  supabase: {
+    database: { bytes: number; limitBytes: number; tables: { name: string; bytes: number; rows: number }[] };
+    storage: { available: boolean; bytes: number; files: number; limitBytes: number; buckets: { name: string; files: number; bytes: number }[] };
+    error: string;
+  };
+  bunny: {
+    configured: boolean;
+    zone: string;
+    bytes: number;
+    files: number;
+    region: string;
+    bandwidthBytes: number;
+    pullZones: { name: string; bandwidthBytes: number }[];
+    balance: number | null;
+    monthCharges: number | null;
+    error: string;
+  };
+}
+
 export interface BusinessStats {
   messages: { total: number; last24h: number; inbound: number; outbound: number };
   contacts: number;
@@ -389,6 +411,14 @@ export const platformApi = {
   techPartnerStats(refresh = false) {
     return req<{ success: boolean; data: TechPartnerStats }>(
       `/api/businesses/stats/tech-partner${refresh ? '?refresh=1' : ''}`,
+      {},
+      adminToken(),
+    );
+  },
+  /** `refresh`: read Supabase and Bunny again (otherwise a 5-minute copy). */
+  storageStats(refresh = false) {
+    return req<{ success: boolean; data: StorageStats }>(
+      `/api/businesses/stats/storage${refresh ? '?refresh=1' : ''}`,
       {},
       adminToken(),
     );

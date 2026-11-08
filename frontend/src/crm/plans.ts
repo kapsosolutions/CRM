@@ -65,10 +65,7 @@ export const TIER_NAMES: Record<PlanTierKey, string> = { free: 'Starter', basic:
 
 /** Per-month price in rupees, for each cycle. */
 export const PRICES: Record<PlanTierKey, Record<BillingCycle, number>> = {
-  // TEMPORARY: Starter is ₹1/month to test live Razorpay payments. The real
-  // price is { monthly: 499, quarterly: 449, annual: 374 }; put it back here
-  // and in backend/services/plans.js after testing.
-  free: { monthly: 1, quarterly: 1, annual: 1 },
+  free: { monthly: 499, quarterly: 449, annual: 374 },
   basic: { monthly: 999, quarterly: 899, annual: 749 },
   pro: { monthly: 1999, quarterly: 1799, annual: 1499 },
   premium: { monthly: 2499, quarterly: 2249, annual: 1874 },

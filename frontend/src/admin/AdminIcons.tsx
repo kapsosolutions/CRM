@@ -102,6 +102,17 @@ export function RefreshIcon() {
   );
 }
 
+/** Storage: a database cylinder. */
+export function DatabaseIcon() {
+  return (
+    <Line>
+      <ellipse cx="10" cy="4.75" rx="6.25" ry="2.25" />
+      <path d="M3.75 4.75V15.25C3.75 16.5 6.55 17.5 10 17.5C13.45 17.5 16.25 16.5 16.25 15.25V4.75" />
+      <path d="M3.75 10C3.75 11.25 6.55 12.25 10 12.25C13.45 12.25 16.25 11.25 16.25 10" />
+    </Line>
+  );
+}
+
 /** Events: a sparkle (festive themes for the website and the CRM). */
 export function SparkleIcon() {
   return (

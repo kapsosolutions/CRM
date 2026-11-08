@@ -2280,6 +2280,51 @@ body.pa-dark .toast-close {
 .tp-req.met .tp-bar > span {
   background: linear-gradient(90deg, #12a51b, #2ee66b);
 }
+
+/* ---- Storage page (StoragePage.tsx): the Tech Partner boxes and bars ---- */
+.st-box .pd-box-body {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.st-bar > span {
+  background: linear-gradient(90deg, #12a51b, #2ee66b);
+}
+.st-bar.warn > span {
+  background: linear-gradient(90deg, #ff9a1f, #ffc107);
+}
+.st-bar.danger > span {
+  background: linear-gradient(90deg, #e11d48, #fd3550);
+}
+.st-facts {
+  display: grid;
+  gap: 6px;
+  margin-top: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+.st-facts > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+.st-facts strong {
+  color: #fff;
+  font-weight: 600;
+}
+.st-tables {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  margin-top: 20px;
+}
+@media (max-width: 1024px) {
+  .st-tables {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
 .tp-note {
   margin: 0;
   color: var(--muted);

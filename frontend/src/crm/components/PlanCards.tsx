@@ -88,6 +88,7 @@ export function PlanCards({ cycle, action, currentTier, highlightTier }: Props) 
 
           <p className="lp-plan-card-desc">{plan.description}</p>
 
+          <div className="lp-plan-price">
           {strikePrice(plan.key, cycle) && (
             <s className="lp-plan-price-strike" aria-label={`Was ${strikePrice(plan.key, cycle)}`} data-testid="plan-strike">
               {strikePrice(plan.key, cycle)}
@@ -99,6 +100,7 @@ export function PlanCards({ cycle, action, currentTier, highlightTier }: Props) 
               <span className="lp-plan-price-period">/month</span>
               <span className="lp-plan-price-note">{billedText(plan.key, cycle)}</span>
             </div>
+          </div>
           </div>
 
           <div className="lp-plan-specs">

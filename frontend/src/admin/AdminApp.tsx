@@ -16,6 +16,7 @@ import { TermsPage, PrivacyPage, RefundPage, DataDeletionPage } from '../site/Le
 import { readOAuthReturn } from '../site/siteApi';
 import { NAV_EVENT, useSitePath } from '../site/siteNav';
 import { Redirect, SiteRoutes } from '../site/SiteRoutes';
+import { DesktopOnly } from '../site/DesktopOnly';
 import '../site/site.css';
 import './admin.css';
 
@@ -235,14 +236,16 @@ export function AdminApp() {
   // ----- Demo escape hatch (explore with in-memory data) -----
   if (route.startsWith('/demo')) {
     return (
-      <Loading>
-        <CrmShell
-          demo
-          onLogout={() => {
-            window.location.hash = '#/login';
-          }}
-        />
-      </Loading>
+      <DesktopOnly>
+        <Loading>
+          <CrmShell
+            demo
+            onLogout={() => {
+              window.location.hash = '#/login';
+            }}
+          />
+        </Loading>
+      </DesktopOnly>
     );
   }
 
@@ -282,21 +285,24 @@ export function AdminApp() {
 
   if (!platformApi.businessLoggedIn()) {
     // A CRM page (#/app/…) while signed out: sign in, then that page opens.
-    if (route.startsWith('/login') || route.startsWith('/app/')) return <LoginPage onSignedIn={businessSignIn} />;
-    if (route.startsWith('/register/google')) return <RegisterPage key="google" google onSignedIn={businessSignIn} />;
-    if (route.startsWith('/register')) return <RegisterPage key="email" onSignedIn={businessSignIn} />;
+    // On a phone these say "open on your laptop" (DesktopOnly); the website works everywhere.
+    if (route.startsWith('/login') || route.startsWith('/app/')) return <DesktopOnly what="login page"><LoginPage onSignedIn={businessSignIn} /></DesktopOnly>;
+    if (route.startsWith('/register/google')) return <DesktopOnly what="sign-up page"><RegisterPage key="google" google onSignedIn={businessSignIn} /></DesktopOnly>;
+    if (route.startsWith('/register')) return <DesktopOnly what="sign-up page"><RegisterPage key="email" onSignedIn={businessSignIn} /></DesktopOnly>;
     return <LandingPage />;
   }
 
   // Logged-in tenant → the real CRM (uses the cached business token in localStorage).
   return (
-    <div className="pa-crm-host">
-      <Loading>
-        <CrmShell
-          config={{ tokenKey: 'crm_business_jwt' }}
-          onLogout={handleBusinessLogout}
-        />
-      </Loading>
-    </div>
+    <DesktopOnly>
+      <div className="pa-crm-host">
+        <Loading>
+          <CrmShell
+            config={{ tokenKey: 'crm_business_jwt' }}
+            onLogout={handleBusinessLogout}
+          />
+        </Loading>
+      </div>
+    </DesktopOnly>
   );
 }

@@ -29,6 +29,7 @@ import { grantPlan, BillingError } from '../services/subscriptions.js';
 import { forgetPlan } from '../services/planGate.js';
 import { VERTICALS, DEFAULT_VERTICAL, verticalConfig } from '../services/verticals.js';
 import { dashboardStats } from '../services/platformDashboard.js';
+import { storageStats } from '../services/storageStats.js';
 import { techPartnerStats } from '../services/techPartner.js';
 
 const pickCategory = (c) => (VERTICALS[String(c || '').trim()] ? String(c).trim() : DEFAULT_VERTICAL);
@@ -170,6 +171,17 @@ router.get('/stats/dashboard', async (_req, res) => {
   } catch (err) {
     logger.error('dashboard stats failed', { error: err.message });
     res.status(500).json({ success: false, message: 'Could not load the dashboard. Please try again.' });
+  }
+});
+
+// ---------- Storage used: Supabase (database, Storage) and Bunny ----------
+// ?refresh=1 reads again (otherwise kept for 5 minutes).
+router.get('/stats/storage', async (req, res) => {
+  try {
+    res.json({ success: true, data: await storageStats({ refresh: req.query.refresh === '1' }) });
+  } catch (err) {
+    logger.error('storage stats failed', { error: err.message });
+    res.status(500).json({ success: false, message: 'Could not load the storage figures. Please try again.' });
   }
 });
 
