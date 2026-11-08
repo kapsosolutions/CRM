@@ -102,7 +102,17 @@ async function bunnyStats() {
       out.files = num(z.FilesStored);
       out.region = z.Region || '';
       // The pull zones serving this storage zone: their bandwidth this month.
-      const linked = Array.isArray(z.PullZones) ? z.PullZones : [];
+      let linked = Array.isArray(z.PullZones) ? z.PullZones : [];
+      // The zone list doesn't always carry them: ask the pull zones directly.
+      if (!linked.length || linked.every((p) => p.MonthlyBandwidthUsed === undefined)) {
+        try {
+          const pz = await api.get('/pullzone', { params: { page: 1, perPage: 1000 } });
+          const all = Array.isArray(pz.data) ? pz.data : pz.data?.Items || [];
+          linked = all.filter((p) => p?.StorageZoneId === z.Id);
+        } catch (err) {
+          logger.info('storage stats: bunny pull zones not read', { error: err.message });
+        }
+      }
       out.pullZones = linked.map((p) => ({ name: p.Name || '', bandwidthBytes: num(p.MonthlyBandwidthUsed) }));
       out.bandwidthBytes = out.pullZones.reduce((s, p) => s + p.bandwidthBytes, 0);
     }
