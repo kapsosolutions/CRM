@@ -229,6 +229,24 @@ function kindLabel(t: ButtonType): string {
 }
 const VAR_RE = /\{\{\s*\d+\s*\}\}/;
 
+/**
+ * Meta only takes numbered variables, {{1}} {{2}} … in order with none
+ * skipped. A typed {{name}} (or {{ first name }}) is sent as-is and the
+ * template comes back rejected as INVALID_FORMAT, so it's stopped here.
+ */
+export function placeholderProblem(body: string, header = ''): string {
+  for (const [where, text] of [['message', body], ['header', header]] as const) {
+    const named = [...String(text || '').matchAll(/\{\{([^}]*)\}\}/g)].map((m) => m[1].trim()).filter((x) => !/^\d+$/.test(x));
+    if (named.length) {
+      return `Use numbered variables in the ${where}: {{${named[0]}}} isn't allowed by WhatsApp. Click “Add variable” to insert {{1}}, then choose what it shows (for example the customer's name).`;
+    }
+    const nums = [...new Set([...String(text || '').matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => Number(m[1])))].sort((a, b) => a - b);
+    const gap = nums.findIndex((n, i) => n !== i + 1);
+    if (gap >= 0) return `Number the ${where}'s variables from {{1}} with none skipped (found ${nums.map((n) => `{{${n}}}`).join(', ')}).`;
+  }
+  return '';
+}
+
 /** A horizontal row of selectable options (radio semantics). */
 function OptionRow<T extends string>({
   label,
@@ -582,6 +600,9 @@ export function TemplateComposerPage({
     if (!formValid) return 'A lowercase name and a body are required.';
     const trimmedBody = bodyText.trim();
     if (trimmedBody.length > bodyMax) return `The message can be at most ${bodyMax} characters.`;
+    // Only numbered variables: Meta rejects {{name}} (INVALID_FORMAT).
+    const named = placeholderProblem(trimmedBody, headerType === 'text' ? headerText : '');
+    if (named) return named;
     // Meta rejects a template whose body starts or ends with a variable.
     if (/^\{\{\s*\d+\s*\}\}/.test(trimmedBody) || /\{\{\s*\d+\s*\}\}$/.test(trimmedBody)) {
       return 'The body can’t start or end with a variable. Add a word (or punctuation) before the first or after the last {{…}}.';

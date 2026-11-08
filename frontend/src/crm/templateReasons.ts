@@ -6,7 +6,7 @@ const REASONS: Record<string, { title: string; fix: string }> = {
   },
   INVALID_FORMAT: {
     title: 'Formatting problem',
-    fix: 'Check the {{1}} variables (numbered in order, not at the very start or end), the button links and the media.',
+    fix: 'Variables must be numbered: {{1}}, {{2}} … in order, never named like {{name}}, and not at the very start or end. Also check the button links and the media.',
   },
   ABUSIVE_CONTENT: {
     title: 'Against WhatsApp’s content rules',

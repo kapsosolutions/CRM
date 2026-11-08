@@ -930,6 +930,14 @@ router.post('/templates', uploadMedia.any(), async (req, res) => {
 
     const bad = (message) => res.status(400).json({ success: false, message });
     const body = bodyText.trim();
+    // Meta takes only numbered variables ({{1}} …); a named one like {{name}}
+    // is rejected after review as INVALID_FORMAT, so refuse it up front.
+    for (const [where, text] of [['message', body], ['header', headerType === 'text' ? headerText : '']]) {
+      const named = [...String(text || '').matchAll(/\{\{([^}]*)\}\}/g)].map((m) => m[1].trim()).find((x) => !/^\d+$/.test(x));
+      if (named !== undefined) {
+        return bad(`Use numbered variables in the ${where}: {{${named}}} isn't allowed by WhatsApp. Use {{1}} and choose what it shows.`);
+      }
+    }
     const parsedButtons = jsonField(buttons, []);
     const buttonList = Array.isArray(parsedButtons) ? parsedButtons : [];
 
