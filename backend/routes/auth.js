@@ -24,6 +24,15 @@ import logger from '../services/logger.js';
 
 const router = express.Router();
 
+/** Is this business on EARLY_ACCESS_USERNAMES (comma-separated usernames)? */
+export function hasEarlyAccess(biz) {
+  const list = String(process.env.EARLY_ACCESS_USERNAMES || '')
+    .split(',')
+    .map((s) => s.trim().toLowerCase())
+    .filter(Boolean);
+  return !!biz?.username && list.includes(String(biz.username).toLowerCase());
+}
+
 // ---------- Public config for the sign-in pages + Embedded Signup ----------
 // Nothing secret: the Supabase URL, which providers are on, and the Meta app /
 // Embedded Signup configuration ids the browser SDK needs.
@@ -400,6 +409,9 @@ router.get('/me', requireAuth, async (req, res) => {
       plan: planSummary(req.business),
       // The SaaS plan in force: which pages are open, limits, trial / renewal dates.
       planState: planState(req.business),
+      // The "coming soon" features (Ads, Create, Instagram, Messenger) open for
+      // this business: EARLY_ACCESS_USERNAMES on the server (frontend crm/features.ts).
+      earlyAccess: hasEarlyAccess(req.business),
       // Shown on the business profile page (what Meta's webhook points at).
       webhookUrl: webhookCallbackUrl(req.business._id),
     });

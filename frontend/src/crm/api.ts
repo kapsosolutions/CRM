@@ -160,6 +160,8 @@ export class CrmApi {
     plan?: PlanSummary;
     /** The SaaS plan in force: open pages, limits, trial / renewal dates. */
     planState?: PlanState;
+    /** Early access: the "coming soon" features are open for this business (crm/features.ts). */
+    earlyAccess?: boolean;
     /** This tenant's webhook callback URL (what Meta posts messages to). */
     webhookUrl?: string;
   }> {

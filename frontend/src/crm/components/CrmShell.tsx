@@ -43,7 +43,7 @@ import { ProfilePage } from './ProfilePage';
 import { AdsPage } from './AdsPage';
 import { CreatePage } from './CreatePage';
 import { ComingSoonPage } from './ComingSoon';
-import { COMING_SOON } from '../features';
+import { COMING_SOON, setEarlyAccess } from '../features';
 import { ChannelStatusPage } from './ChannelStatusPage';
 import { PaymentConfigPage } from './PaymentConfigPage';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
@@ -82,12 +82,17 @@ const UNCONNECTED_MARQUEE_MESSAGES: Record<string, string> = {
   members: 'Connect your WhatsApp account to unlock team members and staff management.',
   offers: 'Connect your WhatsApp account to create and share special offers with customers.',
   orders: 'Connect your WhatsApp account to receive and manage WhatsApp orders.',
-  ads: COMING_SOON.ads
-    ? 'Ads are coming soon · Meanwhile, connect your WhatsApp account to chat, send campaigns and share your catalog.'
-    : 'Connect your WhatsApp account to create Click-to-WhatsApp ads and capture leads.',
-  create: COMING_SOON.create
-    ? 'Create is coming soon · Meanwhile, connect your WhatsApp account to chat, send campaigns and share your catalog.'
-    : 'Connect your WhatsApp account to reply to everyone your posts and reels bring in from one inbox.',
+  // Getters: COMING_SOON can change after load (early access, features.ts).
+  get ads() {
+    return COMING_SOON.ads
+      ? 'Ads are coming soon · Meanwhile, connect your WhatsApp account to chat, send campaigns and share your catalog.'
+      : 'Connect your WhatsApp account to create Click-to-WhatsApp ads and capture leads.';
+  },
+  get create() {
+    return COMING_SOON.create
+      ? 'Create is coming soon · Meanwhile, connect your WhatsApp account to chat, send campaigns and share your catalog.'
+      : 'Connect your WhatsApp account to reply to everyone your posts and reels bring in from one inbox.';
+  },
   'payment-config': 'Connect your WhatsApp account to configure WhatsApp Pay and collect payments.',
   'channel-status': 'Connect your WhatsApp account to activate your number and unlock all messaging features.',
   profile: 'Connect your WhatsApp account to verify your business and unlock all messaging features.',
@@ -104,12 +109,16 @@ const CONNECTED_MARQUEE_MESSAGES: Record<string, string> = {
   members: 'WhatsApp connected · Team inbox collaboration and chat assignments active.',
   offers: 'WhatsApp connected · Send high-converting deals and coupons directly to chat.',
   orders: 'WhatsApp connected · Automated order processing and delivery receipts enabled.',
-  ads: COMING_SOON.ads
-    ? 'WhatsApp connected · Ads are coming soon, once Meta approves them for every business.'
-    : 'WhatsApp connected · Drive customer conversations from Click-to-WhatsApp ads.',
-  create: COMING_SOON.create
-    ? 'WhatsApp connected · Create (Facebook and Instagram posts) is coming soon, once Meta approves it.'
-    : 'WhatsApp connected · Publish posts, reels and stories, and DM everyone who comments.',
+  get ads() {
+    return COMING_SOON.ads
+      ? 'WhatsApp connected · Ads are coming soon, once Meta approves them for every business.'
+      : 'WhatsApp connected · Drive customer conversations from Click-to-WhatsApp ads.';
+  },
+  get create() {
+    return COMING_SOON.create
+      ? 'WhatsApp connected · Create (Facebook and Instagram posts) is coming soon, once Meta approves it.'
+      : 'WhatsApp connected · Publish posts, reels and stories, and DM everyone who comments.';
+  },
   'payment-config': 'WhatsApp connected · Collect in-chat UPI payments seamlessly via WhatsApp Pay.',
   'channel-status': 'WhatsApp connected · Your business number is verified and active.',
   profile: 'WhatsApp connected · Business profile synced with Meta Business Manager.',
@@ -763,6 +772,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         setCategory(r.business?.category || 'other');
         setLabels(r.business?.labels);
         setBusinessId(r.business?._id);
+        // Early access (features.ts): set before the state below re-renders the pages.
+        setEarlyAccess(!!r.earlyAccess);
         setPlanState(r.planState || null);
         // Every business has the tab; its plan decides whether it opens.
         setCanUseFlows(true);
