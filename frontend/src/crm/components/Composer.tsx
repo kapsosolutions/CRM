@@ -91,7 +91,8 @@ export function Composer({
   const closeMenu = useCallback(() => setMenuOpen(false), []);
   // Polls and events are WhatsApp messages; Messenger / Instagram get files only.
   const kinds: AttachKind[] = [
-    'document', 'media', 'camera', 'audio',
+    // No Camera item: photos are sent from "Photos & videos".
+    'document', 'media', 'audio',
     ...(whatsapp && onSendPoll ? ['poll' as const] : []),
     ...(whatsapp && onSendEvent ? ['event' as const] : []),
   ];

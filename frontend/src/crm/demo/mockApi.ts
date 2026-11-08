@@ -1347,12 +1347,21 @@ export class MockCrmApi extends CrmApi {
     const headerImageUrl = header?.format === 'IMAGE' ? t?.headerMediaUrl || '' : '';
     const headerText = header?.format === 'TEXT' ? header.text || '' : '';
 
+    // The same shape the server logs a sent template in (metaCloud logOutbound):
+    // type 'template', the card descriptor, and the rendered template.
     const msg: ChatMessage = {
-      _id: nextId(), phone, direction: 'out', type: 'interactive', body,
+      _id: nextId(), phone, direction: 'out', type: 'template', body,
       status: 'sent', metaMessageId: nextId(), createdAt: new Date().toISOString(),
       raw: {
         outbound: {
-          type: 'interactive', body, headerImageUrl, headerText, footer, buttons, cta: null,
+          type: 'template', body, headerImageUrl, headerText, footer, buttons, cta: null,
+        },
+        template: {
+          name: templateName,
+          header: headerImageUrl ? { format: 'image', url: headerImageUrl } : headerText ? { format: 'text', text: headerText } : null,
+          body,
+          footer,
+          buttons,
         },
       },
     };

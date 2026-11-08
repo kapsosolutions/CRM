@@ -13,7 +13,7 @@ import { CrmApi } from '../api';
 import { CrmSocket } from '../socket';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { defaultConfig, type CrmConfig } from '../config';
-import type { Chat, ChatMessage, SandboxContacts, TemplateItem, WaFlowDef, PollInput, EventInput, MuteFor } from '../types';
+import type { Chat, ChatMessage, RenderedTemplate, SandboxContacts, TemplateItem, WaFlowDef, PollInput, EventInput, MuteFor } from '../types';
 import { authBodyWithCode, isAuthTemplate } from '../authTemplate';
 import { notify, previewOf, laterStatus, dayKey, dayLabel, chatDisplayName, isMetaChannelChat } from '../utils';
 import { loadPrefs, playSound, wants } from '../notifyPrefs';
@@ -44,6 +44,48 @@ const WINDOW_MS = 24 * 60 * 60 * 1000;
 
 /** An optimistic outbound copy that hasn't been confirmed by the server yet. */
 const isTemp = (m: ChatMessage) => m._id.startsWith('tmp-');
+
+/**
+ * The values the server will most likely fill a template's {{n}} with, for
+ * the chat's own copy while it sends: the contact's name, the business name,
+ * today's date, else the variable's "if blank" value. The server works out
+ * the real ones; its copy replaces this one a moment later.
+ */
+function guessTemplateValues(t: TemplateItem, contactName: string, businessName: string): string[] {
+  const vars = t.variables || [];
+  const count = Math.max(0, ...[...templateBodyText(t).matchAll(/\{\{\s*(\d+)\s*\}\}/g)].map((m) => Number(m[1])));
+  const name = /\p{L}/u.test(contactName || '') ? contactName.trim() : '';
+  const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  return Array.from({ length: count }, (_, i) => {
+    const v = vars.find((x) => x.index === i + 1);
+    const live = v?.source === 'customer_name' ? name
+      : v?.source === 'business_name' ? businessName
+        : v?.source === 'today' ? today
+          : '';
+    return live || v?.fallback || '';
+  });
+}
+
+/** A template's header and buttons in the chat's shape (RenderedTemplate), from its components. */
+function pendingTemplateLook(t: TemplateItem): { header: RenderedTemplate['header']; footer: string; buttons: RenderedTemplate['buttons'] } {
+  const comps = t.components || [];
+  const find = (type: string) => comps.find((c) => String(c.type).toUpperCase() === type);
+  const h = find('HEADER');
+  const fmt = String(h?.format || '').toUpperCase();
+  const header = fmt === 'TEXT' && h?.text
+    ? { format: 'text' as const, text: h.text }
+    : (fmt === 'IMAGE' || fmt === 'VIDEO' || fmt === 'DOCUMENT') && t.headerMediaUrl
+      ? { format: fmt.toLowerCase() as 'image' | 'video' | 'document', url: t.headerMediaUrl, ...(fmt === 'DOCUMENT' ? { fileName: t.headerFileName || 'Document.pdf' } : {}) }
+      : null;
+  const buttons = (find('BUTTONS')?.buttons || []).map((b) => {
+    const type = String(b.type || '').toUpperCase();
+    if (type === 'URL') return { text: b.text || 'Open', kind: 'cta', url: b.url || '' };
+    if (type === 'PHONE_NUMBER') return { text: b.text || 'Call', kind: 'call', url: b.phone_number || b.phone || '' };
+    if (type === 'COPY_CODE' || type === 'OTP') return { text: b.text || 'Copy code', kind: 'copy' };
+    return { text: b.text || 'Reply', kind: 'reply' };
+  });
+  return { header, footer: find('FOOTER')?.text || t.footerText || '', buttons };
+}
 
 /** Alternating placeholder bubbles shown while a thread loads. */
 function MessageSkeleton() {
@@ -609,14 +651,20 @@ export function CrmApp({
             // A file we sent: the oldest of its kind still uploading (they
             // go one at a time). Text: the copy with the same words.
             const mediaType = m.raw?.outbound?.mediaType;
+            // A template: the copy for the same template name. Its text can't
+            // match, since the server fills in the {{n}} values the chat's copy
+            // only guessed, so matching on text left both on screen until a reload.
+            const tplName = m.type === 'template' ? m.raw?.template?.name || '' : '';
             const i = list.findIndex(
               (x) =>
                 isTemp(x) &&
                 x.phone === m.phone &&
                 x.status !== 'failed' &&
-                (mediaType
-                  ? !!x.raw?.localUpload && x.raw?.outbound?.mediaType === mediaType
-                  : !x.raw?.localUpload && x.body === m.body),
+                (m.type === 'template'
+                  ? x.type === 'template' && (!tplName || !x.raw?.template?.name || x.raw.template.name === tplName)
+                  : mediaType
+                    ? !!x.raw?.localUpload && x.raw?.outbound?.mediaType === mediaType
+                    : !x.raw?.localUpload && x.type !== 'template' && x.body === m.body),
             );
             if (i >= 0) {
               const next = [...list];
@@ -1190,8 +1238,12 @@ export function CrmApp({
     if (!phone) return;
     const tempId = `tmp-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
     const auth = isAuthTemplate(t) && !!otpCode;
-    const sharedBody = t.shared ? fillVars(templateBodyText(t), bodyParams || []) : '';
-    const body = auth ? authBodyWithCode(t, otpCode!) : sharedBody || t.bodyText || t.name;
+    // Until the server's copy arrives (it replaces this one), show the
+    // message the way the customer will get it: the header image, the text
+    // with the values the server will fill in, and the buttons.
+    const values = bodyParams?.length ? bodyParams : guessTemplateValues(t, activeName, businessName);
+    const filled = fillVars(templateBodyText(t), values);
+    const body = auth ? authBodyWithCode(t, otpCode!) : filled || t.bodyText || t.name;
     const temp: ChatMessage = {
       _id: tempId,
       phone,
@@ -1202,9 +1254,9 @@ export function CrmApp({
       createdAt: new Date().toISOString(),
       raw: {
         template: {
+          ...pendingTemplateLook(t),
           name: t.name,
           body,
-          buttons: [],
           ...(auth ? { otpCode } : {}),
         },
       },
