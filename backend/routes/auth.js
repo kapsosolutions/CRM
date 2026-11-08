@@ -24,13 +24,21 @@ import logger from '../services/logger.js';
 
 const router = express.Router();
 
-/** Is this business on EARLY_ACCESS_USERNAMES (comma-separated usernames)? */
+const envList = (name) => String(process.env[name] || '')
+  .split(',')
+  .map((s) => s.trim().toLowerCase())
+  .filter(Boolean);
+
+/**
+ * Early access to the "coming soon" features: the business's username is on
+ * EARLY_ACCESS_USERNAMES, or its login email on EARLY_ACCESS_EMAILS
+ * (both comma-separated).
+ */
 export function hasEarlyAccess(biz) {
-  const list = String(process.env.EARLY_ACCESS_USERNAMES || '')
-    .split(',')
-    .map((s) => s.trim().toLowerCase())
-    .filter(Boolean);
-  return !!biz?.username && list.includes(String(biz.username).toLowerCase());
+  const user = String(biz?.username || '').toLowerCase();
+  const email = String(biz?.email || '').toLowerCase();
+  return (!!user && envList('EARLY_ACCESS_USERNAMES').includes(user))
+    || (!!email && envList('EARLY_ACCESS_EMAILS').includes(email));
 }
 
 // ---------- Public config for the sign-in pages + Embedded Signup ----------
