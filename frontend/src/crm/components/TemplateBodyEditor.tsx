@@ -151,7 +151,7 @@ export function TemplateBodyEditor({
     <div className={`tp-body-editor-wrap ${className || ''}`}>
       {showHint && (
         <p className="tp-body-hint">
-          Make your messages personal using variables like <span className="tp-var-tag">{'{{name}}'}</span> and get more replies!
+          Make your messages personal: click <span className="tp-var-tag">{'{ }'}</span> to add a variable like <span className="tp-var-tag">{'{{1}}'}</span>, then choose what it shows (for example the customer’s name) under “What each value means”.
         </p>
       )}
 
