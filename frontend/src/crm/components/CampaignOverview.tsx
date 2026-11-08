@@ -20,6 +20,7 @@ import { isAuthTemplate } from '../authTemplate';
 import { Pager, usePaged } from './Pager';
 import { useMessagingLimit } from './MessagingLimit';
 import { waLanguageLabel } from '../waLanguages';
+import { deliveryHint } from '../deliveryErrors';
 
 const NO_RECIPIENTS: CampaignDetail['recipients'] = [];
 
@@ -176,8 +177,10 @@ function toLocalInput(iso: string | null): string {
 /** A campaign failure reason in one line, plus the full text for a tooltip. */
 function reasonText(e: CampaignRecipientResult['error']): { short: string; full: string } {
   if (!e) return { short: '', full: '' };
-  const short = e.title && e.message && e.title !== e.message ? `${e.title}: ${e.message}` : e.message || e.title;
-  const full = [e.code ? `Error ${e.code}` : '', short, e.details].filter(Boolean).join(' · ');
+  const meta = e.title && e.message && e.title !== e.message ? `${e.title}: ${e.message}` : e.message || e.title;
+  // Our plain explanation first (deliveryErrors.ts); Meta's own words stay in the tooltip.
+  const short = deliveryHint(e.code) || meta;
+  const full = [e.code ? `Error ${e.code}` : '', meta, e.details].filter(Boolean).join(' · ');
   return { short, full };
 }
 

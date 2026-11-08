@@ -29,6 +29,7 @@ import { ReactionPicker } from './ReactionPicker';
 import { ReactionDetails, type ReactionPerson } from './ReactionDetails';
 import { LocationMap } from './LocationMap';
 import { safeUrl } from '../safeUrl';
+import { deliveryHint } from '../deliveryErrors';
 
 export function MsgReplySvg({ width = 18, height = 18 }: { width?: number; height?: number }) {
   return (
@@ -750,8 +751,8 @@ export const MessageItem = memo(function MessageItem({
           >
             <span className="material-icons">error</span>
             Not delivered
-            {m.error && (m.error.title || m.error.message) && (
-              <span className="msg-failed-reason"> · {m.error.title || m.error.message}</span>
+            {m.error && (deliveryHint(m.error.code) || m.error.title || m.error.message) && (
+              <span className="msg-failed-reason" data-testid="msg-failed-reason"> · {deliveryHint(m.error.code) || m.error.title || m.error.message}</span>
             )}
             {onRetry && (
               <button
