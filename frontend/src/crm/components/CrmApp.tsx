@@ -1241,6 +1241,7 @@ export function CrmApp({
     // Until the server's copy arrives (it replaces this one), show the
     // message the way the customer will get it: the header image, the text
     // with the values the server will fill in, and the buttons.
+    const look = pendingTemplateLook(t);
     const values = bodyParams?.length ? bodyParams : guessTemplateValues(t, activeName, businessName);
     const filled = fillVars(templateBodyText(t), values);
     const body = auth ? authBodyWithCode(t, otpCode!) : filled || t.bodyText || t.name;
@@ -1254,10 +1255,25 @@ export function CrmApp({
       createdAt: new Date().toISOString(),
       raw: {
         template: {
-          ...pendingTemplateLook(t),
+          ...look,
           name: t.name,
           body,
           ...(auth ? { otpCode } : {}),
+        },
+        // The card the chat draws (header, text, footer, buttons): the same
+        // descriptor the server saves for a sent template, so this copy looks
+        // exactly like the message that replaces it.
+        outbound: {
+          type: 'template',
+          body,
+          templateName: t.name,
+          headerText: look.header?.format === 'text' ? look.header.text || '' : '',
+          headerImageUrl: look.header?.format === 'image' ? look.header.url || '' : '',
+          headerVideoUrl: look.header?.format === 'video' ? look.header.url || '' : '',
+          headerDocName: look.header?.format === 'document' ? look.header.fileName || 'Document.pdf' : '',
+          headerDocUrl: look.header?.format === 'document' ? look.header.url || '' : '',
+          footer: look.footer,
+          buttons: look.buttons,
         },
       },
     };
