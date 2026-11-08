@@ -65,10 +65,24 @@ export const TIER_NAMES: Record<PlanTierKey, string> = { free: 'Starter', basic:
 
 /** Per-month price in rupees, for each cycle. */
 export const PRICES: Record<PlanTierKey, Record<BillingCycle, number>> = {
-  free: { monthly: 499, quarterly: 449, annual: 374 },
+  // TEMPORARY: Starter is ₹1/month to test live Razorpay payments. The real
+  // price is { monthly: 499, quarterly: 449, annual: 374 }; put it back here
+  // and in backend/services/plans.js after testing.
+  free: { monthly: 1, quarterly: 1, annual: 1 },
   basic: { monthly: 999, quarterly: 899, annual: 749 },
   pro: { monthly: 1999, quarterly: 1799, annual: 1499 },
   premium: { monthly: 2499, quarterly: 2249, annual: 1874 },
+};
+
+/**
+ * The struck-through "was" price per month, shown before the real price on
+ * every plan card (display only: what's charged is PRICES, on the server).
+ */
+export const STRIKE_PRICES: Record<PlanTierKey, number> = {
+  free: 749,
+  basic: 1499,
+  pro: 2999,
+  premium: 3749,
 };
 
 export interface PlanTier {
@@ -201,6 +215,12 @@ export const rupees = (paise: number) => inr(Math.round(paise) / 100);
 /** "₹1,499" per month for a plan + cycle. */
 export function monthlyPrice(tier: PlanTierKey, cycle: BillingCycle): string {
   return inr(PRICES[tier][cycle]);
+}
+
+/** The struck-through "was" price per month ("₹1,499"), or '' when it isn't above the real price. */
+export function strikePrice(tier: PlanTierKey, cycle: BillingCycle): string {
+  const was = STRIKE_PRICES[tier];
+  return was > PRICES[tier][cycle] ? inr(was) : '';
 }
 
 /** What the period costs upfront: "₹17,988 billed annually". */

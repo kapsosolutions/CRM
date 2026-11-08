@@ -1,26 +1,27 @@
 // The live event's announcements (admin panel → Events), a bar across the
 // top of the CRM. With several, they take turns: the first, then the next…
 // and round again, each for the event's `seconds` (paused while the pointer
-// is on the bar; the dots jump to one). A business can close the bar; it
-// comes back when the admin changes the event.
+// is on the bar; the dots jump to one). A business can close the bar for
+// now: moving between CRM pages keeps it closed, but it shows again when the
+// page is reloaded or the CRM is opened again (nothing is remembered), and
+// when the admin changes the event.
 import { useEffect, useState, type CSSProperties } from 'react';
 import { announcementItems, type LiveEvent } from '../../event/liveEvent';
 import '../../event/event.css';
 
-const DISMISS_KEY = 'kapso-announcement-closed';
+// Older builds remembered a close here for good; forget it.
+try {
+  localStorage.removeItem('kapso-announcement-closed');
+} catch {
+  /* private mode */
+}
 
 export function EventAnnouncement({ event }: { event: LiveEvent | null }) {
   const a = event?.theme.announcement;
   const items = announcementItems(a);
   const seconds = Math.min(30, Math.max(3, Number(a?.seconds) || 6));
   const stamp = event ? `${event.id}:${event.updatedAt || ''}` : '';
-  const [closed, setClosed] = useState(() => {
-    try {
-      return localStorage.getItem(DISMISS_KEY) || '';
-    } catch {
-      return '';
-    }
-  });
+  const [closed, setClosed] = useState('');
   const [index, setIndex] = useState(0);
   const [paused, setPaused] = useState(false);
   const count = items.length;
@@ -32,14 +33,7 @@ export function EventAnnouncement({ event }: { event: LiveEvent | null }) {
 
   if (!event || !a?.enabled || !count || (closed === stamp && !event.preview)) return null;
 
-  const close = () => {
-    setClosed(stamp);
-    try {
-      localStorage.setItem(DISMISS_KEY, stamp);
-    } catch {
-      /* private mode */
-    }
-  };
+  const close = () => setClosed(stamp);
   const i = index % count;
   const it = items[i];
   // CRM pages (/#/app/…) open here; anything else (the website, another site) in a new tab.

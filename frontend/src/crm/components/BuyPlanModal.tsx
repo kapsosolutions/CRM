@@ -117,17 +117,6 @@ interface Props {
 }
 
 export function BuyPlanModal({ onClose, api, plan, highlightTier, reason, onPaid }: Props) {
-  const [cycle, setCycle] = useState<BillingCycle>('annual');
-  const [busy, setBusy] = useState('');
-  const buy = usePlanPurchase(api, onPaid);
-
-  const handleBuy = async (tier: PlanTierKey) => {
-    setBusy(tier);
-    const r = await buy(tier, cycle);
-    setBusy('');
-    if (r) onClose();
-  };
-
   return (
     <div className="bpm-backdrop" onClick={onClose}>
       <div className="bpm-dialog bpm-dialog-wide" onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Choose your plan" data-testid="plans-dialog">
@@ -143,6 +132,61 @@ export function BuyPlanModal({ onClose, api, plan, highlightTier, reason, onPaid
           </p>
         </div>
 
+        <PlansPicker api={api} plan={plan} highlightTier={highlightTier} onPaid={onPaid} onDone={onClose} />
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Shown over every CRM page (Settings excepted) once the free trial or the
+ * paid plan has ended and nothing new has been bought: the plans, to buy one.
+ * It goes away as soon as a payment is confirmed (the plan state changes).
+ */
+export function PlanPaywall({ api, plan, onOpenBilling }: { api: CrmApi; plan: PlanState; onOpenBilling: () => void }) {
+  const ended = plan.ended;
+  const title = ended?.kind === 'plan' ? `Your ${ended.name} plan has ended` : 'Your free trial has ended';
+  return (
+    <div className="plan-paywall" data-testid="plan-paywall" role="region" aria-label="Choose a plan">
+      <div className="bpm-dialog bpm-dialog-wide plan-paywall-card">
+        <div className="bpm-header">
+          <div className="bpm-badge plan-paywall-badge">{ended?.kind === 'plan' ? 'PLAN ENDED' : 'TRIAL ENDED'}</div>
+          <h2 className="bpm-title">{title}</h2>
+          <p className="bpm-subtitle">
+            Choose a plan to keep using your CRM. Your chats, contacts and templates are kept as they are.
+            {' '}
+            <button type="button" className="plan-paywall-link" onClick={onOpenBilling}>Billing and payments</button>
+          </p>
+        </div>
+        <PlansPicker api={api} plan={plan} />
+      </div>
+    </div>
+  );
+}
+
+/** The cycle toggle, the four plan cards with their buy buttons, and the note. */
+function PlansPicker({
+  api, plan, highlightTier, onPaid, onDone,
+}: {
+  api: CrmApi;
+  plan: PlanState | null | undefined;
+  highlightTier?: PlanTierKey;
+  onPaid?: (plan: PlanState) => void;
+  onDone?: () => void;
+}) {
+  const [cycle, setCycle] = useState<BillingCycle>('annual');
+  const [busy, setBusy] = useState('');
+  const buy = usePlanPurchase(api, onPaid);
+
+  const handleBuy = async (tier: PlanTierKey) => {
+    setBusy(tier);
+    const r = await buy(tier, cycle);
+    setBusy('');
+    if (r) onDone?.();
+  };
+
+  return (
+    <>
         <div className="lp-pricing-banner" style={{ marginBottom: 24 }}>
           <div className="lp-pricing-banner-text">
             Up to ~25% off with <span className="lp-pricing-banner-link">annual billing</span> · quarterly and annual are paid upfront
@@ -160,7 +204,6 @@ export function BuyPlanModal({ onClose, api, plan, highlightTier, reason, onPaid
         <div className="bpm-footer-note" style={{ marginTop: 24 }}>
           Prices include all charges from us. Meta bills WhatsApp message charges separately, per message (see the rates).
         </div>
-      </div>
-    </div>
+    </>
   );
 }

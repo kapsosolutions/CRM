@@ -1269,6 +1269,21 @@ html.lenis .au-page {
   margin-bottom: 18px;
 }
 
+/* The "was" price before the real one (crm/plans.ts STRIKE_PRICES). */
+.lp-plan-price-strike {
+  font-size: 18px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-decoration: line-through;
+  text-decoration-thickness: 2px;
+  text-decoration-color: #ef4444;
+  line-height: 1;
+  /* Its own line above the price row, so "/month" stays beside the price. */
+  display: block;
+  width: fit-content;
+  margin-bottom: 6px;
+}
+
 .lp-plan-price-val {
   font-size: 38px;
   font-weight: 900;

@@ -52,7 +52,7 @@ import { useLockWindowScroll } from '../useLockWindowScroll';
 import { useAppSmoothScroll } from '../useAppSmoothScroll';
 import { useConfirm, useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
-import { BuyPlanModal } from './BuyPlanModal';
+import { BuyPlanModal, PlanPaywall } from './BuyPlanModal';
 import { paymentReturnMessage } from '../razorpay';
 import { DemoModal } from '../../site/DemoModal';
 import { BookDemoSvg, NavConnectSvg, BuyNowSvg } from './TemplateIcons';
@@ -190,7 +190,8 @@ interface PlanTopBarProps {
  * what the plan needs attention for (from the server's plan state):
  *   trial      "Your trial ends in N days." (a live HH:MM:SS on the last day) + Buy Now
  *   paid       from 5 days before the end: "Your Pro plan ends in N days." + Renew
- *   free       nothing bought: "Only the Starter features are open." + Choose a plan
+ *   free       nothing bought: "Your trial has ended. Choose a plan…" + Choose a plan
+ *              (and the plans cover every page but Settings: PlanPaywall)
  * A paid plan with time left, or a business from before plans: nothing in the middle.
  */
 function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: PlanTopBarProps) {
@@ -256,8 +257,8 @@ function PlanTopBar({ plan, onBuyNow, view, needsConnect, onConnectClick }: Plan
     center = (
       <>
         <span className="crm-top-bar-text" data-testid="topbar-plan-text">
-          {plan.ended?.kind === 'plan' ? `Your ${plan.ended.name} plan has ended.` : plan.ended?.kind === 'trial' ? 'Your trial has ended.' : ''}{' '}
-          Only the <strong>Starter features</strong> are open.
+          {plan.ended?.kind === 'plan' ? `Your ${plan.ended.name} plan has ended.` : 'Your trial has ended.'}{' '}
+          <strong>Choose a plan</strong> to keep using the CRM.
         </span>
         <button type="button" className="crm-top-bar-btn" onClick={onBuyNow} data-testid="topbar-buy">
           <BuyNowSvg width={16} height={16} stroke="currentColor" />
@@ -1257,6 +1258,24 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                 onOpenTemplateCreate={handleOpenTemplateCreate}
               />
             </div>
+            {/* The trial or the paid plan has ended and nothing new is bought:
+                the plans over every page, Settings (Billing, the profile) excepted. */}
+            {/* The platform owner (admin / master session) can still look after the account. */}
+            {!demo && !staffSession && planState?.status === 'free' && view !== 'profile' && view !== 'settings' && (
+              <PlanPaywall
+                api={api}
+                plan={planState}
+                onOpenBilling={() => {
+                  try {
+                    localStorage.setItem('crm_settings_active_tab', 'billing');
+                    window.dispatchEvent(new CustomEvent('crm_set_profile_tab', { detail: 'billing' }));
+                  } catch {
+                    // ignore
+                  }
+                  navigate('profile');
+                }}
+              />
+            )}
             {/* A page outside the business's plan: its upgrade screen (Ads / Create stay 'coming soon'). */}
             {planLocked(view) && !(view === 'ads' && COMING_SOON.ads) && !(view === 'create' && COMING_SOON.create) && (view === 'payment-config' || isFormView(view) || show(view)) && (
               <PlanLockedPage feature={featureOf(view) as PlanFeature} />

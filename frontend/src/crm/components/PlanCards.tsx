@@ -4,7 +4,7 @@
 // button under each price differs (`action`). Styles: site/site.css (lp-plan-*).
 import type { ReactNode } from 'react';
 import {
-  BILLING_CYCLES, LIMITS, META_PRICING_PDF, PLANS, billedText, monthlyPrice, type BillingCycle, type PlanTier,
+  BILLING_CYCLES, LIMITS, META_PRICING_PDF, PLANS, billedText, monthlyPrice, strikePrice, type BillingCycle, type PlanTier,
 } from '../plans';
 import type { PlanTierKey } from '../types';
 
@@ -88,6 +88,11 @@ export function PlanCards({ cycle, action, currentTier, highlightTier }: Props) 
 
           <p className="lp-plan-card-desc">{plan.description}</p>
 
+          {strikePrice(plan.key, cycle) && (
+            <s className="lp-plan-price-strike" aria-label={`Was ${strikePrice(plan.key, cycle)}`} data-testid="plan-strike">
+              {strikePrice(plan.key, cycle)}
+            </s>
+          )}
           <div className="lp-plan-price-row">
             <span className="lp-plan-price-val">{monthlyPrice(plan.key, cycle)}</span>
             <div className="lp-plan-price-period-wrap">

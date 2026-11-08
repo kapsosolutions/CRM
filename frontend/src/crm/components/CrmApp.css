@@ -6057,6 +6057,39 @@ a.msg-btn {
   width: 95vw;
 }
 
+/* Trial / plan ended: the plans over the whole page area (BuyPlanModal PlanPaywall). */
+.plan-paywall {
+  position: absolute;
+  inset: 0;
+  z-index: 40;
+  overflow-y: auto;
+  padding: 24px 16px 32px;
+  background: var(--wa-canvas, #f1f5f9);
+  box-sizing: border-box;
+}
+.bpm-dialog.bpm-dialog-wide.plan-paywall-card {
+  width: 100%;
+  max-height: none;
+  overflow: visible;
+  margin: 0 auto;
+  animation: none;
+}
+.plan-paywall-badge {
+  color: #b91c1c;
+  background: #fef2f2;
+  border-color: #fecaca;
+}
+.plan-paywall-link {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-weight: 600;
+  color: #059669;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 @keyframes bpmModalIn {
   from {
     opacity: 0;
