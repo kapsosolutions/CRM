@@ -1896,6 +1896,26 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
     [rf, setNodes, channel, vertical],
   );
 
+  // Touch screens can't drag from the palette: a tap puts the block in the
+  // middle of what the canvas shows (a little lower each time, so blocks
+  // added one after another don't land on top of each other).
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const tapCount = useRef(0);
+  const touchUi = typeof window !== 'undefined'
+    && (window.matchMedia?.('(pointer: coarse)').matches || window.innerWidth < 768);
+  function addFromTap(p: PaletteItem) {
+    const r = canvasRef.current?.getBoundingClientRect();
+    if (!r) return;
+    const step = (tapCount.current % 6) * 40;
+    tapCount.current += 1;
+    const position = rf.screenToFlowPosition({ x: r.left + r.width / 2 - 90 + step, y: r.top + r.height / 3 + step });
+    setNodes((nds) => {
+      if (p.kind === 'start' && nds.some((n) => n.data?.kind === 'start')) return nds;
+      const id = nextId(nds);
+      return [...nds, { id, type: 'wa', position, data: makeData(p.kind, p.count, p.header, channel, vertical) }];
+    });
+  }
+
   function onPaletteDragStart(e: React.DragEvent, p: PaletteItem) {
     const lock = lockOf(p.kind);
     if (lock) {
@@ -1911,7 +1931,9 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
     <div className={`flows-body${full ? ' canvas-full' : ''}`} data-testid="canvas-wrap">
       <aside className="flow-palette" data-testid="flow-palette" data-channel={channel}>
         <div className="fp-title">{CHANNEL_NAME[channel]} blocks</div>
-        <p className="fp-hint">Drag a block onto the canvas, then connect the ports.</p>
+        <p className="fp-hint">
+          {touchUi ? 'Tap a block to add it to the canvas, then connect the ports.' : 'Drag a block onto the canvas, then connect the ports.'}
+        </p>
         {palette.map((p) => {
           const k = KINDS[p.kind];
           const lock = lockOf(p.kind);
@@ -1931,7 +1953,7 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
                       : undefined
               }
               onDragStart={(e) => onPaletteDragStart(e, p)}
-              onClick={lock ? () => lock.open() : undefined}
+              onClick={lock ? () => lock.open() : touchUi ? () => addFromTap(p) : undefined}
               data-testid={`pal-${testIdOf(p.label)}`}
               data-kind={p.kind}
               data-plan-locked={lock ? lock.tier : undefined}
@@ -1946,7 +1968,7 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
         })}
       </aside>
 
-      <div className="flow-canvas jn-canvas" onDrop={onDrop} onDragOver={onDragOver}>
+      <div className="flow-canvas jn-canvas" ref={canvasRef} onDrop={onDrop} onDragOver={onDragOver}>
         <button
           type="button"
           className="jn-tidy"

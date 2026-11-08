@@ -3760,8 +3760,13 @@ a.msg-btn {
 }
 .tmpl-drawer .tc-phone {
   width: 100%;
-  max-width: 330px;
-  height: 480px;
+  max-width: 340px;
+  /* As tall as the drawer allows (header + padding taken off), so the whole
+     message fits without scrolling inside a small phone. */
+  height: calc(100vh - 96px);
+  height: calc(100dvh - 96px);
+  min-height: 480px;
+  max-height: 820px;
   border-radius: 28px;
   border-width: 5px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);

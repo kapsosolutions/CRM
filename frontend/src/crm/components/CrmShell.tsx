@@ -63,6 +63,8 @@ import { loadPrefs, playSound, wants, PREFS_EVENT, type NotifyPrefs } from '../n
 import { currentlyWatching, onPushOpen, pushActive, pushPrefsChanged, syncPush } from '../push';
 import './CrmApp.css';
 import './Sidebar.css';
+// Phone layouts for pages made for a wide screen (after the page styles).
+import './MobileFixes.css';
 import '../theme/dark.css';
 import '../theme/scale.css';
 

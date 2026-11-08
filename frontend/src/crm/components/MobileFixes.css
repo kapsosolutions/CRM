@@ -1,0 +1,249 @@
+/* =============================================================================
+   Phones and small tablets: layouts that were made for a wide screen.
+   Loaded after the page stylesheets (CrmShell), so these win at these widths.
+   Found with .agents/tasks/mobile-audit (every CRM page at 390px).
+   ========================================================================== */
+
+@media (max-width: 768px) {
+  /* ---- Campaigns: the left sub-menu becomes a row on top ---- */
+  .co-shell:not(.tpl-shell) {
+    flex-direction: column;
+  }
+  .co-shell:not(.tpl-shell) > .co-sidebar {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    max-height: none;
+    overflow: visible;
+    border-right: none;
+    border-bottom: 1px solid #e2e8f0;
+    padding: 10px 12px;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .co-shell:not(.tpl-shell) .co-sidebar-head {
+    display: none;
+  }
+  .co-shell:not(.tpl-shell) .co-create-btn {
+    padding-top: 9px;
+    padding-bottom: 9px;
+  }
+  .co-shell:not(.tpl-shell) .co-nav {
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+  .co-shell:not(.tpl-shell) .co-nav::-webkit-scrollbar {
+    display: none;
+  }
+  .co-shell:not(.tpl-shell) .co-nav-group,
+  .co-shell:not(.tpl-shell) .co-nav-sub {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 6px;
+    flex: 0 0 auto;
+    margin: 0;
+    padding: 0;
+    border: 0;
+  }
+  .co-shell:not(.tpl-shell) .co-nav-item,
+  .co-shell:not(.tpl-shell) .co-nav-sub-item {
+    width: auto;
+    flex: 0 0 auto;
+    white-space: nowrap;
+    padding: 8px 12px;
+    margin: 0;
+  }
+  .co-shell:not(.tpl-shell) > .co-main {
+    height: auto;
+    max-height: none;
+    flex: 1 1 auto;
+    min-height: 0;
+    padding: 16px 14px 40px;
+  }
+
+  /* ---- Page headers: wrap instead of pushing buttons off the edge. The
+     header is 56px tall on a computer; here it grows with its rows, so the
+     wrapped buttons don't sit on top of the page. ---- */
+  .page-head {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    height: auto;
+    min-height: 52px;
+    padding-top: 8px;
+    padding-bottom: 8px;
+  }
+  .page-head h2 {
+    font-size: 17px;
+    min-width: 0;
+  }
+  .tc-head-actions,
+  .camp-head-actions {
+    flex-wrap: wrap;
+    row-gap: 6px;
+    margin-left: auto;
+  }
+
+  /* ---- Campaigns → Create: one column that scrolls as a whole ---- */
+  .camp-head-left {
+    min-width: 0;
+    flex-wrap: wrap;
+  }
+  .camp-head-left .camp-back-btn span,
+  .camp-head-sep {
+    display: none;
+  }
+  .campaign-create-page {
+    overflow-y: auto;
+    overflow-x: hidden;
+  }
+  /* ---- Settings: the menu was full height and hid the page; now a tab row ---- */
+  .bp-layout .bp-sidebar {
+    height: auto;
+    min-width: 0;
+    padding: 8px 10px;
+    border-right: none;
+    border-bottom: 1px solid #f1f5f9;
+    overflow: visible;
+  }
+  .bp-layout .bp-sidebar-title {
+    display: none;
+  }
+  .bp-layout .bp-sidebar-menu {
+    flex-direction: row;
+    gap: 4px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .bp-layout .bp-sidebar-menu::-webkit-scrollbar {
+    display: none;
+  }
+  .bp-layout .bp-menu-item {
+    flex: 0 0 auto;
+    width: auto;
+    white-space: nowrap;
+    padding: 8px 12px;
+  }
+  .bp-layout .bp-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    padding: 16px 14px 80px;
+  }
+
+  /* Template create / view: the title keeps its row, the buttons go below it. */
+  .composer-page .page-head h2 {
+    flex: 1 1 calc(100% - 56px);
+  }
+  .composer-page .page-head .tc-head-actions {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+    margin-left: 0;
+  }
+  .campaign-create-page .campaign-split,
+  .campaign-create-page .campaign-body {
+    height: auto;
+    max-height: none;
+    overflow: visible;
+  }
+  .campaign-create-page .campaign-setup {
+    max-height: none;
+    overflow: visible;
+    padding: 18px 14px 20px;
+  }
+  .page-head .ord-search {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .ord-toolbar {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+  .ord-life-tabs {
+    max-width: 100%;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .ord-life-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* ---- Automation → Journeys builder: blocks in a strip above the canvas ---- */
+  .journey-editor .page-head .flow-name-input {
+    flex: 1 1 140px;
+    min-width: 0;
+  }
+  .journey-editor .page-head .flow-head-actions {
+    flex-wrap: wrap;
+    row-gap: 6px;
+  }
+  .flows-body {
+    flex-direction: column;
+  }
+  .flows-body > .flow-palette {
+    width: 100%;
+    max-height: none;
+    border-right: none;
+    border-bottom: 1px solid var(--wa-hairline);
+    padding: 8px 10px;
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 6px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scrollbar-width: none;
+    flex-shrink: 0;
+  }
+  .flows-body > .flow-palette::-webkit-scrollbar {
+    display: none;
+  }
+  .flows-body > .flow-palette .fp-title {
+    display: none;
+  }
+  .flows-body > .flow-palette .fp-hint {
+    flex: 0 0 auto;
+    max-width: 150px;
+    margin: 0 4px 0 0;
+    font-size: 11px;
+    line-height: 1.3;
+  }
+  .flows-body > .flow-palette .fp-group {
+    flex: 0 0 auto;
+    margin: 0 2px;
+    white-space: nowrap;
+  }
+  .flows-body > .flow-palette .pal-item {
+    flex: 0 0 auto;
+    margin: 0;
+    white-space: nowrap;
+  }
+  .flows-body > .flow-canvas {
+    flex: 1 1 auto;
+    min-height: 360px;
+  }
+  /* The overview map takes a third of a phone's canvas. */
+  .flows-body .react-flow__minimap {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  /* The top bar: the Wallet button (coming soon) makes room for the page title. */
+  .crm-main-nav .wl-btn {
+    display: none;
+  }
+  .crm-main-nav .crm-main-nav-title {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 15px;
+  }
+}
