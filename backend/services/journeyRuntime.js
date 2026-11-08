@@ -425,19 +425,31 @@ export async function runJourney(meta, businessId, msg, convo) {
     return true;
   }
 
-  // 1c) A template quick reply that came back without our id (sent before
-  //     journeys tagged them): matched by its text, on the template the chat
-  //     is waiting at.
+  // 1c) A template quick reply that came back without our id: the template
+  //     was sent some other way (a keyword trigger such as "hi", a campaign,
+  //     a send from Chats) or before journeys tagged their buttons. Matched by
+  //     the button's text: first on the Template block the chat is waiting
+  //     at, then on any Template block of this journey with that template
+  //     and that button wired. A tap is never a reason to start over: with no
+  //     match the journey stays quiet (re-sending the welcome on "Interested"
+  //     looked like the bot ignoring the customer).
   if (msg.templateReply && !sel) {
-    const cur = nodeById(journey, convo?.context?.journey?.nodeId);
-    if (cur?.data?.kind === 'template') {
-      const i = await (await blocks()).templateButtonIndex(cur, msg.text, ctx.businessId);
-      const next = i >= 0 ? exactTarget(journey, cur.id, `tbtn-${i}`) : null;
+    const B = await blocks();
+    const parkedId = convo?.context?.journey?.nodeId;
+    const candidates = (journey.nodes || [])
+      .filter((n) => n.data?.kind === 'template')
+      .sort((a, b) => (a.id === parkedId ? -1 : b.id === parkedId ? 1 : 0));
+    for (const node of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      const i = await B.templateButtonIndex(node, msg.text, ctx.businessId);
+      const next = i >= 0 ? exactTarget(journey, node.id, `tbtn-${i}`) : null;
       if (next) {
         await sendChain(meta, phone, journey, next, { phone }, { ...tokens, last_choice: msg.text || '' });
         return true;
       }
     }
+    logger.info('template button tap not wired in the journey: no reply', { text: msg.text || '' });
+    return false;
   }
 
   // 1d) The customer sent their cart from a Catalog block → its "Cart sent"

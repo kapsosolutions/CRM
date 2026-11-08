@@ -1218,7 +1218,9 @@ function outputsOf(data: WaData, templates: TemplateItem[]): Output[] {
       btns.forEach((b, i) => {
         if (b.type === 'QUICK_REPLY') out.push({ id: `tbtn-${i}`, label: b.text || `Button ${i + 1}` });
       });
-      return out.length ? [...out, { id: '', label: 'Next' }] : [{ id: '', label: '' }];
+      // With quick replies the journey waits for a tap: only the button ports
+      // (along the bottom), no "Next" on the right. Without any, the plain next.
+      return out.length ? out : [{ id: '', label: '' }];
     }
     case 'extender':
       return Array.from({ length: extSlots(data) }, (_, i) => ({ id: `ext-${i}`, label: String(i + 1) }));
@@ -1311,7 +1313,7 @@ function waLayoutPorts(n: Node<WaData> | undefined, templates: TemplateItem[], c
   const outputs = outputsOf(n.data, templates);
   const branches = outputs.filter((o) => o.label && o.id);
   const next = outputs.find((o) => !o.id);
-  const single = !next && branches.length === 1;
+  const single = !next && branches.length === 1 && n.data.kind !== 'template';
   return [
     ...(next ? [{ id: '', side: 'right' as const }] : []),
     ...branches.map((o) => ({ id: o.id, side: single ? ('right' as const) : ('bottom' as const) })),
@@ -1366,7 +1368,8 @@ function WaNode({ id, data, selected }: NodeProps<WaData>) {
   const next = outputs.find((o) => !o.id);
   // A single answer (one reply button…) and nothing else: it comes out of the
   // right side, labelled there, like a plain "next". Several go along the bottom.
-  const side = !next && allBranches.length === 1 ? allBranches[0] : null;
+  // A template's quick replies always stay along the bottom (they're its buttons).
+  const side = !next && allBranches.length === 1 && data.kind !== 'template' ? allBranches[0] : null;
   const branches = side ? [] : allBranches;
   const isStart = data.kind === 'start';
   // A port turns from "+" into a dot when connected (and back): React Flow
@@ -1846,7 +1849,7 @@ function FlowCanvas({ nodes, edges, onNodesChange, onEdgesChange, setNodes, setE
     const idx = outs.findIndex((o) => o.id === from.handle);
     const width = src.width || 240;
     // A lone answer comes out of the side, like a plain "next".
-    const onSide = outs.length === 1 && all.length === 1;
+    const onSide = outs.length === 1 && all.length === 1 && (src.data as WaData).kind !== 'template';
     const position = from.handle && idx >= 0 && !onSide
       ? { x: src.position.x + width + 90, y: src.position.y + (src.height || 60) + 70 + idx * 110 }
       : { x: src.position.x + width + 110, y: src.position.y };
