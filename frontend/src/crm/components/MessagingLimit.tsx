@@ -12,8 +12,14 @@ import './MessagingLimit.css';
 
 type LimitSocket = { onMessagingLimit(cb: (q: MessagingLimitUsage) => void): () => void };
 
-type Ctx = { data: MessagingLimitUsage | null; loading: boolean; refresh: (askMeta?: boolean) => void };
-const MessagingLimitCtx = createContext<Ctx>({ data: null, loading: false, refresh: () => {} });
+type Ctx = {
+  data: MessagingLimitUsage | null;
+  loading: boolean;
+  /** Not loaded yet, and it will show: draw the placeholder. */
+  skeleton: boolean;
+  refresh: (askMeta?: boolean) => void;
+};
+const MessagingLimitCtx = createContext<Ctx>({ data: null, loading: false, skeleton: false, refresh: () => {} });
 export const useMessagingLimit = () => useContext(MessagingLimitCtx);
 
 // The server pushes every change (a template sent or failed) over the socket,
@@ -24,17 +30,44 @@ const SAFETY_RELOAD_MS = 10 * 60_000;
 /** Coming back to the tab re-reads only if the figure is at least this old. */
 const STALE_MS = 60_000;
 
+// The last figure, kept in this browser so a page refresh shows the bar at
+// once (then the real figure replaces it). Tied to the signed-in session
+// (`scope`), so another account never sees it.
+const CACHE_KEY = 'crm_msg_limit_v1';
+type Cached = { scope: string; connected: boolean; data: MessagingLimitUsage | null };
+function readCache(scope: string): Cached | null {
+  if (!scope) return null;
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null') as Cached | null;
+    return c && c.scope === scope ? c : null;
+  } catch {
+    return null;
+  }
+}
+function writeCache(c: Cached) {
+  try {
+    localStorage.setItem(CACHE_KEY, JSON.stringify(c));
+  } catch {
+    /* storage full or blocked: the bar just loads as before */
+  }
+}
+
 export function MessagingLimitProvider({
-  api, socket, enabled, businessId, children,
+  api, socket, enabled, businessId, pending = false, cacheScope = '', children,
 }: {
   api: CrmApi;
   socket: LimitSocket | null;
   /** The business has its own number (or it's the demo). */
   enabled: boolean;
   businessId?: string;
+  /** The account isn't known yet (page just loaded): `enabled` may still turn true. */
+  pending?: boolean;
+  /** The signed-in session, for the saved figure ('' = don't save). */
+  cacheScope?: string;
   children: ReactNode;
 }) {
-  const [data, setData] = useState<MessagingLimitUsage | null>(null);
+  const cached = useMemo(() => readCache(cacheScope), [cacheScope]);
+  const [data, setData] = useState<MessagingLimitUsage | null>(() => (cached?.connected ? cached.data : null));
   const [loading, setLoading] = useState(false);
   const bizRef = useRef(businessId);
   // The latest client, so a new one never re-runs the effects below (and
@@ -116,7 +149,19 @@ export function MessagingLimitProvider({
     });
   }, [socket, enabled, businessId]);
 
-  const value = useMemo(() => ({ data: enabled ? data : null, loading, refresh: load }), [enabled, data, loading, load]);
+  // Save each real figure (and "no number of its own") for the next refresh.
+  useEffect(() => {
+    if (!cacheScope || pending) return;
+    if (!enabled) writeCache({ scope: cacheScope, connected: false, data: null });
+    else if (data && data.connected && !data.error && loadedAt.current) writeCache({ scope: cacheScope, connected: true, data });
+  }, [cacheScope, pending, enabled, data]);
+
+  // While the account loads, the saved figure (if any) stands in.
+  const shown = enabled || pending ? data : null;
+  // Nothing to show yet, but there will be: the skeleton. Not for an account
+  // last seen without a number of its own.
+  const skeleton = !shown && (enabled || (pending && cached?.connected !== false));
+  const value = useMemo(() => ({ data: shown, loading, skeleton, refresh: load }), [shown, loading, skeleton, load]);
   return <MessagingLimitCtx.Provider value={value}>{children}</MessagingLimitCtx.Provider>;
 }
 
@@ -146,7 +191,7 @@ function untilText(iso: string | null): string {
  * percentage, the details in its tooltip.
  */
 export function SidebarMessagingLimit({ onOpen }: { onOpen?: () => void }) {
-  const { data } = useMessagingLimit();
+  const { data, skeleton } = useMessagingLimit();
   // "frees in 40 min" counts down on this computer's clock (no server call).
   const [, tick] = useState(0);
   const counting = !!data?.nextFreeAt && !!data.used24h;
@@ -155,6 +200,24 @@ export function SidebarMessagingLimit({ onOpen }: { onOpen?: () => void }) {
     const t = setInterval(() => tick((n) => n + 1), 30_000);
     return () => clearInterval(t);
   }, [counting]);
+  if (skeleton) {
+    return (
+      <div className="side-limit side-limit-skel" aria-busy="true" aria-label="Loading the daily messaging limit" data-testid="side-limit-skeleton">
+        <span className="side-limit-ring skel-ring" aria-hidden="true" />
+        <span className="side-limit-wide" aria-hidden="true">
+          <span className="side-limit-head">
+            <span className="side-limit-ico"><GaugeIcon /></span>
+            <span className="side-limit-title">Daily messaging limit</span>
+          </span>
+          <span className="side-limit-bar skel-shine" />
+          <span className="side-limit-row">
+            <span className="skel-line skel-shine" style={{ width: 64 }} />
+            <span className="skel-line skel-shine" style={{ width: 80 }} />
+          </span>
+        </span>
+      </div>
+    );
+  }
   if (!data || !data.connected) return null;
   const lim = data.limit;
   const used = data.used24h || 0;

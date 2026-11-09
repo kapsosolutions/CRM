@@ -217,7 +217,16 @@ function NavPlanCrown({ plan, onOpen }: { plan: PlanState | null | undefined; on
 }
 
 /** The plan with a crown, at the bottom of the sidebar: opens Settings → Billing. */
-function SidebarPlan({ plan, onOpen }: { plan: PlanState | null | undefined; onOpen: () => void }) {
+function SidebarPlan({ plan, loading, onOpen }: { plan: PlanState | null | undefined; loading?: boolean; onOpen: () => void }) {
+  if (!plan && loading) {
+    return (
+      <div className="crm-side-plan skel" aria-busy="true" aria-label="Loading your plan" data-testid="side-plan-skeleton">
+        <span className="crm-side-plan-crown" aria-hidden="true"><CrownIcon size={16} /></span>
+        <span className="crm-side-plan-text"><span className="skel-line skel-shine" style={{ width: 90 }} /></span>
+        <span className="skel-line skel-shine" style={{ width: 62 }} aria-hidden="true" />
+      </div>
+    );
+  }
   if (!plan) return null;
   const label = planLabel(plan);
   const on = plan.status === 'active' || plan.status === 'legacy' || plan.status === 'trial';
@@ -1114,6 +1123,16 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // number isn't CONNECTED, so a Pending number turns Connected on its own.
   const [numberStatus, setNumberStatus] = useState<string | null>(null);
   const hasOwnNumber = !demo && !!business?.whatsappConnected;
+  // The sidebar limit's saved figure belongs to this sign-in (the token's
+  // tail, so another account on this browser never sees it). None in the demo.
+  const limitCacheScope = useMemo(() => {
+    if (demo) return '';
+    try {
+      return (localStorage.getItem(cfg.tokenKey) || '').slice(-24);
+    } catch {
+      return '';
+    }
+  }, [demo, cfg.tokenKey]);
   const loadNumberStatus = useCallback(() => {
     api
       .getChannelStatus()
@@ -1280,6 +1299,8 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
       socket={demo ? demoSocket : notificationSocket}
       enabled={demo || hasOwnNumber}
       businessId={business?._id}
+      pending={!meKnown}
+      cacheScope={limitCacheScope}
     >
     <div className="crm-shell-root">
       <EventAnnouncement event={liveEvent} />
@@ -1318,6 +1339,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
             <>
               <SidebarPlan
                 plan={planState}
+                loading={!meKnown}
                 onOpen={() => {
                   setDrawerOpen(false);
                   openBilling();

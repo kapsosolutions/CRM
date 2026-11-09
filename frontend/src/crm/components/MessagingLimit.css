@@ -223,3 +223,71 @@
     display: inline-flex;
   }
 }
+
+/* Loading placeholders: the limit card (title kept, figures shimmer) and the plan pill. */
+.side-limit-skel {
+  cursor: default;
+}
+.side-limit-skel:hover {
+  border-color: #e5e7eb;
+  background: #ffffff;
+}
+.side-limit-skel .side-limit-ico {
+  color: #cbd5e1;
+}
+.side-limit-skel .side-limit-title {
+  color: #94a3b8;
+}
+.skel-line {
+  display: inline-block;
+  height: 10px;
+  border-radius: 6px;
+  background: #e5e7eb;
+}
+.skel-shine {
+  position: relative;
+  overflow: hidden;
+}
+.skel-shine::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.75), transparent);
+  animation: sideSkel 1.3s ease-in-out infinite;
+}
+@keyframes sideSkel {
+  to { transform: translateX(100%); }
+}
+.side-limit-ring.skel-ring {
+  background: #e5e7eb;
+}
+.crm-side-plan.skel {
+  height: 35px;
+  cursor: default;
+  border-color: #e5e7eb;
+  background: #f8fafc;
+}
+.crm-side-plan.skel .skel-line {
+  flex: none;
+}
+:root[data-theme='dark'] .side-limit-skel,
+:root[data-theme='dark'] .side-limit-skel:hover {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.1);
+}
+:root[data-theme='dark'] .skel-line,
+:root[data-theme='dark'] .side-limit-ring.skel-ring,
+:root[data-theme='dark'] .side-limit-skel .side-limit-bar {
+  background: rgba(255, 255, 255, 0.08);
+}
+:root[data-theme='dark'] .skel-shine::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+:root[data-theme='dark'] .crm-side-plan.skel {
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+@media (prefers-reduced-motion: reduce) {
+  .skel-shine::after { animation: none; }
+}
