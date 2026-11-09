@@ -509,6 +509,28 @@
   min-width: 0;
   line-height: 1.3;
 }
+/* Our last message's ticks, before the preview (ChatList ListTick). */
+.ci-tick {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  margin-right: 1px;
+  line-height: 1;
+}
+.ci-tick .tick-svg {
+  width: 18px;
+  height: 18px;
+}
+.ci-tick.material-icons {
+  font-size: 15px;
+  margin-right: 3px;
+}
+.ci-tick.pending {
+  color: #8696a0;
+}
+.ci-tick.failed {
+  color: #d93025;
+}
 .ci-pv-icon {
   font-size: 17px;
   color: var(--wa-ink-muted);
@@ -3768,12 +3790,11 @@ a.msg-btn {
 .tmpl-drawer .tc-phone {
   width: 100%;
   max-width: 340px;
-  /* As tall as the drawer allows (header + padding taken off), so the whole
-     message fits without scrolling inside a small phone. */
-  height: calc(100vh - 96px);
-  height: calc(100dvh - 96px);
-  min-height: 480px;
-  max-height: 820px;
+  /* Tall enough for most messages, with room left under it in the drawer. */
+  height: calc(100vh - 190px);
+  height: calc(100dvh - 190px);
+  min-height: 440px;
+  max-height: 680px;
   border-radius: 28px;
   border-width: 5px;
   box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);

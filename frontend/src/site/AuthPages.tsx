@@ -227,15 +227,24 @@ export function AuthCard({
 
 /** Shown once, after a sign-out the user didn't ask for (password change etc.). */
 export function useSignedOutReason() {
+  // Read while rendering, cleared after: React may run the initializer twice
+  // (development), and clearing inside it lost the message the second time.
   const [reason] = useState(() => {
     try {
-      const r = sessionStorage.getItem('crm_signed_out_reason') || '';
-      if (r) sessionStorage.removeItem('crm_signed_out_reason');
-      return r;
+      return sessionStorage.getItem('crm_signed_out_reason') || '';
     } catch {
       return '';
     }
   });
+  useEffect(() => {
+    // The page is about to reload for a sign-out: the message is for the next one.
+    if (!reason || (window as unknown as { __crmSigningOut?: boolean }).__crmSigningOut) return;
+    try {
+      sessionStorage.removeItem('crm_signed_out_reason');
+    } catch {
+      /* ignore */
+    }
+  }, [reason]);
   return reason;
 }
 

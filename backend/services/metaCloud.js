@@ -187,7 +187,6 @@ async function logOutbound(payload, resData, businessId = '', extra = null) {
     // The chat list's last message: this message's own text, written before
     // the CRM hears about it (bot replies used to show the customer's "hi"
     // until a refresh, because the list was only updated afterwards).
-    await recordOutboundPreview(phone, outboundPreview(d), businessId || null).catch(() => {});
     // A "delivered"/"read" receipt can arrive while the create above is still
     // in flight; it was parked by handleStatus, so apply it now.
     const early = takeParked(metaMessageId);
@@ -196,6 +195,8 @@ async function logOutbound(payload, resData, businessId = '', extra = null) {
       Object.assign(doc, set);
       await Message.updateOne({ _id: doc._id, status: { $in: statusesBelow(early.status) } }, { $set: set });
     }
+    // With its id and status, so the list's ticks follow the receipts.
+    await recordOutboundPreview(phone, outboundPreview(d), businessId || null, { messageId: metaMessageId, status: doc.status }).catch(() => {});
     emitMessage(doc);
     // A template can use up Meta's daily limit: the sidebar bar follows.
     if (d.type === 'template' && businessId && !rest.sandbox) noteLimitActivity(businessId);

@@ -12,7 +12,7 @@ import Message from '../models/Message.js';
 import Member from '../models/Member.js';
 import { emitMessage, emitStatus } from './eventBus.js';
 import { setReaction } from './reactions.js';
-import { touchInbound, touchOutbound, getConversation } from './conversationState.js';
+import { touchInbound, touchOutbound, getConversation, recordLastStatus } from './conversationState.js';
 import { runJourney } from './journeyRuntime.js';
 import { automationAllowed } from './chatThrottle.js';
 import { tenantHasFeature } from './planGate.js';
@@ -251,6 +251,8 @@ export async function handleStatus(status, ctx = {}) {
       if (!again.matchedCount) return;
       takeParkedStatus(id);
     }
+    // The chat list's ticks, if this is still the chat's last message.
+    await recordLastStatus(id, st, statusesBelow(st), ctx.tenantId).catch(() => {});
     emitStatus({ metaMessageId: id, status: st, ...(error ? { error } : {}) }, ctx.tenantId);
     // A failed template no longer counts against the daily limit.
     if (st === 'failed' && ctx.tenantId && !ctx.sandbox) noteLimitActivity(ctx.tenantId);

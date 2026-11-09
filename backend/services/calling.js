@@ -27,6 +27,7 @@
 // ---------------------------------------------------------------------------
 import Message from '../models/Message.js';
 import Conversation from '../models/Conversation.js';
+import { NEUTRAL_LAST } from './conversationState.js';
 import { getClientForBusiness } from './metaCloud.js';
 import { isWhatsAppConnected } from './sandbox.js';
 import { isBlocked } from './chatFlags.js';
@@ -328,6 +329,8 @@ async function touchChat(c, { opensWindow = false, unread = false } = {}) {
         $set: {
           lastMessageAt: now,
           lastMessageBody: body,
+          // A call line carries no message ticks.
+          ...NEUTRAL_LAST,
           ...(opensWindow ? { lastInboundAt: now } : {}),
           ...(c.name ? { name: c.name } : {}),
         },

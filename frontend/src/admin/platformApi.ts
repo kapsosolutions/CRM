@@ -328,6 +328,9 @@ async function req<T>(path: string, opts: RequestInit = {}, token?: string): Pro
   if (token) headers.Authorization = `Bearer ${token}`;
   const res = await fetch(`${API}${path}`, { ...opts, headers });
   const data = await res.json().catch(() => ({}));
+  // The admin session ran out (8 hours) or the admin password changed: back
+  // to the admin login, instead of every page failing with "Admin only".
+  if (res.status === 401 && token && token === adminToken()) endAdminSession();
   if (!res.ok) {
     // Per-field messages ({ field: message }) when the server sent them.
     throw Object.assign(new Error((data && (data.message || data.error)) || `HTTP ${res.status}`), { fields: (data && data.errors) || {} });
@@ -337,6 +340,50 @@ async function req<T>(path: string, opts: RequestInit = {}, token?: string): Pro
 
 const adminToken = () => localStorage.getItem(ADMIN_TOKEN_KEY) || '';
 const businessToken = () => localStorage.getItem(BUSINESS_TOKEN_KEY) || '';
+
+export const ADMIN_EXPIRED_REASON = 'Your admin session expired. Please sign in again.';
+
+/**
+ * When the stored admin token stops working (ms), from its own payload
+ * ("<base64url json>.<signature>", `exp` in seconds). null = unknown.
+ */
+export function adminTokenExpiresAt(): number | null {
+  const t = adminToken();
+  if (!t.includes('.')) return null;
+  try {
+    const b64 = t.split('.')[0].replace(/-/g, '+').replace(/_/g, '/');
+    const exp = Number(JSON.parse(atob(b64.padEnd(Math.ceil(b64.length / 4) * 4, '='))).exp);
+    return Number.isFinite(exp) && exp > 0 ? exp * 1000 : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Sign the admin out and reload onto the admin login, which says why.
+ * Guarded on a token being there, so it can't loop.
+ */
+export function endAdminSession(reason = ADMIN_EXPIRED_REASON): void {
+  if (!adminToken()) return;
+  localStorage.removeItem(ADMIN_TOKEN_KEY);
+  try {
+    sessionStorage.setItem('crm_signed_out_reason', reason);
+  } catch {
+    /* ignore */
+  }
+  markSigningOut();
+  window.location.reload();
+}
+
+/**
+ * A sign-out reload is on its way. Until it happens this page may still draw
+ * a login screen, which must not use up the "why you were signed out" message
+ * meant for the page after the reload (site/AuthPages useSignedOutReason).
+ */
+export function markSigningOut(): void {
+  (window as unknown as { __crmSigningOut?: boolean }).__crmSigningOut = true;
+}
+export const signingOut = (): boolean => !!(window as unknown as { __crmSigningOut?: boolean }).__crmSigningOut;
 
 export const platformApi = {
   apiBase: API,
@@ -541,6 +588,7 @@ export const platformApi = {
     // Not req(): the browser sets the multipart Content-Type itself.
     const res = await fetch(`${API}/api/admin/events/upload`, { method: 'POST', body: fd, headers: { Authorization: `Bearer ${adminToken()}` } });
     const data = await res.json().catch(() => ({}));
+    if (res.status === 401) endAdminSession();
     if (!res.ok || !data.url) throw new Error(data.message || `Upload failed (${res.status})`);
     return data.url as string;
   },

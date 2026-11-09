@@ -26,7 +26,7 @@ import Message from '../models/Message.js';
 import storage from './storage.js';
 import { emitMessage } from './eventBus.js';
 import { setReaction } from './reactions.js';
-import { recordOutboundPreview } from './conversationState.js';
+import { recordOutboundPreview, INBOUND_LAST } from './conversationState.js';
 import { handleStatus } from './chatbot.js';
 import { statusesBelow } from './messageStatus.js';
 import { notifyChatMessage } from './notifications.js';
@@ -208,6 +208,7 @@ async function onInbound(row, channel, ev, items) {
         lastInboundAt: when,
         lastMessageAt: when,
         lastMessageBody: last.preview,
+        ...INBOUND_LAST,
         ...(name ? { name } : {}),
         ...(handle ? { handle } : {}),
         ...(profile?.avatarUrl ? { avatarUrl: profile.avatarUrl } : {}),
@@ -266,7 +267,7 @@ async function onEcho(row, channel, ev) {
       raw: { outbound: d, channel, echo: true }, metaMessageId: mid, status: 'sent', businessId, channel,
     });
     // eslint-disable-next-line no-await-in-loop
-    await recordOutboundPreview(psid, outboundPreview(d), businessId).catch(() => {});
+    await recordOutboundPreview(psid, outboundPreview(d), businessId, { messageId: mid, status: 'sent' }).catch(() => {});
     emitMessage(doc);
   }
 }

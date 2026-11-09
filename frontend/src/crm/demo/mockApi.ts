@@ -38,9 +38,12 @@ class DemoBus {
     return () => this.reactionCbs.delete(cb);
   }
   emitMessage(m: ChatMessage) {
+    // The stored chat keeps the list's ticks, like the server's Conversation row.
+    noteDemoLastMessage(m);
     this.msgCbs.forEach((cb) => cb(m));
   }
   emitStatus(u: StatusUpdate) {
+    noteDemoLastStatus(u);
     this.statusCbs.forEach((cb) => cb(u));
   }
   emitReaction(u: ReactionUpdate) {
@@ -471,6 +474,19 @@ function sortChats() {
   chats.sort((a, b) => activityOf(b) - activityOf(a));
 }
 
+/** The chat list's ticks on the stored chat (server: recordOutboundPreview / touchInbound). */
+function noteDemoLastMessage(m: ChatMessage) {
+  const c = chats.find((x) => x.phone === m.phone);
+  if (!c) return;
+  if (m.type === 'call' || m.type === 'call_permission') Object.assign(c, { lastDirection: '', lastMessageId: '', lastStatus: '' });
+  else if (m.direction === 'in') Object.assign(c, { lastDirection: 'in', lastMessageId: '', lastStatus: '' });
+  else Object.assign(c, { lastDirection: 'out', lastMessageId: m.metaMessageId || '', lastStatus: m.status || 'sent' });
+}
+const DEMO_RANK: Record<string, number> = { pending: 0, sent: 1, delivered: 2, read: 3 };
+function noteDemoLastStatus(u: StatusUpdate) {
+  const c = chats.find((x) => x.lastMessageId && x.lastMessageId === u.metaMessageId);
+  if (c && (DEMO_RANK[u.status] ?? -1) > (DEMO_RANK[c.lastStatus || 'sent'] ?? 0)) c.lastStatus = u.status;
+}
 function bumpChat(phone: string, body: string, inbound: boolean) {
   const c = chats.find((x) => x.phone === phone);
   if (!c) return;

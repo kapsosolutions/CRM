@@ -638,12 +638,12 @@ export async function logOutbound({ businessId, channel, psid, d, mid, extra = {
       channel,
       ...(campaignId ? { campaignId: String(campaignId) } : {}),
     });
-    await recordOutboundPreview(psid, outboundPreview(d), String(businessId)).catch(() => {});
     const early = takeParked(mid);
     if (early && isStatusUpgrade(doc.status, early.status)) {
       Object.assign(doc, { status: early.status });
       await Message.updateOne({ _id: doc._id, status: { $in: statusesBelow(early.status) } }, { $set: { status: early.status } });
     }
+    await recordOutboundPreview(psid, outboundPreview(d), String(businessId), { messageId: mid, status: doc.status }).catch(() => {});
     emitMessage(doc);
     return doc;
   } catch (err) {

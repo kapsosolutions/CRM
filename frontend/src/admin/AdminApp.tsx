@@ -7,7 +7,7 @@
 //   signed-in business → the CRM
 //   otherwise          → the landing page
 import { Component, lazy, Suspense, useEffect, useState, type ReactNode } from 'react';
-import { platformApi } from './platformApi';
+import { platformApi, adminTokenExpiresAt, endAdminSession, signingOut } from './platformApi';
 import { useConfirm } from '../crm/components/Dialogs';
 import { exitApp, resetBackHandler, useBackHandler } from '../crm/useBackHandler';
 import { LandingPage } from '../site/LandingPage';
@@ -190,6 +190,32 @@ export function AdminApp() {
     { base: true },
   );
 
+  // The admin session ends on its own (8 hours): sign out at that moment, and
+  // on coming back to the tab (a sleeping laptop skips timers).
+  const adminIn = isAdminArea && platformApi.adminLoggedIn();
+  useEffect(() => {
+    if (!adminIn) return undefined;
+    const check = () => {
+      const exp = adminTokenExpiresAt();
+      if (exp !== null && exp <= Date.now()) endAdminSession();
+    };
+    check();
+    const exp = adminTokenExpiresAt();
+    // setTimeout can't wait past ~24.8 days; an admin token lasts hours.
+    const wait = exp === null ? -1 : exp - Date.now() + 500;
+    const t = wait > 0 && wait < 2 ** 31 - 1 ? setTimeout(check, wait) : undefined;
+    const onBack = () => {
+      if (document.visibilityState === 'visible') check();
+    };
+    document.addEventListener('visibilitychange', onBack);
+    window.addEventListener('focus', onBack);
+    return () => {
+      if (t) clearTimeout(t);
+      document.removeEventListener('visibilitychange', onBack);
+      window.removeEventListener('focus', onBack);
+    };
+  }, [adminIn]);
+
   // The Meta Pixel: public pages only (the website, the landing page, log in,
   // register), never the CRM, the demo CRM or the admin panel.
   const publicPage = onSitePage || (!isAdminArea && !route.startsWith('/demo') && !platformApi.businessLoggedIn());
@@ -217,6 +243,16 @@ export function AdminApp() {
 
   // ----- Super admin area -----
   if (route.startsWith('/admin')) {
+    // Signing out: the page reloads in a moment; draw nothing until then.
+    if (signingOut()) return null;
+    // Opened with a session that already ran out: straight to the login (no
+    // flash of the panel), saying why.
+    const exp = platformApi.adminLoggedIn() ? adminTokenExpiresAt() : null;
+    if (exp !== null && exp <= Date.now()) {
+      // Same path as a session running out while open: reload onto the login.
+      endAdminSession();
+      return null;
+    }
     if (!platformApi.adminLoggedIn()) {
       return (
         <AdminLoginPage

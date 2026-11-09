@@ -42,6 +42,8 @@ export async function clearChatHistory(businessId, phone) {
         lastInboundAt: null,
         lastOutboundAt: null,
         unread: 0,
+        lastDirection: '',
+        lastStatus: '',
       },
       $unset: { lastMessageMedia: '', lastMessageId: '', lastMessageType: '' },
     },

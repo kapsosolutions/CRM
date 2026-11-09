@@ -11,6 +11,7 @@ import { SoonPill } from './ComingSoon';
 import { usePlan } from '../PlanContext';
 import { isMutedNow, mutedLabel } from './ChatHeaderMenu';
 import { AppIcon } from './AppIcons';
+import { MessageStatusTick } from './MessageItem';
 import './PlanLocked.css';
 
 // Tabs above the list: All, ♥ Favourites (from the chat's ⋮ menu), then
@@ -136,6 +137,26 @@ function ChatSkeleton() {
   );
 }
 
+
+/**
+ * Our last message's ticks before the preview, as in WhatsApp: a clock while
+ * sending, one grey tick sent, two grey delivered, two blue read, red when
+ * it failed.
+ */
+function ListTick({ status }: { status: string }) {
+  if (status === 'pending') {
+    return <span className="material-icons ci-tick pending" aria-label="Sending" data-testid="ci-tick" data-status="pending">schedule</span>;
+  }
+  if (status === 'failed') {
+    return <span className="material-icons ci-tick failed" aria-label="Not delivered" title="Not delivered" data-testid="ci-tick" data-status="failed">error_outline</span>;
+  }
+  const s = status === 'read' || status === 'delivered' ? status : 'sent';
+  return (
+    <span className={`ci-tick ${s}`} data-testid="ci-tick" data-status={s}>
+      <MessageStatusTick status={s} />
+    </span>
+  );
+}
 
 // Detect a media/system message from the stored preview text and map it to a
 // Material icon + clean label (so the list shows an icon, not a raw emoji).
@@ -823,6 +844,7 @@ export function ChatList({
                       <span className="ci-preview typing-text">typing…</span>
                     ) : (
                       <span className="ci-preview">
+                        {c.lastDirection === 'out' && c.lastMessageBody && <ListTick status={c.lastStatus || 'sent'} />}
                         {pv.icon && <AppIcon name={pv.icon} className="ci-pv-icon" />}
                         <span className="ci-pv-label">{pv.label || 'No messages yet'}</span>
                       </span>

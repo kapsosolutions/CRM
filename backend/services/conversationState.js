@@ -12,6 +12,11 @@ import Conversation from '../models/Conversation.js';
 
 const key = (phone, businessId) => ({ businessId: businessId || null, phone });
 
+/** The chat list's ticks for a last message from the customer: none. */
+export const INBOUND_LAST = { lastDirection: 'in', lastMessageId: '', lastStatus: '' };
+/** A last line that is neither side's message (a call, a cleared chat): no ticks. */
+export const NEUTRAL_LAST = { lastDirection: '', lastMessageId: '', lastStatus: '' };
+
 export async function getConversation(phone, businessId) {
   return Conversation.findOne(key(phone, businessId)).lean();
 }
@@ -24,6 +29,7 @@ export async function touchInbound(phone, name, body, businessId) {
         lastInboundAt: new Date(),
         lastMessageAt: new Date(),
         lastMessageBody: body || '',
+        ...INBOUND_LAST,
         ...(name ? { name } : {}),
       },
       $inc: { unread: 1 },
@@ -50,7 +56,8 @@ export async function touchOutbound(phone, body, businessId, { markRead = false 
     {
       $set: {
         lastOutboundAt: new Date(),
-        ...(marker ? {} : { lastMessageBody: body || '', lastMessageAt: new Date() }),
+        // Its id and status were written with the message (recordOutboundPreview).
+        ...(marker ? {} : { lastMessageBody: body || '', lastMessageAt: new Date(), lastDirection: 'out' }),
         ...(markRead ? { unread: 0 } : {}),
       },
     },
@@ -63,11 +70,36 @@ export async function touchOutbound(phone, body, businessId, { markRead = false 
  * message is logged — before the CRM is told about it, so a refresh triggered
  * by that event already reads the new text. Unread is left alone.
  */
-export async function recordOutboundPreview(phone, body, businessId) {
+export async function recordOutboundPreview(phone, body, businessId, { messageId = '', status = 'sent' } = {}) {
   return Conversation.updateOne(
     key(phone, businessId),
-    { $set: { lastOutboundAt: new Date(), lastMessageAt: new Date(), lastMessageBody: String(body || '').slice(0, 200) } },
+    {
+      $set: {
+        lastOutboundAt: new Date(),
+        lastMessageAt: new Date(),
+        lastMessageBody: String(body || '').slice(0, 200),
+        lastDirection: 'out',
+        lastMessageId: messageId ? String(messageId) : '',
+        lastStatus: status || 'sent',
+      },
+    },
   );
 }
 
-export default { getConversation, touchInbound, touchOutbound, recordOutboundPreview };
+/**
+ * A receipt for one of our messages: if it's still the chat's last message,
+ * its ticks move forward (never back). `below` = statuses it may replace.
+ */
+export async function recordLastStatus(messageId, status, below, businessId) {
+  if (!messageId || !status) return null;
+  return Conversation.updateOne(
+    {
+      ...(businessId ? { businessId } : {}),
+      lastMessageId: String(messageId),
+      lastStatus: { $in: [...below, ''] },
+    },
+    { $set: { lastStatus: status } },
+  );
+}
+
+export default { getConversation, touchInbound, touchOutbound, recordOutboundPreview, recordLastStatus };

@@ -78,7 +78,7 @@ export async function logEcho(echo, { tenantId }) {
       businessId: tenantId,
       ...(at ? { createdAt: at } : {}),
     });
-    await recordOutboundPreview(phone, outboundPreview(d), tenantId).catch(() => {});
+    await recordOutboundPreview(phone, outboundPreview(d), tenantId, { messageId: metaMessageId, status: 'sent' }).catch(() => {});
     emitMessage(doc);
   } catch (err) {
     logger.warn('could not log another app\'s message', { error: err.message });

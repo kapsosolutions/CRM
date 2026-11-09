@@ -284,6 +284,9 @@ router.post('/chats', async (req, res) => {
           lastInboundAt: null,
           lastMessageAt: now,
           lastMessageBody: '',
+          lastDirection: '',
+          lastMessageId: '',
+          lastStatus: '',
         },
         // Adding a deleted (blocked) contact again brings their chat back.
         $set: { hiddenAt: null, ...(cleanName ? { name: cleanName } : {}) },

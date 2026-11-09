@@ -135,6 +135,8 @@ export class CrmApi {
     } catch {
       /* ignore */
     }
+    // Same as the admin panel: the login drawn before the reload leaves the message alone.
+    (window as unknown as { __crmSigningOut?: boolean }).__crmSigningOut = true;
     window.location.reload();
   }
 

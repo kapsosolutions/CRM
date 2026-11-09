@@ -34,6 +34,7 @@ import CommentRule from '../models/CommentRule.js';
 import CommentReply from '../models/CommentReply.js';
 import ChannelConnection from '../models/ChannelConnection.js';
 import Conversation from '../models/Conversation.js';
+import { INBOUND_LAST } from './conversationState.js';
 import Message from '../models/Message.js';
 import Business from '../models/Business.js';
 import {
@@ -336,7 +337,7 @@ async function fileInChat(row, ev, psid, dmText, mid, extra) {
       { businessId, phone: psid },
       {
         $set: {
-          businessId, channel, lastMessageAt: now, lastMessageBody: body, ...(name ? { name } : {}), ...(handle ? { handle } : {}),
+          businessId, channel, lastMessageAt: now, lastMessageBody: body, ...INBOUND_LAST, ...(name ? { name } : {}), ...(handle ? { handle } : {}),
         },
         $inc: { unread: 1 },
       },

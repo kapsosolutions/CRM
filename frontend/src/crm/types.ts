@@ -6,6 +6,12 @@ export interface Chat {
   phone: string;
   name: string;
   lastMessageBody: string;
+  /** Who sent the last message ('in' | 'out'; '' = neither, e.g. a call line). Older servers: missing. */
+  lastDirection?: 'in' | 'out' | '';
+  /** Our last message's WhatsApp id, which the status receipts name. */
+  lastMessageId?: string;
+  /** Our last message's status: pending | sent | delivered | read | failed. */
+  lastStatus?: string;
   lastInboundAt: string;
   /** Timestamp of the last activity (inbound or outbound) — drives list order + time. */
   lastMessageAt?: string;

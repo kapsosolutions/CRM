@@ -21,6 +21,12 @@ const ConversationSchema = new Schema(
     lastMessageBody: { type: String, default: '' },
     // Time of the last message either way, for the chat list's time label.
     lastMessageAt: { type: Date },
+    // The chat list's ticks: who sent the last message ('in' | 'out', '' =
+    // neither, e.g. a call line), and for ours its WhatsApp id and status
+    // (sent / delivered / read / failed), moved forward by the receipts.
+    lastDirection: { type: String, default: '' },
+    lastMessageId: { type: String, default: '', index: true },
+    lastStatus: { type: String, default: '' },
     unread: { type: Number, default: 0 },
     // When true, the bot stops auto-replying so an agent can chat manually.
     botPaused: { type: Boolean, default: false },

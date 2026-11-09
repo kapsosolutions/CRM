@@ -462,7 +462,17 @@ export function CrmApp({
         // The open chat reads as seen only while it's actually on screen.
         const active = isWatching() ? activePhoneRef.current : null;
         const data = (res.data || []).map((c) => (c.phone === active ? { ...c, unread: 0 } : c));
-        setChats(data);
+        // A receipt that arrived while this list was on its way is newer than
+        // the list: keep the further-along tick for the same last message.
+        setChats((prev) => {
+          const byPhone = new Map(prev.map((c) => [c.phone, c]));
+          return data.map((c) => {
+            const p = byPhone.get(c.phone);
+            if (!p || !c.lastMessageId || p.lastMessageId !== c.lastMessageId) return c;
+            const status = laterStatus(c.lastStatus || 'sent', p.lastStatus);
+            return status === c.lastStatus ? c : { ...c, lastStatus: status };
+          });
+        });
         // Keep the open chat's 24h window in step with the server's record.
         const open = data.find((c) => c.phone === activePhoneRef.current);
         const lastIn = open?.lastInboundAt && open.windowOpen ? new Date(open.lastInboundAt).getTime() : 0;
@@ -730,10 +740,18 @@ export function CrmApp({
         if (i < 0) return list; // a new contact: the refresh below adds it
         const at = m.createdAt || new Date().toISOString();
         const c = list[i];
+        // A call line has no ticks; our message carries its id and status.
+        const isCall = m.type === 'call' || m.type === 'call_permission';
+        const early = m.metaMessageId ? earlyStatusRef.current.get(m.metaMessageId) : undefined;
         const next: Chat = {
           ...c,
           lastMessageBody: previewOf(m),
           lastMessageAt: at,
+          ...(isCall
+            ? { lastDirection: '', lastMessageId: '', lastStatus: '' }
+            : m.direction === 'in'
+              ? { lastDirection: 'in', lastMessageId: '', lastStatus: '' }
+              : { lastDirection: 'out', lastMessageId: m.metaMessageId || '', lastStatus: laterStatus(m.status || 'sent', early) }),
           ...(m.direction === 'in'
             ? { lastInboundAt: at, unread: seen ? 0 : (c.unread || 0) + 1 }
             : {}),
@@ -766,6 +784,16 @@ export function CrmApp({
           return { ...m, status, ...(status === 'failed' && u.error ? { error: u.error } : {}) };
         }),
       );
+      // The chat list's ticks, when it's that chat's last message.
+      setChats((list) => {
+        const i = list.findIndex((c) => c.lastDirection === 'out' && !!c.lastMessageId && c.lastMessageId === u.metaMessageId);
+        if (i < 0) return list;
+        const status = laterStatus(list[i].lastStatus || 'sent', u.status);
+        if (status === list[i].lastStatus) return list;
+        const copy = [...list];
+        copy[i] = { ...list[i], lastStatus: status };
+        return copy;
+      });
     });
 
     const offReaction = socket.onReaction((u) => {
