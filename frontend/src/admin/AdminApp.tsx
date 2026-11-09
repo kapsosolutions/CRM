@@ -153,6 +153,10 @@ function AdminLoginPage({
 /** Hash routes that win over the path (in-page anchors like #errors don't). */
 const HASH_ROUTE = /^\/(admin|demo|login|register|app|terms|privacy|refund|data-deletion|contact)(\/|\?|$)/;
 
+// One object for the life of the page: a new one each render would make the
+// CRM build a new API client on every route change and reload everything.
+const BUSINESS_CRM_CONFIG = { tokenKey: 'crm_business_jwt' };
+
 export function AdminApp() {
   const route = useHashRoute();
   const path = useSitePath();
@@ -303,7 +307,7 @@ export function AdminApp() {
     <div className="pa-crm-host">
       <Loading>
         <CrmShell
-          config={{ tokenKey: 'crm_business_jwt' }}
+          config={BUSINESS_CRM_CONFIG}
           onLogout={handleBusinessLogout}
         />
       </Loading>

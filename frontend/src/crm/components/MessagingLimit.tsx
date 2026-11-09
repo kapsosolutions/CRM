@@ -5,7 +5,7 @@
 // moment a template goes out (or fails); a re-read every minute while the tab
 // is visible (customers leave the rolling 24 hours on their own); and a
 // re-read right when the first counted customer leaves (`nextFreeAt`).
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
 import type { MessagingLimitUsage } from '../types';
 import './MessagingLimit.css';
@@ -16,7 +16,13 @@ type Ctx = { data: MessagingLimitUsage | null; loading: boolean; refresh: (askMe
 const MessagingLimitCtx = createContext<Ctx>({ data: null, loading: false, refresh: () => {} });
 export const useMessagingLimit = () => useContext(MessagingLimitCtx);
 
-const RELOAD_MS = 60_000;
+// The server pushes every change (a template sent or failed) over the socket,
+// and the one change it can't push (a customer leaving the 24 hours) is read
+// at `nextFreeAt`. This slow re-read only catches what both could miss
+// (a dropped socket, a tier change at Meta).
+const SAFETY_RELOAD_MS = 10 * 60_000;
+/** Coming back to the tab re-reads only if the figure is at least this old. */
+const STALE_MS = 60_000;
 
 export function MessagingLimitProvider({
   api, socket, enabled, businessId, children,
@@ -31,36 +37,55 @@ export function MessagingLimitProvider({
   const [data, setData] = useState<MessagingLimitUsage | null>(null);
   const [loading, setLoading] = useState(false);
   const bizRef = useRef(businessId);
+  // The latest client, so a new one never re-runs the effects below (and
+  // never blanks the bar).
+  const apiRef = useRef(api);
+  apiRef.current = api;
+  const enabledRef = useRef(enabled);
+  enabledRef.current = enabled;
+  const loadedAt = useRef(0);
+  const inFlight = useRef(false);
 
+  // Stable for the life of the provider. A failed read keeps what's shown.
   const load = useCallback((askMeta = false) => {
-    if (!enabled) return;
-    const biz = businessId;
+    if (!enabledRef.current || (inFlight.current && !askMeta)) return;
+    const biz = bizRef.current;
+    inFlight.current = true;
     if (askMeta) setLoading(true);
-    api
+    apiRef.current
       .getMessagingLimit(askMeta)
       .then((r) => {
-        if (bizRef.current === biz) setData(r);
+        if (bizRef.current !== biz) return;
+        loadedAt.current = Date.now();
+        setData(r);
       })
       .catch(() => setData((d) => d || { connected: true, limit: null, used24h: 0, messages24h: 0, nextFreeAt: null, error: 'Couldn’t load the limit right now.' }))
       .finally(() => {
+        inFlight.current = false;
         if (askMeta) setLoading(false);
       });
-  }, [api, enabled, businessId]);
+  }, []);
 
-  // Another business (master login switch): start over.
+  // Only another business (master login switch) starts over from blank. The
+  // number being re-read (a profile reload) keeps the bar as it is.
+  const shownFor = useRef<string | undefined>(undefined);
   useEffect(() => {
     bizRef.current = businessId;
-    setData(null);
-    if (enabled) load();
+    if (shownFor.current !== undefined && shownFor.current !== businessId) {
+      setData(null);
+      loadedAt.current = 0;
+    }
+    shownFor.current = businessId;
+    if (enabled && !loadedAt.current) load();
   }, [businessId, enabled, load]);
 
   useEffect(() => {
     if (!enabled) return undefined;
     const t = setInterval(() => {
       if (document.visibilityState === 'visible') load();
-    }, RELOAD_MS);
+    }, SAFETY_RELOAD_MS);
     const onVisible = () => {
-      if (document.visibilityState === 'visible') load();
+      if (document.visibilityState === 'visible' && Date.now() - loadedAt.current > STALE_MS) load();
     };
     document.addEventListener('visibilitychange', onVisible);
     return () => {
@@ -73,8 +98,9 @@ export function MessagingLimitProvider({
   const nextFreeAt = data?.nextFreeAt ? new Date(data.nextFreeAt).getTime() : 0;
   useEffect(() => {
     if (!enabled || !nextFreeAt) return undefined;
-    const wait = nextFreeAt - Date.now() + 2000;
-    if (wait <= 0 || wait > RELOAD_MS * 60 * 25) return undefined;
+    const wait = Math.max(1000, nextFreeAt - Date.now() + 2000);
+    // setTimeout can't wait longer than ~24.8 days; the safety re-read covers it.
+    if (wait > 25 * 60 * 60 * 1000) return undefined;
     const t = setTimeout(() => load(), wait);
     return () => clearTimeout(t);
   }, [enabled, nextFreeAt, load]);
@@ -84,11 +110,14 @@ export function MessagingLimitProvider({
     return socket.onMessagingLimit((q) => {
       if (!q || q.used24h === undefined) return;
       if (q.businessId && businessId && String(q.businessId) !== String(businessId)) return;
-      setData(q);
+      loadedAt.current = Date.now();
+      // A push without the tier (Meta didn't answer this time) keeps the known one.
+      setData((d) => (q.connected === false ? q : { ...q, limit: q.limit || d?.limit || null }));
     });
   }, [socket, enabled, businessId]);
 
-  return <MessagingLimitCtx.Provider value={{ data, loading, refresh: load }}>{children}</MessagingLimitCtx.Provider>;
+  const value = useMemo(() => ({ data: enabled ? data : null, loading, refresh: load }), [enabled, data, loading, load]);
+  return <MessagingLimitCtx.Provider value={value}>{children}</MessagingLimitCtx.Provider>;
 }
 
 const fmt = (n: number) => n.toLocaleString('en-IN');
@@ -118,6 +147,14 @@ function untilText(iso: string | null): string {
  */
 export function SidebarMessagingLimit({ onOpen }: { onOpen?: () => void }) {
   const { data } = useMessagingLimit();
+  // "frees in 40 min" counts down on this computer's clock (no server call).
+  const [, tick] = useState(0);
+  const counting = !!data?.nextFreeAt && !!data.used24h;
+  useEffect(() => {
+    if (!counting) return undefined;
+    const t = setInterval(() => tick((n) => n + 1), 30_000);
+    return () => clearInterval(t);
+  }, [counting]);
   if (!data || !data.connected) return null;
   const lim = data.limit;
   const used = data.used24h || 0;
