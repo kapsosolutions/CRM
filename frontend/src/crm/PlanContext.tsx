@@ -20,11 +20,23 @@ export const PlanContext = createContext<PlanContextValue>({
   refresh: () => {},
 });
 
+const LIMIT_CODES = ['TEMPLATE_LIMIT', 'CAMPAIGN_LIMIT', 'CONTACT_LIMIT', 'PLAN_LOCKED'];
+
 export function usePlan() {
   const ctx = useContext(PlanContext);
   return {
     ...ctx,
     has: (f: PlanFeature) => stateHas(ctx.plan, f),
     limits: ctx.plan?.limits || null,
+    /**
+     * A request the plan refused (HTTP 402 with a limit code): open the plans
+     * dialog with the server's reason and return true. Anything else: false.
+     */
+    planLimitHit: (err: unknown): boolean => {
+      const data = (err as { data?: { code?: string; needs?: string; message?: string } } | null)?.data;
+      if (!data?.code || !LIMIT_CODES.includes(data.code)) return false;
+      ctx.openPlans({ tier: (data.needs as PlanTierKey) || undefined, reason: data.message || (err as Error).message });
+      return true;
+    },
   };
 }

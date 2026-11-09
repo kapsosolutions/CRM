@@ -444,7 +444,7 @@ export function TemplateComposerPage({
   // ---- Authentication (one-time code) ----
   const [auth, setAuth] = useState(seed.auth);
   const isAuth = category === 'AUTHENTICATION';
-  const { limits: planLimits, openPlans } = usePlan();
+  const { limits: planLimits, openPlans, planLimitHit } = usePlan();
 
   // ---- Auto-send ----
   const [trigger, setTrigger] = useState<TriggerDraft>(seed.trigger);
@@ -775,6 +775,8 @@ export function TemplateComposerPage({
       setSaving(false);
       const msg = err instanceof Error ? err.message : (isDraft ? 'Save draft failed' : 'Submit failed');
       setError(msg);
+      // The plan's template limit: the plans dialog says why (no extra toast).
+      if (planLimitHit(err)) return;
       notify('error', isDraft ? 'Draft not saved' : 'Template not submitted', msg);
     }
   }

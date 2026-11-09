@@ -501,7 +501,7 @@ export function RefundPage() {
       <section>
         <h2>1. Try before you pay</h2>
         <p>
-          Every new account gets a 7-day free trial with Premium features and no card required, so you can check that the Service fits your
+          Every new account gets a 7-day free trial with Premium features (up to 5 message templates and 3 campaigns during the trial) and no card required, so you can check that the Service fits your
           business before paying.
         </p>
       </section>

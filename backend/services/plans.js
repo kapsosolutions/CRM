@@ -116,6 +116,13 @@ export const LIMITS = {
   },
 };
 
+/**
+ * The free trial opens every Premium feature, but caps how much can be made:
+ * templates in the account (any status, like the plan limit), and campaigns
+ * launched (sent or scheduled, not drafts) during the whole trial.
+ */
+export const TRIAL_LIMITS = { templates: 5, campaigns: 3 };
+
 export const tierRank = (t) => TIERS.indexOf(t);
 // Every plan can be bought (Starter included).
 export const isPaidTier = (t) => t === 'free' || t === 'basic' || t === 'pro' || t === 'premium';
@@ -198,7 +205,12 @@ export function planState(biz, now = new Date()) {
   }
   if (isLegacy(biz)) return base('premium', 'legacy');
   const trialEnd = trialEndsAt(biz);
-  if (trialEnd && trialEnd.getTime() > t && !sub?.tier) return base('premium', 'trial', trialEnd);
+  if (trialEnd && trialEnd.getTime() > t && !sub?.tier) {
+    // campaignsPerMonth stays null: the trial's cap is for the whole trial (trialCampaigns).
+    return base('premium', 'trial', trialEnd, {
+      limits: { ...LIMITS.premium, templates: TRIAL_LIMITS.templates, trialCampaigns: TRIAL_LIMITS.campaigns },
+    });
+  }
   return base('free', 'free', null, {
     // What ended, so the page can say "Your trial ended" / "Your Pro plan ended".
     ended: sub?.tier ? { kind: 'plan', tier: sub.tier, name: TIER_NAMES[sub.tier], at: subEnds?.toISOString() || null }
@@ -267,6 +279,6 @@ export function assertFeature(biz, feature, now = new Date()) {
 }
 
 export default {
-  TIERS, TIER_NAMES, CYCLES, PRICES, LIMITS, FEATURES, TEMPLATE_KINDS, KIND_NAMES, TRIAL_DAYS, REMIND_DAYS, PLANS_LAUNCHED_AT,
+  TIERS, TIER_NAMES, CYCLES, PRICES, LIMITS, TRIAL_LIMITS, FEATURES, TEMPLATE_KINDS, KIND_NAMES, TRIAL_DAYS, REMIND_DAYS, PLANS_LAUNCHED_AT,
   pricePaise, tierFor, kindAllowed, tierWithMore, trialEndsAt, isLegacy, planState, hasFeature, assertFeature, PlanLimitError, tierRank, isPaidTier,
 };

@@ -5,7 +5,7 @@ import { CtaBand, PageHero, SiteLink, SitePage } from '../SiteChrome';
 import { PAGE_META } from '../siteMeta';
 import { CycleToggle, MessageChargesLink, PlanCards } from '../../crm/components/PlanCards';
 import { BuyNowSvg } from '../../crm/components/TemplateIcons';
-import { LIMITS, TIER_NAMES, TIER_ORDER, TRIAL_DAYS, kindsOf, type BillingCycle } from '../../crm/plans';
+import { LIMITS, TIER_NAMES, TIER_ORDER, TRIAL_DAYS, TRIAL_LIMITS, kindsOf, type BillingCycle } from '../../crm/plans';
 import type { PlanFeature, PlanTierKey } from '../../crm/types';
 import { FaqList, Section } from './parts';
 
@@ -99,7 +99,7 @@ function CellView({ v }: { v: Cell }) {
 }
 
 const FAQS = [
-  { q: 'Is there a free trial?', a: `Yes. Every new account gets ${TRIAL_DAYS} days with every feature of every plan. No card is needed to start.` },
+  { q: 'Is there a free trial?', a: `Yes. Every new account gets ${TRIAL_DAYS} days with every feature of every plan, with up to ${TRIAL_LIMITS.templates} templates and ${TRIAL_LIMITS.campaigns} campaigns during the trial. No card is needed to start.` },
   { q: 'What happens when the trial ends?', a: 'Your data is kept. Without a plan, only the Starter features stay open; the rest unlock again when you buy a plan that includes them.' },
   { q: 'Do plans renew automatically?', a: 'No. You pay for a month, a quarter or a year in advance, and we never charge you again on our own. Renew before the period ends to continue without a break.' },
   { q: 'How do I pay?', a: 'Online through Razorpay: UPI, cards, net banking and wallets. The price shown at checkout is what you pay.' },

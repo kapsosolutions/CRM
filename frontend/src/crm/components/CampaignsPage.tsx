@@ -12,6 +12,7 @@ import { Dropdown, type KOption } from './Dropdown';
 import { CountryFlag } from './CountryFlag';
 import { TemplatePhonePreview, previewPropsFromTemplate } from './TemplatePhonePreview';
 import { useNotify, useConfirm } from './Dialogs';
+import { usePlan } from '../PlanContext';
 import { CalendarSvg, AddToListSvg, CancelIconSvg, TemplateDraftSvg, SendNowSvg, ContactsSvg } from './TemplateIcons';
 import { CampaignOverview } from './CampaignOverview';
 import { TemplateComposerPage } from './TemplateComposerPage';
@@ -202,6 +203,7 @@ function CountryPickerDropdown({
 
 export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, startRequest, onStartRequestHandled, onOpenChat }: Props) {
   const notify = useNotify();
+  const { planLimitHit } = usePlan();
   const confirm = useConfirm();
   const [viewMode, setViewMode] = useState<'overview' | 'create' | 'create-template' | 'meta-create'>('overview');
   // Create template from the Template Library: the page starts filled in from it.
@@ -809,6 +811,7 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
       );
       setViewMode('overview');
     } catch (e) {
+      if (planLimitHit(e)) return;
       notify('error', 'Could not schedule the campaign', (e as Error).message || 'Please try again.');
     }
   }
@@ -828,6 +831,7 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
       );
       setViewMode('overview');
     } catch (e) {
+      if (planLimitHit(e)) return;
       notify('error', 'Could not start the campaign', (e as Error).message || 'Please try again.');
     }
   }

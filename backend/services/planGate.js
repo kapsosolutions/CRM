@@ -112,6 +112,12 @@ export async function assertTemplateAllowed(biz, { name, category, kind }) {
     const existing = clean ? await Template.exists({ businessId: biz._id, name: clean }) : false;
     if (!existing) {
       const count = await Template.countDocuments({ businessId: biz._id });
+      if (count >= L.templates && state.status === 'trial') {
+        throw new PlanLimitError(
+          `Your free trial includes ${L.templates} templates, and you have ${count}. Delete one, or choose a plan to create more (${TIER_NAMES.free} includes ${LIMITS.free.templates}).`,
+          { code: 'TEMPLATE_LIMIT', feature: 'templates', needs: 'free', limit: L.templates },
+        );
+      }
       if (count >= L.templates) {
         const needs = tierWithMore(state.tier, 'templates');
         const more = LIMITS[needs].templates;
@@ -137,10 +143,32 @@ export async function campaignsThisMonth(businessId, { exceptId = null } = {}) {
   return self ? n - 1 : n;
 }
 
+/**
+ * Campaigns launched (sent or scheduled, not drafts) during the free trial.
+ * A business on its trial has never had a plan, so that's all of them.
+ */
+export async function campaignsInTrial(businessId, { exceptId = null } = {}) {
+  const filter = { businessId, status: { $ne: 'draft' } };
+  const n = await Campaign.countDocuments(filter);
+  if (!exceptId) return n;
+  const self = await Campaign.exists({ _id: exceptId, ...filter });
+  return self ? n - 1 : n;
+}
+
 /** Throws unless the plan allows launching one more campaign this month (channel aware). */
 export async function assertCampaignAllowed(biz, { channel = 'whatsapp', exceptId = null } = {}) {
   const state = assertFeature(biz, 'campaigns');
   if (channel === 'messenger' || channel === 'instagram') assertFeature(biz, channel);
+  const trialCap = state.status === 'trial' ? state.limits.trialCampaigns : null;
+  if (trialCap) {
+    const used = await campaignsInTrial(biz._id, { exceptId });
+    if (used >= trialCap) {
+      throw new PlanLimitError(
+        `Your free trial includes ${trialCap} campaigns, and you've launched ${used}. Choose a plan to launch more (${TIER_NAMES.free} includes ${LIMITS.free.campaignsPerMonth} a month). You can still save drafts.`,
+        { code: 'CAMPAIGN_LIMIT', feature: 'campaigns', needs: 'free', limit: trialCap },
+      );
+    }
+  }
   const cap = state.limits.campaignsPerMonth;
   if (cap === null || cap === undefined) return state;
   const used = await campaignsThisMonth(biz._id, { exceptId });
@@ -193,5 +221,5 @@ export function requireFeature(feature, { only } = {}) {
 
 export default {
   planOf, tenantHasFeature, contactAllowance, assertContact, assertTemplateAllowed,
-  campaignsThisMonth, assertCampaignAllowed, sendPlanError, requireFeature,
+  campaignsThisMonth, campaignsInTrial, assertCampaignAllowed, sendPlanError, requireFeature,
 };

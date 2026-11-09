@@ -13,7 +13,8 @@
 //   Pro      Every feature and template format, 300 templates, 50
 //            campaigns at 20/s, Ads and Create.
 //   Premium  Everything, no template or campaign limits, 40/s.
-// Every new business gets every feature for 7 days first (the free trial).
+// Every new business gets every feature for 7 days first (the free trial),
+// with up to 5 templates and 3 campaigns during it (TRIAL_LIMITS).
 // No plan limits contacts.
 // Prices are per month and are what the customer pays; quarterly and annual
 // are paid upfront.
@@ -28,6 +29,8 @@ export const BILLING_CYCLES: { key: BillingCycle; label: string; months: number;
 ];
 
 export const TRIAL_DAYS = 7;
+/** The free trial opens every feature but caps templates (in the account) and campaigns (the whole trial). Matches the server. */
+export const TRIAL_LIMITS = { templates: 5, campaigns: 3 };
 
 /** Meta's per-message prices, in every country (public/meta-whatsapp-pricing.pdf). */
 export const META_PRICING_PDF = '/meta-whatsapp-pricing.pdf';

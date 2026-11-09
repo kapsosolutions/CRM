@@ -1665,6 +1665,8 @@ export interface PlanLimits {
   templates: number | null;
   /** Campaigns launched per calendar month; null = unlimited. */
   campaignsPerMonth: number | null;
+  /** Free trial only: campaigns it may launch during the whole trial. */
+  trialCampaigns?: number;
   /** Template formats it may create (older servers: from `carousel`). */
   templateKinds?: TemplateKind[];
   /** Campaign messages per second. */
@@ -1751,7 +1753,8 @@ export interface PlanPayment {
 export interface PlanUsage {
   contacts: { used: number | null; limit: number | null };
   templates: { used: number; limit: number | null };
-  campaigns: { used: number; limit: number | null };
+  /** period 'trial': the limit covers the whole free trial, not a month. */
+  campaigns: { used: number; limit: number | null; period?: 'trial' | 'month' };
 }
 
 /** GET /api/billing: what Settings → Billing shows. */

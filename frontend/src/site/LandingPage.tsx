@@ -29,7 +29,7 @@ const FAQ_ITEMS: FaqItem[] = [
   },
   {
     q: 'Can I try Kapso Solutions for free?',
-    a: 'Yes. Every new account gets a 7-day free trial with every feature, and no card is needed. After that, plans start at ₹499 a month with the Starter plan: a team inbox for unlimited contacts on the official WhatsApp Business API.',
+    a: 'Yes. Every new account gets a 7-day free trial with every feature (up to 5 templates and 3 campaigns), and no card is needed. After that, plans start at ₹499 a month with the Starter plan: a team inbox for unlimited contacts on the official WhatsApp Business API.',
   },
   {
     q: 'Is there any WhatsApp Business API procurement fee for a brand/business?',

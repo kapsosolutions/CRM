@@ -9,7 +9,7 @@ import SubscriptionPayment from '../models/SubscriptionPayment.js';
 import { isWhatsAppConnected, sandboxConfig, sandboxContacts } from './sandbox.js';
 import { getNumberStatus } from './metaAccount.js';
 import { planState } from './plans.js';
-import { contactAllowance, campaignsThisMonth } from './planGate.js';
+import { contactAllowance, campaignsThisMonth, campaignsInTrial } from './planGate.js';
 import { presentPayment } from './subscriptions.js';
 import { razorpayConfigured } from './razorpay.js';
 
@@ -48,15 +48,17 @@ async function messagingOf(biz) {
 /** How much of each limited thing the business uses, next to its plan's limit (null = unlimited). */
 export async function usageOf(biz, state = planState(biz)) {
   const L = state.limits;
+  // On the free trial the campaign cap covers the whole trial, not a month.
+  const trial = state.status === 'trial' && !!L.trialCampaigns;
   const [contacts, templates, campaigns] = await Promise.all([
     contactAllowance(biz._id, state),
     Template.countDocuments({ businessId: biz._id }),
-    campaignsThisMonth(biz._id),
+    trial ? campaignsInTrial(biz._id) : campaignsThisMonth(biz._id),
   ]);
   return {
     contacts: { used: contacts.limit ? contacts.total : null, limit: L.contacts },
     templates: { used: templates, limit: L.templates },
-    campaigns: { used: campaigns, limit: L.campaignsPerMonth },
+    campaigns: { used: campaigns, limit: trial ? L.trialCampaigns : L.campaignsPerMonth, period: trial ? 'trial' : 'month' },
   };
 }
 

@@ -53,7 +53,7 @@ const GROUPS: { id: string; icon: string; title: string; faqs: Faq[] }[] = [
     icon: 'receipt_long',
     title: 'Plans & billing',
     faqs: [
-      { q: 'Is there a free trial?', a: 'Yes, 7 days with every feature. No card is needed.' },
+      { q: 'Is there a free trial?', a: 'Yes, 7 days with every feature, with up to 5 templates and 3 campaigns during the trial. No card is needed.' },
       { q: 'Do plans renew automatically?', a: 'No. You pay for a month, quarter or year in advance and we never charge you again on our own.' },
       { q: 'Are Meta’s message charges included in the plan?', a: 'No. Meta charges them to your WhatsApp account separately. Each number gets 1,000 free service messages (replies) a month; see our WhatsApp pricing guide.' },
       { q: 'Can I get a refund?', a: 'See our Refund and Cancellation Policy for when refunds apply.' },

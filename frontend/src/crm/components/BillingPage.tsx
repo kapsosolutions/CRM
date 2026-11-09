@@ -9,7 +9,7 @@ import type { CrmView } from './NavRail';
 import { PlanAction, usePlanPurchase } from './BuyPlanModal';
 import { CycleToggle, MessageChargesLink, PlanCards } from './PlanCards';
 import { usePlan } from '../PlanContext';
-import { TIER_NAMES, cycleLabel, rupees, type BillingCycle } from '../plans';
+import { TIER_NAMES, TRIAL_LIMITS, cycleLabel, rupees, type BillingCycle } from '../plans';
 import '../../site/site.css';
 import './Billing.css';
 
@@ -113,7 +113,7 @@ export function BillingPage({ api, demo = false, onNavigate, onEditProfile }: Pr
       : { cls: 'paid', text: plan.name };
 
   const statusLine = plan.status === 'trial'
-    ? `Every feature is open during your trial. It ends on ${fmtDate(plan.endsAt)} (${plan.daysLeft === 1 ? '1 day' : `${plan.daysLeft} days`} left); after that only the Starter features stay open unless you choose a plan.`
+    ? `Every feature is open during your trial, with up to ${TRIAL_LIMITS.templates} templates and ${TRIAL_LIMITS.campaigns} campaigns. It ends on ${fmtDate(plan.endsAt)} (${plan.daysLeft === 1 ? '1 day' : `${plan.daysLeft} days`} left); after that only the Starter features stay open unless you choose a plan.`
     : plan.status === 'active'
       ? `You're on ${plan.name}${plan.cycle ? ` (${cycleLabel(plan.cycle)})` : ''} until ${fmtDate(plan.endsAt)}. Renew before then to keep it.`
       : plan.status === 'legacy'
@@ -151,7 +151,7 @@ export function BillingPage({ api, demo = false, onNavigate, onEditProfile }: Pr
           <div className="bl-usage" data-testid="billing-usage">
             <UsageRow label="Contacts you can chat with" used={usage.contacts.used} limit={usage.contacts.limit} unit="contacts" />
             <UsageRow label="Templates" used={usage.templates.used} limit={usage.templates.limit} unit="templates" />
-            <UsageRow label="Campaigns this month" used={usage.campaigns.used} limit={usage.campaigns.limit} unit="campaigns" />
+            <UsageRow label={usage.campaigns.period === 'trial' ? 'Campaigns during the trial' : 'Campaigns this month'} used={usage.campaigns.used} limit={usage.campaigns.limit} unit="campaigns" />
           </div>
 
           <dl className="bl-kv">
