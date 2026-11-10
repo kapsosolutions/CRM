@@ -5,15 +5,14 @@
 //   free     "Starter", ₹499/month (the key is still 'free' so stored
 //            subscriptions keep working): the WhatsApp team inbox, 50
 //            templates (standard format; Marketing and Utility), 10
-//            campaigns a month at 5 messages/s, and journeys (basic
-//            automation, no native WhatsApp Flows). No calls, polls,
-//            events, template API keys, catalog / orders / payments,
-//            Instagram, Messenger, Ads or Create.
+//            campaigns a month at 5 messages/s, journeys + native WhatsApp
+//            Flows (with the form request pages), and Orders & bookings.
+//            No calls, polls, events, template API keys, catalog /
+//            payments, Instagram, Messenger, Ads or Create.
 //   basic    100 templates (standard + carousel; Authentication too), 25
 //            campaigns a month at 10/s, journeys + native WhatsApp Flows,
-//            calls, polls, events, API keys, catalog, payment
-//            configuration, Instagram and Messenger. No Orders /
-//            Appointments page (or bookings API), Ads or Create.
+//            orders, calls, polls, events, API keys, catalog, payment
+//            configuration, Instagram and Messenger. No Ads or Create.
 //   pro      Every feature and template format (limited-time offers too),
 //            300 templates, 50 campaigns a month at 20/s, Ads and Create.
 //   premium  Everything, with no template or campaign limits, at 40/s.
@@ -75,7 +74,8 @@ const without = (...f) => ALL.filter((x) => !f.includes(x));
 // (= templateKinds includes 'carousel').
 export const LIMITS = {
   free: {
-    features: ['chats', 'templates', 'campaigns', 'journeys'],
+    // Journeys and native WhatsApp Flows, with their form pages and Orders & bookings.
+    features: ['chats', 'templates', 'campaigns', 'journeys', 'flows', 'orders'],
     contacts: null,
     templates: 50,
     templateKinds: ['standard'],
@@ -85,7 +85,8 @@ export const LIMITS = {
     authTemplates: false,
   },
   basic: {
-    features: without('orders', 'ads', 'create'),
+    // Orders too: Starter has them, and a plan up never takes a page away.
+    features: without('ads', 'create'),
     contacts: null,
     templates: 100,
     templateKinds: ['standard', 'carousel'],

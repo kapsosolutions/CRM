@@ -5,11 +5,12 @@
 //
 //   Starter  ₹499 (tier key 'free'): WhatsApp team inbox, 50 templates
 //            (standard; Marketing + Utility), 10 campaigns/month at 5/s,
-//            journeys (no native WhatsApp Flows).
+//            journeys + native WhatsApp Flows (with the form request
+//            pages), and Orders & bookings.
 //   Basic    100 templates (standard + carousel, Authentication too), 25
-//            campaigns at 10/s, journeys + WhatsApp Flows, calls, polls,
-//            events, API keys, catalog, payments, Instagram and
-//            Messenger. No Orders / Appointments page, Ads or Create.
+//            campaigns at 10/s, journeys + WhatsApp Flows, orders, calls,
+//            polls, events, API keys, catalog, payments, Instagram and
+//            Messenger. No Ads or Create.
 //   Pro      Every feature and template format, 300 templates, 50
 //            campaigns at 20/s, Ads and Create.
 //   Premium  Everything, no template or campaign limits, 40/s.
@@ -46,11 +47,11 @@ const without = (...f: PlanFeature[]) => ALL.filter((x) => !f.includes(x));
 
 export const LIMITS: Record<PlanTierKey, PlanLimits> = {
   free: {
-    features: ['chats', 'templates', 'campaigns', 'journeys'], contacts: null, templates: 50, templateKinds: ['standard'],
+    features: ['chats', 'templates', 'campaigns', 'journeys', 'flows', 'orders'], contacts: null, templates: 50, templateKinds: ['standard'],
     campaignsPerMonth: 10, sendRate: 5, carousel: false, authTemplates: false,
   },
   basic: {
-    features: without('orders', 'ads', 'create'), contacts: null, templates: 100, templateKinds: ['standard', 'carousel'],
+    features: without('ads', 'create'), contacts: null, templates: 100, templateKinds: ['standard', 'carousel'],
     campaignsPerMonth: 25, sendRate: 10, carousel: true, authTemplates: true,
   },
   pro: {
@@ -106,7 +107,7 @@ export const PLANS: PlanTier[] = [
     key: 'free',
     name: 'Starter',
     theme: 'slate',
-    description: 'The WhatsApp CRM: a team inbox, templates, campaigns and journeys on the official API.',
+    description: 'The WhatsApp CRM: a team inbox, templates, campaigns, journeys, WhatsApp Flows and orders on the official API.',
     includes: [
       'WhatsApp CRM: team inbox, unlimited contacts',
       n(LIMITS.free.templates, 'message templates'),
@@ -114,7 +115,8 @@ export const PLANS: PlanTier[] = [
       'Marketing & Utility templates',
       `${n(LIMITS.free.campaignsPerMonth, 'campaigns')} a month (broadcast & drip)`,
       speed('free'),
-      'Basic automation: journeys & keyword replies',
+      'Advanced automation: journeys + native WhatsApp Flows',
+      'Form requests & orders and bookings pages',
       FREE_SERVICE,
       'Your own WhatsApp number · official Meta Cloud API',
     ],
@@ -123,8 +125,7 @@ export const PLANS: PlanTier[] = [
       'Authentication (OTP) templates',
       'WhatsApp calls, polls & events',
       'Template API keys',
-      'WhatsApp Flows (native forms)',
-      'Catalog, orders & payment configuration',
+      'Catalog & payment configuration',
       'Instagram, Messenger & Ads',
     ],
     buttonColor: '#e2e8f0',
@@ -144,12 +145,12 @@ export const PLANS: PlanTier[] = [
       'Advanced automation: journeys + native WhatsApp Flows',
       'WhatsApp calls, polls & events in chats',
       'Template API keys (send from your website or app)',
-      'Catalog, categories, members & offers',
+      'Catalog, categories, members, offers, orders & bookings',
       'WhatsApp Pay configuration',
       'Instagram & Messenger accounts',
       FREE_SERVICE,
     ],
-    excludes: ['Limited-time offer templates', 'Orders & appointments (bookings)', 'Ads', 'Create: Facebook & Instagram posts'],
+    excludes: ['Limited-time offer templates', 'Ads', 'Create: Facebook & Instagram posts'],
     buttonColor: '#38bdf8',
   },
   {

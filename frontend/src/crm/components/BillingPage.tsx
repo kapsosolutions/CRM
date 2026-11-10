@@ -119,8 +119,8 @@ export function BillingPage({ api, demo = false, onNavigate, onEditProfile }: Pr
       : plan.status === 'legacy'
         ? `You're on ${plan.name}: every feature, as when you joined. Buy a plan any time; it starts straight away.`
         : plan.ended?.kind === 'plan'
-          ? `Your ${plan.ended.name} plan ended on ${fmtDate(plan.ended.at)}. Choose a plan to unlock everything again; until then only the Starter features stay open (chats, 50 templates, 10 campaigns a month and journeys).`
-          : `Your free trial ended${plan.ended?.at ? ` on ${fmtDate(plan.ended.at)}` : ''}. Choose a plan to unlock everything again; until then only the Starter features stay open (chats, 50 templates, 10 campaigns a month and journeys).`;
+          ? `Your ${plan.ended.name} plan ended on ${fmtDate(plan.ended.at)}. Choose a plan to keep using the CRM; your chats and data are kept.`
+          : `Your free trial ended${plan.ended?.at ? ` on ${fmtDate(plan.ended.at)}` : ''}. Choose a plan to keep using the CRM; your chats and data are kept.`;
 
   return (
     <div className="bl-page" data-testid="billing-page">
