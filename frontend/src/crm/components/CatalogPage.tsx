@@ -9,6 +9,7 @@ import type { BusinessProfile, BusinessSettings, Category, MetaCatalogLogin, Off
 import { useMetaBusinessLogin } from './MetaBusinessLogin';
 import { CatalogPicker } from './CatalogPicker';
 import { ProductEditorPage } from './ProductEditorPage';
+import { RequireFirstBanner } from './RequireFirst';
 import { ProductDetailsPage } from './ProductDetailsPage';
 import { PhotoCarousel } from './PhotoCarousel';
 import { verticalConfig, type VerticalConfig } from '../verticals';
@@ -29,6 +30,8 @@ interface Props {
   business?: BusinessProfile;
   demo?: boolean;
   onBusinessUpdated?: (b: BusinessProfile) => void;
+  /** Open the categories page (a product needs at least one to be added). */
+  onOpenCategories?: () => void;
 }
 
 const money = (n: number) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
@@ -166,7 +169,7 @@ type ApiErr = Error & { data?: { code?: string } | null };
 const errCode = (e: unknown) => (e as ApiErr)?.data?.code || '';
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Something went wrong. Please try again.');
 
-function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: Props) {
+function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated, onOpenCategories }: Props) {
   const v = vertical || verticalConfig('other');
   const confirm = useConfirm();
   const notify = useNotify();
@@ -227,6 +230,21 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // A product is listed under at least one category (the editor won't save
+  // without one, and WhatsApp's catalog lists products by it): adding stays
+  // locked until there's a category to put it in.
+  const addLocked = !loading && categories.length === 0;
+  const catWord = v.categoryLabel.toLowerCase();
+  const lockReason = `Add at least 1 ${catWord} first. Every product is listed under a ${catWord} (e.g. ${v.categoryExample}).`;
+  function startAdd() {
+    if (addLocked) {
+      flash(`Add at least 1 ${catWord} first.`);
+      onOpenCategories?.();
+      return;
+    }
+    setEditing('new');
+  }
 
   // Sync catalog ID if business prop updates from parent
   useEffect(() => {
@@ -872,8 +890,14 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
             <button className="k-btn ghost sm" onClick={sync} disabled={syncing}>
               <span className="material-icons">sync</span> {syncing ? 'Syncing…' : 'Sync to Meta'}
             </button>
-            <button className="page-add" onClick={() => setEditing('new')} title="Add product">
-              <span className="material-icons">add</span>
+            <button
+              className={`page-add${addLocked ? ' locked' : ''}`}
+              onClick={startAdd}
+              title={addLocked ? `Add at least 1 ${catWord} first` : 'Add product'}
+              data-testid="catalog-add"
+              data-locked={addLocked ? 'true' : undefined}
+            >
+              <span className="material-icons">{addLocked ? 'lock' : 'add'}</span>
             </button>
           </>
         )}
@@ -881,13 +905,18 @@ function CatalogPageInner({ api, vertical, business, demo, onBusinessUpdated }: 
 
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}
+        {!loading && addLocked && products.length > 0 && (
+          <RequireFirstBanner text={lockReason} action={`Add ${v.categoryPlural.toLowerCase()}`} onAction={onOpenCategories} />
+        )}
         {!loading && products.length === 0 && (
           <CrmPageHero
             icon={<CatalogRailSvg />}
             tone="teal"
             {...catalogHero(v)}
-            actionIcon="add"
-            onAction={() => setEditing('new')}
+            actionIcon={addLocked ? 'lock' : 'add'}
+            {...(addLocked
+              ? { actionLabel: `Add ${v.categoryPlural.toLowerCase()} first`, note: lockReason, onAction: onOpenCategories }
+              : { onAction: () => setEditing('new') })}
             testId="catalog-hero"
           />
         )}

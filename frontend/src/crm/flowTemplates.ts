@@ -180,6 +180,9 @@ const order = (id: string, title: string, description: string, defaults: Partial
   ({ id, title, description, icon, main: { kind: 'order' }, defaults });
 const booking = (id: string, title: string, description: string, defaults: Partial<TemplateOptions>, icon = 'event_available'): TemplateCard =>
   ({ id, title, description, icon, main: { kind: 'booking' }, defaults });
+// A form opens on the form itself. Only a card that says so asks the category
+// (and maybe the member) first: a site visit, a report upload or feedback
+// don't need one, and a category step with no categories made is a dead end.
 const form = (presetId: string, defaults: Partial<TemplateOptions> = {}, title?: string, description?: string, id?: string): TemplateCard => {
   const p = presetById(presetId);
   return {
@@ -188,9 +191,18 @@ const form = (presetId: string, defaults: Partial<TemplateOptions> = {}, title?:
     description: description || `The “${p?.title || presetId}” form: answers land on its page under Forms in the sidebar.`,
     icon: p?.icon || 'assignment',
     main: { kind: 'form', form: presetId },
-    defaults,
+    defaults: { categoryStep: false, ...defaults },
   };
 };
+
+/** Does this card's flow open with a category list (as built, not just as set)? */
+export function asksCategoryFirst(card: TemplateCard, v: VerticalConfig): boolean {
+  const o = optionsFor(card);
+  if (!o.categoryStep || !v.showsPage('categories') || card.main.kind === 'track') return false;
+  // A form asks it only in the business types whose forms are about a member.
+  if (card.main.kind === 'form') return v.archetype === 'lead' || v.archetype === 'unit' || v.archetype === 'person' || v.key === 'other';
+  return true;
+}
 const track = (id: string, title: string, description: string): TemplateCard =>
   ({ id, title, description, icon: 'local_shipping', main: { kind: 'track' }, defaults: {} });
 

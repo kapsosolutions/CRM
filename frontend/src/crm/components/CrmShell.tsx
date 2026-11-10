@@ -1491,6 +1491,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                   business={business}
                   demo={demo}
                   onBusinessUpdated={(b) => setBusiness(b)}
+                  onOpenCategories={vertical.showsPage('categories') ? () => navigate('categories') : undefined}
                 />
               )
             )}

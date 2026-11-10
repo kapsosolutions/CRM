@@ -7,7 +7,7 @@ import type { CrmApi } from '../api';
 import type { WaFlowDef } from '../types';
 import type { VerticalConfig } from '../verticals';
 import {
-  buildTemplate, checkTemplateFlow, choicesFor, extrasFor, isLinkKind, LINK_INFO, LINK_KINDS, LINK_NEED, linkProblem, MAX_EXTRAS, optionsFor, templateCardsFor,
+  asksCategoryFirst, buildTemplate, checkTemplateFlow, choicesFor, extrasFor, isLinkKind, LINK_INFO, LINK_KINDS, LINK_NEED, linkProblem, MAX_EXTRAS, optionsFor, templateCardsFor,
   type ChoiceDef, type LinkDetails, type LinkKind, type TemplateCard, type TemplateOptions,
 } from '../flowTemplates';
 import './FlowTemplateGallery.css';
@@ -19,22 +19,30 @@ function freeName(base: string, taken: Set<string>): string {
 }
 
 /** The short tags on a card: how it pays, PDF, how many menu items. */
-function tagsOf(card: TemplateCard, v: VerticalConfig): string[] {
+/** The short tags on a card, each with a line saying what it means. */
+function tagsOf(card: TemplateCard, v: VerticalConfig): { text: string; title: string }[] {
   const o = optionsFor(card);
-  const t: string[] = [];
+  const t: { text: string; title: string }[] = [];
+  const lowerCat = v.categoryLabel.toLowerCase();
   if (card.main.kind === 'order' || card.main.kind === 'booking') {
     if (card.main.kind === 'order') {
-      t.push(o.mode === 'choose' ? 'Customer chooses how' : o.mode === 'takeaway' ? (v.key === 'restaurant' ? 'Takeaway' : 'Pickup') : o.mode === 'dinein' ? 'Dine-in' : 'Delivery');
+      const how = o.mode === 'choose' ? 'Customer chooses how' : o.mode === 'takeaway' ? (v.key === 'restaurant' ? 'Takeaway' : 'Pickup') : o.mode === 'dinein' ? 'Dine-in' : 'Delivery';
+      t.push({ text: how, title: 'How the customer gets the order' });
     }
-    t.push(o.pay === 'online' ? 'Pay online' : o.pay === 'cash' ? 'Pay later' : o.pay === 'both' ? 'Online or later' : 'No payment');
-    if (o.confirm === 'pdf') t.push('PDF slip');
+    const pay = o.pay === 'online' ? 'Pay online' : o.pay === 'cash' ? 'Pay later' : o.pay === 'both' ? 'Online or later' : 'No payment';
+    t.push({ text: pay, title: 'How the customer pays' });
+    if (o.confirm === 'pdf') t.push({ text: 'PDF slip', title: 'The confirmation comes with a PDF' });
   } else if (card.main.kind === 'form') {
-    t.push('Form');
-    if (o.categoryStep && v.showsPage('categories')) t.push(`${v.categoryLabel} first`);
+    t.push({ text: 'Form', title: 'The customer fills in a form; answers land on its page under Forms' });
   } else {
-    t.push('Order status');
+    t.push({ text: 'Order status', title: 'The customer picks an open order and sees its status' });
   }
-  if (o.extras.length) t.push(`Menu · ${o.extras.length + 1} items`);
+  if (asksCategoryFirst(card, v)) {
+    t.push({ text: `Asks ${lowerCat} first`, title: `The customer picks a ${lowerCat} first, so add your ${v.categoryPlural.toLowerCase()} before using it` });
+  }
+  if (o.extras.length) {
+    t.push({ text: `Menu of ${o.extras.length + 1}`, title: `The flow opens on a menu with ${o.extras.length + 1} options to pick from` });
+  }
   return t;
 }
 
@@ -226,7 +234,7 @@ export function ReadyTemplates({
               <span className="ftg-card-title">{c.title}</span>
               <span className="ftg-card-desc">{c.description}</span>
               <span className="ftg-tags">
-                {tagsOf(c, vertical).map((t) => <span className="ftg-tag" key={t}>{t}</span>)}
+                {tagsOf(c, vertical).map((t) => <span className="ftg-tag" key={t.text} title={t.title}>{t.text}</span>)}
               </span>
             </button>
           ))}

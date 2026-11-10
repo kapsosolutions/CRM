@@ -19,6 +19,7 @@ import { membersHero } from '../emptyPages';
 import { BladeSpinner } from './BladeSpinner';
 import { CARD_PAGE_SIZES, Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
+import { RequireFirstBanner } from './RequireFirst';
 import type { BusinessProfile } from '../types';
 
 const DAYS: { key: string; label: string }[] = [
@@ -174,6 +175,7 @@ export function MembersPage({ api, vertical, business, demo, onConnected, onOpen
 
   const [members, setMembers] = useState<Member[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [catsLoaded, setCatsLoaded] = useState(false);
   const [loading, setLoading] = useState(true);
   // null = list view, 'new' = add, Member = edit.
   const [editing, setEditing] = useState<Member | 'new' | null>(null);
@@ -193,9 +195,26 @@ export function MembersPage({ api, vertical, business, demo, onConnected, onOpen
     api
       .getCategories()
       .then((res) => setCategories(res.data || []))
-      .catch(() => setCategories([]));
+      .catch(() => setCategories([]))
+      .finally(() => setCatsLoaded(true));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Every member sits in a category (Property type, Specialisation…): the
+  // flows pick the category first and then list its members. With none made,
+  // adding is locked until there's at least one.
+  const needsCategory = v.showsPage('categories');
+  const addLocked = needsCategory && catsLoaded && categories.length === 0;
+  const catWord = v.categoryLabel.toLowerCase();
+  const lockReason = `Add at least 1 ${catWord} first. Every ${v.memberSingular.toLowerCase()} belongs to a ${catWord} (e.g. ${v.categoryExample}), and your WhatsApp flows list them by it.`;
+  function startAdd() {
+    if (addLocked) {
+      flash(`Add at least 1 ${catWord} first.`);
+      onOpenCategories?.();
+      return;
+    }
+    setEditing('new');
+  }
 
   async function remove(m: Member) {
     const one = v.memberSingular.toLowerCase();
@@ -232,6 +251,7 @@ export function MembersPage({ api, vertical, business, demo, onConnected, onOpen
         vertical={v}
         member={editing === 'new' ? null : editing}
         categories={categories}
+        categoryRequired={needsCategory}
         onOpenCategories={onOpenCategories}
         onBack={() => setEditing(null)}
         onSaved={(note) => {
@@ -263,21 +283,32 @@ export function MembersPage({ api, vertical, business, demo, onConnected, onOpen
             </select>
           )}
           <DataApiButton api={api} resource="members" labels={{ many: v.memberLabel, one: v.memberSingular }} />
-          <button className="page-add" onClick={() => setEditing('new')} title={`Add ${v.memberSingular.toLowerCase()}`}>
-            <span className="material-icons">add</span>
+          <button
+            className={`page-add${addLocked ? ' locked' : ''}`}
+            onClick={startAdd}
+            title={addLocked ? `Add at least 1 ${catWord} first` : `Add ${v.memberSingular.toLowerCase()}`}
+            data-testid="members-add"
+            data-locked={addLocked ? 'true' : undefined}
+          >
+            <span className="material-icons">{addLocked ? 'lock' : 'add'}</span>
           </button>
         </header>
       )}
 
       <div className="page-body">
         {loading && <BladeSpinner center={true} containerHeight={200} />}
+        {!loading && addLocked && members.length > 0 && (
+          <RequireFirstBanner text={lockReason} action={`Add ${v.categoryPlural.toLowerCase()}`} onAction={onOpenCategories} />
+        )}
         {!loading && members.length === 0 && (
           <CrmPageHero
             icon={v.memberIcon}
             tone="purple"
             {...membersHero(v)}
-            actionIcon="add"
-            onAction={() => setEditing('new')}
+            actionIcon={addLocked ? 'lock' : 'add'}
+            {...(addLocked
+              ? { actionLabel: `Add ${v.categoryPlural.toLowerCase()} first`, note: lockReason, onAction: onOpenCategories }
+              : { onAction: () => setEditing('new') })}
             testId="members-hero"
           />
         )}
@@ -291,7 +322,7 @@ export function MembersPage({ api, vertical, business, demo, onConnected, onOpen
             actionIcon="clear"
             onAction={() => setFilter('')}
             secondaryActionLabel={`Add to ${filter}`}
-            onSecondaryAction={() => setEditing('new')}
+            onSecondaryAction={startAdd}
           />
         )}
 
@@ -347,6 +378,7 @@ function MemberEditor({
   vertical: v,
   member,
   categories,
+  categoryRequired = false,
   onBack,
   onSaved,
   onOpenCategories,
@@ -355,6 +387,8 @@ function MemberEditor({
   vertical: VerticalConfig;
   member: Member | null;
   categories: Category[];
+  /** Every member must sit in a category (the flows list them by it). */
+  categoryRequired?: boolean;
   onBack: () => void;
   /** Open this business's categories page (Property types, Specialisations…). */
   onOpenCategories?: () => void;
@@ -518,8 +552,14 @@ function MemberEditor({
   const removeBlock = (idx: number) =>
     writeBlocks((form.unavailability || []).filter((_, i) => i !== idx));
 
+  // Required where the flows list members by category.
+  const missingCategory = categoryRequired && !form.category?.trim();
   function save() {
     if (!form.name?.trim() || saving) return;
+    if (missingCategory) {
+      setError(`Choose a ${v.categoryLabel.toLowerCase()} for this ${v.memberSingular.toLowerCase()}.`);
+      return;
+    }
     setSaving(true);
     setError('');
     const fd = new FormData();
@@ -585,7 +625,12 @@ function MemberEditor({
         </span>
         <div className="flow-head-actions">
           <button className="k-btn ghost sm" onClick={handleClose}>Cancel</button>
-          <button className="k-btn" onClick={save} disabled={!form.name?.trim() || saving}>
+          <button
+            className="k-btn"
+            onClick={save}
+            disabled={!form.name?.trim() || missingCategory || saving}
+            title={missingCategory ? `Choose a ${v.categoryLabel.toLowerCase()} first` : undefined}
+            data-testid="mem-save">
             <span className="material-icons">{editing ? 'save' : 'add'}</span>
             {saving ? 'Saving…' : editing ? 'Save' : `Add ${v.memberSingular.toLowerCase()}`}
           </button>
@@ -619,15 +664,16 @@ function MemberEditor({
                   placeholder={`e.g. ${v.memberTitleExample}`}
                 />
               </div>
-              {/* The group in this business's own words (Property type, Specialisation…), optional.
+              {/* The group in this business's own words (Property type, Specialisation…):
+                  required where the flows list members by it, else optional.
                   With none made yet there is nothing to pick: say so and offer the page. */}
               <div className="k-field" data-testid="mem-category-field">
                 <label className="k-label">
-                  {v.categoryLabel} <span className="k-label-optional">(optional)</span>
+                  {v.categoryLabel}{categoryRequired ? ' *' : <> <span className="k-label-optional">(optional)</span></>}
                 </label>
                 {categories.length > 0 || form.category ? (
                   <select className="k-input" value={form.category || ''} onChange={(e) => set({ category: e.target.value })} data-testid="mem-category">
-                    <option value="">None</option>
+                    <option value="" disabled={categoryRequired}>{categoryRequired ? `Choose a ${v.categoryLabel.toLowerCase()}` : 'None'}</option>
                     {form.category && !categories.some((c) => c.name === form.category) && (
                       <option value={form.category}>{form.category}</option>
                     )}
@@ -638,8 +684,10 @@ function MemberEditor({
                 ) : (
                   <div className="mem-cat-empty" data-testid="mem-category-empty">
                     <span>
-                      No {v.categoryPlural.toLowerCase()} yet. Add some to group your {v.memberLabel.toLowerCase()} by{' '}
-                      {v.categoryLabel.toLowerCase()} in WhatsApp flows (e.g. {v.categoryExample}).
+                      No {v.categoryPlural.toLowerCase()} yet.{' '}
+                      {categoryRequired
+                        ? `Add at least 1 first (e.g. ${v.categoryExample}): every ${v.memberSingular.toLowerCase()} belongs to one.`
+                        : `Add some to group your ${v.memberLabel.toLowerCase()} by ${v.categoryLabel.toLowerCase()} in WhatsApp flows (e.g. ${v.categoryExample}).`}
                     </span>
                     {onOpenCategories && (
                       <button type="button" className="k-btn ghost sm" onClick={openCategories} data-testid="mem-category-add">
