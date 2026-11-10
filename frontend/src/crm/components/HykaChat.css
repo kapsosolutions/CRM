@@ -1,0 +1,255 @@
+/* Hyka AI chat: Automation → Flows → Build with Hyka AI */
+.hyka {
+  height: 100%;
+  min-height: 460px;
+  display: flex;
+  flex-direction: column;
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-hairline);
+  border-radius: 16px;
+  overflow: hidden;
+}
+.hyka-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--wa-hairline);
+  background: linear-gradient(90deg, rgba(36, 208, 110, 0.08), rgba(14, 165, 233, 0.06) 55%, rgba(139, 92, 246, 0.08));
+}
+.hyka-head-text { min-width: 0; }
+.hyka-title { font-weight: 700; font-size: 16px; color: var(--wa-ink); }
+.hyka-sub { font-size: 12.5px; color: var(--wa-ink-muted); }
+.hyka-mark { flex: none; display: block; }
+
+.hyka-log {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 18px 16px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  background: var(--wa-surface-2);
+}
+/* The log scrolls: its rows keep their own height instead of squashing. */
+.hyka-log > * { flex-shrink: 0; }
+.hyka-row { display: flex; gap: 10px; align-items: flex-start; max-width: 760px; }
+.hyka-row.user { align-self: flex-end; flex-direction: row-reverse; }
+.hyka-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hyka-row.user .hyka-col { align-items: flex-end; }
+.hyka-bubble {
+  padding: 10px 14px;
+  border-radius: 14px;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--wa-ink);
+  white-space: normal;
+  overflow-wrap: anywhere;
+  user-select: text;
+}
+.hyka-bubble.bot { background: var(--wa-surface); border: 1px solid var(--wa-hairline); border-top-left-radius: 4px; }
+.hyka-bubble.user { background: var(--wa-primary); color: var(--wa-primary-ink); border-top-right-radius: 4px; }
+.hyka-bubble.ok { border-color: rgba(36, 208, 110, 0.5); background: var(--wa-primary-soft); }
+.hyka-bubble.error { border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.06); }
+.hyka-issues { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--wa-ink-muted); }
+
+.hyka-chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.hyka-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--wa-hairline-strong);
+  background: var(--wa-surface);
+  color: var(--wa-ink);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s;
+}
+.hyka-chip .material-icons { font-size: 17px; color: var(--wa-ink-muted); }
+.hyka-chip:hover:not(:disabled) { border-color: var(--wa-primary); background: var(--wa-primary-soft); }
+.hyka-chip.primary { border-color: var(--wa-primary); background: var(--wa-primary-soft); font-weight: 600; }
+.hyka-chip.primary .material-icons, .hyka-chip.on .material-icons { color: var(--wa-primary-strong); }
+.hyka-chip.on { border-color: var(--wa-primary); background: var(--wa-primary-soft); }
+.hyka-chip:disabled { opacity: 0.45; cursor: not-allowed; }
+.hyka-chips.multi .hyka-chip.primary { background: var(--wa-primary); color: var(--wa-primary-ink); }
+.hyka-chips.multi .hyka-chip.primary .material-icons { color: var(--wa-primary-ink); }
+
+.hyka-dots { display: inline-flex; gap: 4px; padding: 13px 14px; }
+.hyka-dots span {
+  width: 7px; height: 7px; border-radius: 50%; background: var(--wa-ink-muted);
+  animation: hyka-dot 1s infinite ease-in-out;
+}
+.hyka-dots span:nth-child(2) { animation-delay: 0.15s; }
+.hyka-dots span:nth-child(3) { animation-delay: 0.3s; }
+@keyframes hyka-dot { 0%, 80%, 100% { opacity: 0.3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
+
+.hyka-sum {
+  background: var(--wa-surface);
+  border: 1px solid var(--wa-hairline);
+  border-radius: 14px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 560px;
+}
+.hyka-sum-head { display: flex; gap: 10px; align-items: center; }
+.hyka-sum-head .material-icons {
+  font-size: 22px; color: #fff; background: linear-gradient(135deg, #24d06e, #0ea5e9);
+  border-radius: 10px; padding: 7px;
+}
+.hyka-sum-name { font-weight: 700; color: var(--wa-ink); }
+.hyka-sum-sub { font-size: 12.5px; color: var(--wa-ink-muted); }
+.hyka-sum-label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--wa-ink-muted); margin-bottom: 6px; }
+.hyka-sum-menu { display: flex; flex-wrap: wrap; gap: 6px; }
+.hyka-sum-menu span { font-size: 12.5px; padding: 4px 10px; border-radius: 8px; background: var(--wa-surface-2); border: 1px solid var(--wa-hairline); }
+.hyka-sum-steps { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; color: var(--wa-ink); }
+.hyka-sum-warn {
+  display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;
+  font-size: 13px; padding: 9px 11px; border-radius: 10px;
+  background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); color: var(--wa-ink);
+}
+.hyka-sum-warn .material-icons { font-size: 18px; color: #d97706; }
+.hyka-sum-warn > span:nth-child(2) { flex: 1; min-width: 180px; }
+.hyka-link { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--wa-link); cursor: pointer; }
+.hyka-sum-needs { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--wa-ink-muted); }
+
+.hyka-input {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  padding: 12px 14px;
+  border-top: 1px solid var(--wa-hairline);
+  background: var(--wa-surface);
+}
+.hyka-input textarea {
+  flex: 1;
+  resize: none;
+  min-height: 42px;
+  max-height: 140px;
+  padding: 10px 14px;
+  border-radius: 21px;
+  border: 1px solid var(--wa-hairline-strong);
+  background: var(--wa-surface);
+  color: var(--wa-ink);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+.hyka-input textarea:focus { border-color: var(--wa-primary); }
+.hyka-send {
+  flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0;
+  background: var(--wa-primary); color: var(--wa-primary-ink); cursor: pointer;
+  display: inline-flex; align-items: center; justify-content: center;
+}
+.hyka-send:disabled { opacity: 0.45; cursor: default; }
+.hyka-send .material-icons { font-size: 20px; }
+
+/* "Generating": the letters light up one after another over a colour sweep. */
+.hyka-gen {
+  align-self: center;
+  width: min(100%, 520px);
+  border-radius: 18px;
+  background: radial-gradient(120% 140% at 50% 0%, #1e293b 0%, #0b1120 70%);
+  padding: 8px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  overflow: hidden;
+}
+.hyka-gen-status { color: rgba(255, 255, 255, 0.72); font-size: 13px; margin-top: -6px; }
+.hyka-loader-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 120px;
+  width: auto;
+  margin: 1rem 2rem;
+  font-family: 'Poppins', sans-serif;
+  font-size: 1.6em;
+  font-weight: 600;
+  user-select: none;
+  color: #fff;
+  scale: 1.6;
+}
+.hyka-loader {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: 100%;
+  z-index: 1;
+  background-color: transparent;
+  mask: repeating-linear-gradient(90deg, transparent 0, transparent 6px, black 7px, black 8px);
+}
+.hyka-loader::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-image: radial-gradient(circle at 50% 50%, #ff0 0%, transparent 50%),
+    radial-gradient(circle at 45% 45%, #f00 0%, transparent 45%),
+    radial-gradient(circle at 55% 55%, #0ff 0%, transparent 45%),
+    radial-gradient(circle at 45% 55%, #0f0 0%, transparent 45%),
+    radial-gradient(circle at 55% 45%, #00f 0%, transparent 45%);
+  mask: radial-gradient(circle at 50% 50%, transparent 0%, transparent 10%, black 25%);
+  animation: hyka-transform 2s infinite alternate, hyka-opacity 4s infinite;
+  animation-timing-function: cubic-bezier(0.6, 0.8, 0.5, 1);
+}
+@keyframes hyka-transform {
+  0% { transform: translate(-55%); }
+  100% { transform: translate(55%); }
+}
+@keyframes hyka-opacity {
+  0%, 100% { opacity: 0; }
+  15% { opacity: 1; }
+  65% { opacity: 0; }
+}
+.hyka-loader-letter {
+  display: inline-block;
+  opacity: 0;
+  animation: hyka-letter 4s infinite linear;
+  z-index: 2;
+}
+.hyka-loader-letter:nth-child(1) { animation-delay: 0.1s; }
+.hyka-loader-letter:nth-child(2) { animation-delay: 0.205s; }
+.hyka-loader-letter:nth-child(3) { animation-delay: 0.31s; }
+.hyka-loader-letter:nth-child(4) { animation-delay: 0.415s; }
+.hyka-loader-letter:nth-child(5) { animation-delay: 0.521s; }
+.hyka-loader-letter:nth-child(6) { animation-delay: 0.626s; }
+.hyka-loader-letter:nth-child(7) { animation-delay: 0.731s; }
+.hyka-loader-letter:nth-child(8) { animation-delay: 0.837s; }
+.hyka-loader-letter:nth-child(9) { animation-delay: 0.942s; }
+.hyka-loader-letter:nth-child(10) { animation-delay: 1.047s; }
+@keyframes hyka-letter {
+  0% { opacity: 0; }
+  5% { opacity: 1; text-shadow: 0 0 4px #fff; transform: scale(1.1) translateY(-2px); }
+  20% { opacity: 0.2; }
+  100% { opacity: 0; }
+}
+
+/* The Hyka AI button on the flow list */
+.hyka-btn {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 14px 7px 8px; border-radius: 999px; border: 0; cursor: pointer;
+  font: inherit; font-size: 13.5px; font-weight: 600; color: #fff;
+  background: linear-gradient(90deg, #1eb861, #0ea5e9 60%, #8b5cf6);
+  box-shadow: 0 4px 14px rgba(14, 165, 233, 0.25);
+}
+.hyka-btn:hover { filter: brightness(1.05); }
+.hyka-btn .hyka-mark rect { fill: rgba(255, 255, 255, 0.2); }
+
+@media (max-width: 640px) {
+  .hyka { border-radius: 0; border-left: 0; border-right: 0; }
+  .hyka-log { padding: 14px 10px 8px; }
+  .hyka-loader-wrapper { scale: 1.1; margin: 0.5rem 1rem; }
+  .hyka-sub { display: none; }
+}

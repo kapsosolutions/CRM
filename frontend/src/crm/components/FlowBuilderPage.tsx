@@ -51,6 +51,8 @@ import { FlowMessageFields, FlowMessageModal, flowMessageOf, type FlowMessage } 
 import { verticalConfig, type VerticalConfig } from '../verticals';
 import { makeBlock, type BlockSpec } from '../flowBlocks';
 import { ReadyTemplates } from './FlowTemplateGallery';
+import { HykaChat, HykaMark } from './HykaChat';
+import { HYKA_NAME } from '../hyka/brain';
 import { CrmPageHero } from './CrmPageHero';
 import { AutomationRailSvg } from './NavRail';
 import { flowsHero } from '../emptyPages';
@@ -144,6 +146,15 @@ interface Props {
   registerDirty?: (fn: (() => boolean) | null) => void;
   /** Supplies the confirmation wording for the tenant's business type. */
   vertical?: VerticalConfig;
+  /**
+   * Signed in with the master password (or as the platform admin). Only then
+   * are the screen builder, the Map and the templates shown; a business
+   * builds its flows by chatting with Hyka AI.
+   */
+  staff?: boolean;
+  businessName?: string;
+  /** Open another CRM page (Hyka links to Categories, Members, Catalog). */
+  onNavigate?: (page: string) => void;
 }
 
 // Dynamic list sources served by the flow endpoint at runtime.
@@ -384,8 +395,11 @@ function freeScreenId(taken: Set<string>, base: string) {
   }
 }
 
-export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
+export function FlowBuilderPage({ api, registerDirty, vertical, staff = false, businessName, onNavigate }: Props) {
   const v = vertical || verticalConfig('other');
+  // The Hyka AI chat, open in place of the list.
+  const [hyka, setHyka] = useState(false);
+  const [publishingId, setPublishingId] = useState('');
   const [flows, setFlows] = useState<WaFlowDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<WaFlowDef | null | 'new'>(null);
@@ -445,9 +459,53 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
       .finally(() => setTogglingFlows(false));
   }
 
+  // A business has no builder, so a draft is published from its card.
+  async function publishFromCard(f: WaFlowDef) {
+    setPublishingId(f._id);
+    try {
+      const res = await api.publishFlowDef(f._id);
+      if (res.published === false) {
+        const why = res.publishError || (res.warnings || [])[0] || 'WhatsApp didn’t accept it.';
+        flash(`“${f.name}” is still a draft. ${why}`, 'error');
+      } else {
+        flash(`“${f.name}” is published on WhatsApp.`);
+      }
+      load();
+    } catch (e) {
+      flash(`Publish failed. ${e instanceof Error ? e.message : ''}`, 'error');
+    } finally {
+      setPublishingId('');
+    }
+  }
+
   const flowsPaged = usePaged(flows, '', { key: 'flows', size: 24, sizes: CARD_PAGE_SIZES, noun: ['flow', 'flows'] });
 
-  if (editing) {
+  if (hyka) {
+    return (
+      <HykaChat
+        api={api}
+        vertical={v}
+        businessName={businessName}
+        staff={staff}
+        existingNames={flows.map((f) => f.name)}
+        flowsActive={flowsActive}
+        onClose={() => {
+          setHyka(false);
+          load();
+        }}
+        onChanged={load}
+        onOpenFlow={staff ? (f) => {
+          setHyka(false);
+          load();
+          setEditing(f);
+        } : undefined}
+        onNavigate={onNavigate}
+        onFlowsActive={setFlowsActive}
+      />
+    );
+  }
+
+  if (editing && staff) {
     return (
       <FlowEditor
         api={api}
@@ -481,13 +539,20 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
           <span className="flow-switch-track"><span className="flow-switch-thumb" /></span>
           <span className="flow-switch-label">Flows {flowsActive ? 'on' : 'off'}</span>
         </label>
-        {/* Start from a shared blueprint instead of a blank canvas. The library
-            only shows templates for this business type. */}
-        <button className="k-btn ghost sm" onClick={() => setBrowsing(true)}>
-          <span className="material-icons">dashboard_customize</span> Templates
-        </button>
-        <button className="k-btn sm flow-new-btn" onClick={() => setEditing('new')}>
-          <span className="material-icons">add</span> New flow
+        {/* Templates and a blank canvas are the builder's: only a master-
+            password session sees them. Everyone builds with Hyka AI. */}
+        {staff && (
+          <>
+            <button className="k-btn ghost sm" onClick={() => setBrowsing(true)} data-testid="flows-templates">
+              <span className="material-icons">dashboard_customize</span> Templates
+            </button>
+            <button className="k-btn ghost sm" onClick={() => setEditing('new')} data-testid="flows-new">
+              <span className="material-icons">add</span> New flow
+            </button>
+          </>
+        )}
+        <button type="button" className="hyka-btn" onClick={() => setHyka(true)} data-testid="hyka-open">
+          <HykaMark size={24} /> Build with {HYKA_NAME}
         </button>
       </div>
       {loading && <BladeSpinner center={true} containerHeight={200} />}
@@ -496,10 +561,12 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
           icon={<AutomationRailSvg />}
           tone="teal"
           {...flowsHero(v)}
-          actionIcon="dashboard_customize"
-          onAction={() => setBrowsing(true)}
-          secondaryLabel="Start from scratch"
-          onSecondary={() => setEditing('new')}
+          subtitle={`Forms, menus, bookings and orders that open inside WhatsApp. Tell ${HYKA_NAME} what your customers should be able to do, and it builds and publishes the flow for you.`}
+          actionLabel={`Build with ${HYKA_NAME}`}
+          actionIcon="auto_awesome"
+          onAction={() => setHyka(true)}
+          secondaryLabel={staff ? 'Browse templates' : undefined}
+          onSecondary={staff ? () => setBrowsing(true) : undefined}
           testId="flows-hero"
         />
       )}
@@ -539,12 +606,20 @@ export function FlowBuilderPage({ api, registerDirty, vertical }: Props) {
               <button className="prod-act" onClick={() => setMessaging(f)} title="Chat message (attachment, text, button)">
                 <span className="material-icons">add_photo_alternate</span>
               </button>
-              <button className="prod-act" onClick={() => setEditing(f)} title="Edit screens">
-                <span className="material-icons">edit</span>
-              </button>
-              <button className="prod-act" onClick={() => setSavingTpl(f)} title="Save as a reusable template">
-                <span className="material-icons">bookmark_add</span>
-              </button>
+              {staff ? (
+                <>
+                  <button className="prod-act" onClick={() => setEditing(f)} title="Edit screens" data-testid="flow-card-edit">
+                    <span className="material-icons">edit</span>
+                  </button>
+                  <button className="prod-act" onClick={() => setSavingTpl(f)} title="Save as a reusable template">
+                    <span className="material-icons">bookmark_add</span>
+                  </button>
+                </>
+              ) : f.status !== 'PUBLISHED' && (
+                <button className="prod-act" onClick={() => publishFromCard(f)} disabled={!!publishingId} title="Publish on WhatsApp" data-testid="flow-card-publish">
+                  <span className="material-icons">{publishingId === f._id ? 'hourglass_top' : 'cloud_upload'}</span>
+                </button>
+              )}
               <button className="prod-act danger" onClick={() => remove(f)} title="Delete">
                 <span className="material-icons">delete</span>
               </button>

@@ -282,6 +282,29 @@ function componentToJson(
   }
 }
 
+// Meta caps the files one `complete` payload can carry: the pickers' largest
+// possible upload (files × max-file-size-kb, 25600 KB per file when unset)
+// must add up to 102400 KB at most. Mirrors backend/services/flowJson.js.
+export const UPLOAD_TOTAL_KB = 102400;
+const DEFAULT_FILE_KB = 25600;
+const MAX_FILES = 30;
+export function capUploadSize(children: Record<string, unknown>[]): Record<string, unknown>[] {
+  const pickers = children.filter((c) => c && (c.type === 'PhotoPicker' || c.type === 'DocumentPicker'));
+  if (!pickers.length) return children;
+  const countKey = (p: Record<string, unknown>) => (p.type === 'PhotoPicker' ? 'max-uploaded-photos' : 'max-uploaded-documents');
+  let files = 0;
+  for (const p of pickers) {
+    const k = countKey(p);
+    const n = Math.max(1, Math.min(MAX_FILES, Number(p[k]) || 1));
+    p[k] = n;
+    files += n;
+  }
+  if (files * DEFAULT_FILE_KB <= UPLOAD_TOTAL_KB) return children;
+  const perFile = Math.max(1, Math.floor(UPLOAD_TOTAL_KB / files));
+  for (const p of pickers) p['max-file-size-kb'] = perFile;
+  return children;
+}
+
 const footerOf = (s: FlowScreen) => s.components.find((c) => c.type === 'Footer');
 const navTargetOf = (s: FlowScreen): string | null => {
   const f = footerOf(s);
@@ -404,6 +427,7 @@ export function buildFlowJson(flow: WaFlowDef): Record<string, unknown> {
     const children = nonFooter
       .map((c, i) => componentToJson(c, { endpoint, screenId: s.id, index: i }))
       .filter(Boolean) as Record<string, unknown>[];
+    capUploadSize(children);
     children.push(footerJson);
 
     const dynSources = dynamicSourcesOf(s);

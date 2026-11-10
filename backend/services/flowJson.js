@@ -308,6 +308,30 @@ function componentToJson(c, opts = {}) {
   }
 }
 
+// Meta caps the files one `complete` payload can carry: the pickers' largest
+// possible upload (files × max-file-size-kb, 25600 KB per file when unset)
+// must add up to 102400 KB at most. A screen allowing 10 photos was refused
+// with "The aggregated size of maximum uploaded files … cannot exceed
+// 102400 KB". Each picker on the screen gets an equal share per file.
+export const UPLOAD_TOTAL_KB = 102400;
+const DEFAULT_FILE_KB = 25600;
+const MAX_FILES = 30;
+export function capUploadSize(children) {
+  const pickers = children.filter((c) => c && (c.type === 'PhotoPicker' || c.type === 'DocumentPicker'));
+  if (!pickers.length) return children;
+  const countKey = (p) => (p.type === 'PhotoPicker' ? 'max-uploaded-photos' : 'max-uploaded-documents');
+  let files = 0;
+  for (const p of pickers) {
+    const k = countKey(p);
+    p[k] = Math.max(1, Math.min(MAX_FILES, Number(p[k]) || 1));
+    files += p[k];
+  }
+  if (files * DEFAULT_FILE_KB <= UPLOAD_TOTAL_KB) return children;
+  const perFile = Math.max(1, Math.floor(UPLOAD_TOTAL_KB / files));
+  for (const p of pickers) p['max-file-size-kb'] = perFile;
+  return children;
+}
+
 const footerOf = (s) => (s.components || []).find((c) => c.type === 'Footer');
 const navTargetOf = (s) => {
   const f = footerOf(s);
@@ -451,6 +475,7 @@ export function buildFlowJson(flow) {
     const children = nonFooter
       .map((c, i) => componentToJson(c, { endpoint, screenId: s.id, index: i }))
       .filter(Boolean);
+    capUploadSize(children);
     children.push(footerJson);
 
     const dynSources = dynamicSourcesOf(s);
