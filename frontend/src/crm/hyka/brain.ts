@@ -11,8 +11,8 @@
 // Everything here is pure: a state and a message in, a new state and Hyka's
 // messages out. HykaChat.tsx renders it and does the saving and publishing.
 import {
-  buildTemplate, checkTemplateFlow, choicesFor, extrasFor, isLinkKind, LINK_INFO, linkProblem, MAX_EXTRAS, optionsFor,
-  templateCardsFor, type BuiltTemplate, type ChoiceDef, type LinkKind, type TemplateCard, type TemplateOptions,
+  buildTemplate, checkTemplateFlow, choicesFor, extrasFor, isLinkKind, MAX_EXTRAS, optionsFor,
+  templateCardsFor, type BuiltTemplate, type ChoiceDef, type ExtraDef, type TemplateCard, type TemplateOptions,
 } from '../flowTemplates';
 import { formsFor, presetById } from '../flowForms';
 import type { VerticalConfig } from '../verticals';
@@ -160,9 +160,25 @@ function example(v: VerticalConfig): string {
       : 'Customers shop from my catalog, pay online or cash on delivery, and see their orders';
   }
   if (v.archetype === 'person') return `${v.customerPlural} book an appointment with a ${mem}, pay at the visit, and get a PDF slip`;
-  if (v.archetype === 'unit') return `${v.customerPlural} book a ${mem} and pay online, with our location and a call button`;
-  const own = formsFor(v).own[0];
-  return own ? `A ${lower(own.title)} form, with a call button and our location in the menu` : 'An enquiry form with a call button';
+  if (v.archetype === 'unit') return `${v.customerPlural} book a ${mem}, pay online, and can see or cancel their bookings`;
+  const [first, second] = formsFor(v).own;
+  if (first && second) return `A ${lower(first.title)} form, with ${lower(second.title)} in the menu too`;
+  return first ? `A ${lower(first.title)} form` : 'An enquiry form, with feedback in the menu too';
+}
+
+/**
+ * The menu items Hyka offers. Location, Call, Brochure and Website are left
+ * out: each needs the business's own link or number typed in, and Hyka builds
+ * a flow without asking for anything by hand.
+ */
+function hykaExtras(card: TemplateCard, v: VerticalConfig): ExtraDef[] {
+  return extrasFor(card, v).filter((x) => !isLinkKind(x.id));
+}
+/** Drop the link items (a full menu's defaults have some); returns what was dropped. */
+function dropLinks(o: TemplateOptions): string[] {
+  const gone = o.extras.filter((x) => isLinkKind(x));
+  o.extras = o.extras.filter((x) => !isLinkKind(x));
+  return gone;
 }
 
 // ---------------------------------------------------------------------------
@@ -276,7 +292,7 @@ function formHits(hits: Hit[], strong = 1): string[] {
 }
 
 function addExtras(card: TemplateCard, v: VerticalConfig, o: TemplateOptions, ids: string[]): string[] {
-  const allowed = extrasFor(card, v).map((x) => x.id);
+  const allowed = hykaExtras(card, v).map((x) => x.id);
   const added: string[] = [];
   for (const id of ids) {
     if (!allowed.includes(id) || o.extras.includes(id) || o.extras.length >= MAX_EXTRAS) continue;
@@ -293,6 +309,8 @@ interface Goal {
   card: TemplateCard;
   opts: TemplateOptions;
   answered: string[];
+  /** Link items the message asked for that Hyka leaves out. */
+  leftOut: string[];
 }
 /** What journey the message asks for, with whatever choices it already says. */
 function readGoal(text: string, v: VerticalConfig): Goal | { maybe: HykaChip[] } | null {
@@ -325,6 +343,7 @@ function readGoal(text: string, v: VerticalConfig): Goal | { maybe: HykaChip[] }
   }
   const chosen = card;
   const opts = optionsFor(chosen);
+  dropLinks(opts);
   const answered = applySettings(chosen, v, opts, settingsOf(hits, v));
   const mainForm = chosen.main.kind === 'form' ? chosen.main.form : '';
   addExtras(chosen, v, opts, [
@@ -332,7 +351,7 @@ function readGoal(text: string, v: VerticalConfig): Goal | { maybe: HykaChip[] }
     ...extras.filter((x) => !(x === 'track' && chosen.main.kind === 'track')),
     ...forms.filter((f) => f !== mainForm).map((f) => `form:${f}`),
   ]);
-  return { card: chosen, opts, answered };
+  return { card: chosen, opts, answered, leftOut: extras.filter((x) => isLinkKind(x)) };
 }
 
 function goalFromChip(id: string, v: VerticalConfig): Goal | null {
@@ -343,7 +362,19 @@ function goalFromChip(id: string, v: VerticalConfig): Goal | null {
   else if (id === 'goal:booking') card = c.booking;
   else if (id === 'goal:track') card = c.track;
   else if (id.startsWith('goal:form:')) card = cardForForm(v, id.slice(10));
-  return card ? { card, opts: optionsFor(card), answered: [] } : null;
+  if (!card) return null;
+  const opts = optionsFor(card);
+  dropLinks(opts);
+  return { card, opts, answered: [], leftOut: [] };
+}
+
+const LINK_TITLES: Record<string, string> = { location: 'Our location', call: 'Call us', brochure: 'Get the brochure', website: 'Visit our website' };
+/** "I've left out Our location and Call us for now…". */
+function leftOutNote(ids: string[]): string {
+  const names = [...new Set(ids)].map((x) => `“${LINK_TITLES[x] || x}”`);
+  if (!names.length) return '';
+  const list = names.length > 1 ? `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}` : names[0];
+  return `I’ve left out ${list} for now: ${names.length > 1 ? 'they need' : 'it needs'} your own link or number typed in, and I’m building this without asking you for anything by hand.`;
 }
 
 // ---------------------------------------------------------------------------
@@ -559,20 +590,13 @@ function understood(card: TemplateCard, o: TemplateOptions, answered: string[], 
 function extrasMsg(s: Core, ctx: HykaCtx, lead: string): HykaMsg {
   const card = cardOf(s, ctx.v) as TemplateCard;
   const o = s.opts as TemplateOptions;
-  const options = extrasFor(card, ctx.v).map((x) => ({ id: x.id, label: x.label, icon: x.icon, on: o.extras.includes(x.id) }));
+  const options = hykaExtras(card, ctx.v).map((x) => ({ id: x.id, label: x.label, icon: x.icon, on: o.extras.includes(x.id) }));
   const has = o.extras.map((x) => extraLabel(card, ctx.v, x));
   const main = goalLabel(card, ctx.v);
   const ask = has.length
     ? `The flow opens on a menu with “${main}” and: ${has.join(', ')}. Add or remove items (up to ${MAX_EXTRAS}), then tap **Done**.`
     : `Should the flow open on a menu with more things to do? Pick any (up to ${MAX_EXTRAS}) and tap **Done**, or tap **Done** for just “${main}”.`;
   return msg(s, { text: lead ? `${lead}\n\n${ask}` : ask, multi: { options, max: MAX_EXTRAS } });
-}
-
-function linkMsg(s: Core, k: LinkKind, lead: string): HykaMsg {
-  const info = LINK_INFO[k];
-  const what = info.valueLabel.startsWith('Google') ? info.valueLabel : lower(info.valueLabel);
-  const ask = `For “${info.title}” in the menu: what’s your ${what}?\n${info.hint}`;
-  return msg(s, { text: lead ? `${lead}\n\n${ask}` : ask, chips: [{ id: 'skip', label: 'Leave it out', icon: 'remove_circle_outline' }] });
 }
 
 /** Ask whatever comes next, after `lead` (what was just understood). */
@@ -592,11 +616,7 @@ function askNext(s: Core, ctx: HykaCtx, lead = ''): HykaMsg[] {
       s.asking = 'extras';
       return [extrasMsg(s, ctx, lead)];
     } else if (s.stage === 'link') {
-      const k = o.extras.find((x) => isLinkKind(x) && !!linkProblem(x, o.links[x])) as LinkKind | undefined;
-      if (k) {
-        s.asking = k;
-        return [linkMsg(s, k, lead)];
-      }
+      // Nothing is asked by hand (links and numbers are left out): on to the name.
       s.stage = s.answered.includes('name') ? 'ready' : 'name';
     } else if (s.stage === 'name') {
       s.asking = 'name';
@@ -663,7 +683,7 @@ function summaryMsg(s: Core, ctx: HykaCtx, lead: string): HykaMsg {
     });
   }
   const chips = summaryChips(ctx);
-  const ask = 'Here’s your flow. Tap **Continue to publish** and I’ll build it and put it live on WhatsApp. To change something, just tell me (for example “pay online”, “add our location”, “remove call”).';
+  const ask = 'Here’s your flow. Tap **Continue to publish** and I’ll build it and put it live on WhatsApp. To change something, just tell me (for example “pay online”, “send a PDF slip”, “add cancel”).';
   return msg(s, { text: lead ? `${lead}\n\n${ask}` : ask, summary: summaryOf(s, ctx, b.built, b.card), chips });
 }
 
@@ -690,7 +710,8 @@ function onGoal(s: Core, ctx: HykaCtx, input: HykaInput): HykaMsg[] {
   s.opts = g.opts;
   s.answered = g.answered;
   s.stage = 'choiceA';
-  return askNext(s, ctx, understood(g.card, g.opts, g.answered, ctx));
+  const note = leftOutNote(g.leftOut);
+  return askNext(s, ctx, `${understood(g.card, g.opts, g.answered, ctx)}${note ? `\n\n${note}` : ''}`);
 }
 
 function onChoice(s: Core, ctx: HykaCtx, input: HykaInput): HykaMsg[] {
@@ -726,17 +747,20 @@ function onChoice(s: Core, ctx: HykaCtx, input: HykaInput): HykaMsg[] {
 function mentionedExtras(text: string, card: TemplateCard, ctx: HykaCtx): string[] {
   const hits = find(text, vocabulary(ctx.v));
   const mainForm = card.main.kind === 'form' ? card.main.form : '';
-  const allowed = extrasFor(card, ctx.v).map((x) => x.id);
+  const allowed = hykaExtras(card, ctx.v).map((x) => x.id);
   const ids = [...extraHits(hits), ...formHits(hits).filter((f) => f !== mainForm).map((f) => `form:${f}`)];
   if (scoreOf(hits, 'main:order') >= 1) ids.push('order');
   if (scoreOf(hits, 'main:booking') >= 1) ids.push('book');
   return [...new Set(ids)].filter((id) => allowed.includes(id));
 }
+/** Location / Call / Brochure / Website named in a message (Hyka leaves them out). */
+const mentionedLinks = (text: string, ctx: HykaCtx): string[] =>
+  extraHits(find(text, vocabulary(ctx.v))).filter((x) => isLinkKind(x));
 
 function onExtras(s: Core, ctx: HykaCtx, input: HykaInput): HykaMsg[] {
   const card = cardOf(s, ctx.v) as TemplateCard;
   const o = s.opts as TemplateOptions;
-  const allowed = extrasFor(card, ctx.v).map((x) => x.id);
+  const allowed = hykaExtras(card, ctx.v).map((x) => x.id);
   const finish = () => {
     s.stage = 'choiceB';
     const labels = o.extras.map((x) => extraLabel(card, ctx.v, x));
@@ -751,8 +775,10 @@ function onExtras(s: Core, ctx: HykaCtx, input: HykaInput): HykaMsg[] {
   const ids = mentionedExtras(text, card, ctx);
   const yn = yesNo(text);
   if (!ids.length) {
+    const links = mentionedLinks(text, ctx);
+    if (links.length) return [extrasMsg(s, ctx, `${leftOutNote(links)} Pick from the items below, or tap **Done**.`)];
     if (yn === false || command(text) === 'done') return finish();
-    return [extrasMsg(s, ctx, 'Sorry, I didn’t catch which items you mean. Tap them below, or type their names (for example “location and call”).')];
+    return [extrasMsg(s, ctx, 'Sorry, I didn’t catch which items you mean. Tap them below, or type their names (for example “my appointments and cancel”).')];
   }
   let lead: string;
   if (yn === false) {
@@ -765,36 +791,6 @@ function onExtras(s: Core, ctx: HykaCtx, input: HykaInput): HykaMsg[] {
       : o.extras.length >= MAX_EXTRAS ? `The menu is full (${MAX_EXTRAS} items at most).` : 'Those are already in the menu.';
   }
   return [extrasMsg(s, ctx, `${lead} Anything else?`)];
-}
-
-/** The link or phone number in a message, made https:// where it's a link. */
-export function valueIn(kind: LinkKind, text: string): string {
-  const t = text.trim();
-  if (kind === 'call') {
-    const m = t.match(/\+?\d[\d\s()-]{6,}\d/);
-    return m ? m[0].trim() : '';
-  }
-  const m = t.match(/https?:\/\/[^\s]+/i) || t.match(/\b(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)+(?:\/[^\s]*)?/i);
-  if (!m) return '';
-  const url = m[0].replace(/[),.]+$/, '');
-  return /^https?:\/\//i.test(url) ? url.replace(/^http:\/\//i, 'https://') : `https://${url}`;
-}
-
-function onLink(s: Core, ctx: HykaCtx, input: HykaInput): HykaMsg[] {
-  const o = s.opts as TemplateOptions;
-  const k = s.asking as LinkKind;
-  const info = LINK_INFO[k];
-  const text = input.text || '';
-  const value = input.chip ? '' : valueIn(k, text);
-  if (input.chip === 'skip' || (!value && (yesNo(text) === false || command(text) === 'done'))) {
-    o.extras = o.extras.filter((x) => x !== k);
-    return askNext(s, ctx, `✓ Left “${info.title}” out of the menu.`);
-  }
-  const det = { ...info.defaults, ...(o.links[k] || {}), value };
-  const problem = value ? linkProblem(k, det) : (k === 'call' ? 'That doesn’t look like a phone number.' : 'That doesn’t look like a link.');
-  if (problem) return [linkMsg(s, k, `${problem} ${info.hint}`)];
-  o.links = { ...o.links, [k]: det };
-  return askNext(s, ctx, `✓ “${info.title}” will send ${value}.`);
 }
 
 function cleanName(text: string): string {
@@ -847,9 +843,12 @@ function onReady(s: Core, ctx: HykaCtx, input: HykaInput): { msgs: HykaMsg[]; ac
     }
   }
   if (!changes.length) {
+    const links = mentionedLinks(text, ctx);
     return {
       msgs: [msg(s, {
-        text: 'I didn’t find anything to change in that. You can say things like “pay online”, “send a PDF slip”, “add our location”, “remove call” or “name it Bookings”. Or tap **Continue to publish**.',
+        text: links.length
+          ? `${leftOutNote(links)} Anything else to change? Or tap **Continue to publish**.`
+          : 'I didn’t find anything to change in that. You can say things like “pay online”, “send a PDF slip”, “add cancel”, “remove feedback” or “name it Bookings”. Or tap **Continue to publish**.',
         chips: summaryChips(ctx),
       })],
     };
@@ -899,7 +898,7 @@ export function hykaReply(state: HykaState, ctx: HykaCtx, input: HykaInput): { s
   if (s.stage === 'goal') msgs = onGoal(s, ctx, input);
   else if (s.stage === 'choiceA' || s.stage === 'choiceB') msgs = onChoice(s, ctx, input);
   else if (s.stage === 'extras') msgs = onExtras(s, ctx, input);
-  else if (s.stage === 'link') msgs = onLink(s, ctx, input);
+  else if (s.stage === 'link') msgs = askNext(s, ctx);
   else if (s.stage === 'name') msgs = onName(s, ctx, input);
   else ({ msgs, action } = onReady(s, ctx, input));
 

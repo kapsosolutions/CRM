@@ -65,14 +65,77 @@ function Generating({ status }: { status: string }) {
   );
 }
 
+// ---------------------------------------------------------------------------
+// WhatsApp-style buttons: Hyka's answers look like the messages a flow sends
+// (reply buttons, link / CTA buttons, a flow button, a list).
+// ---------------------------------------------------------------------------
+type BtnKind = 'reply' | 'cta' | 'flow';
+const kindOf = (c: HykaChip): BtnKind =>
+  c.id.startsWith('act:goto:') || c.id === 'act:builder' ? 'cta'
+    : c.id === 'act:publish' || c.id === 'act:retry' || c.id === 'act:flows-on' ? 'flow' : 'reply';
+const KIND_TITLE: Record<BtnKind, string> = { reply: 'Reply button', cta: 'Link button', flow: 'Flow button' };
+const clock = (t: number) => new Date(t).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+
+function WaButtons({ chips, live, onTap }: { chips: HykaChip[]; live: boolean; onTap: (c: HykaChip) => void }) {
+  return (
+    <div className="hyka-wa-btns">
+      {chips.map((c) => {
+        const k = kindOf(c);
+        const icon = k === 'reply' ? 'reply' : k === 'cta' ? (c.id === 'act:builder' ? 'account_tree' : 'open_in_new') : c.icon || 'dynamic_form';
+        return (
+          <button type="button" key={c.id} className={`hyka-wa-btn ${k}${c.primary ? ' primary' : ''}`} disabled={!live}
+            onClick={() => onTap(c)} title={KIND_TITLE[k]} data-testid="hyka-chip" data-id={c.id} data-kind={k}>
+            <span className="material-icons">{icon}</span>
+            <span className="hyka-wa-btn-label">{c.label}</span>
+            {c.primary && k === 'reply' && <span className="hyka-wa-rec">Recommended</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** More than three answers: a WhatsApp list ("Choose an option" → rows). */
+function WaList({ chips, live, onTap }: { chips: HykaChip[]; live: boolean; onTap: (c: HykaChip) => void }) {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className="hyka-wa-btns">
+      <button type="button" className="hyka-wa-btn list" disabled={!live} onClick={() => setOpen((o) => !o)} title="List message" data-kind="list">
+        <span className="material-icons">format_list_bulleted</span>
+        <span className="hyka-wa-btn-label">{open && live ? 'Hide options' : 'Choose an option'}</span>
+      </button>
+      {open && live && (
+        <div className="hyka-wa-list" role="listbox">
+          {chips.map((c) => (
+            <button type="button" key={c.id} className={`hyka-wa-row${c.primary ? ' primary' : ''}`} onClick={() => onTap(c)} data-testid="hyka-chip" data-id={c.id} role="option" aria-selected={false}>
+              <span className="material-icons hyka-wa-row-ic">{c.icon || 'label'}</span>
+              <span className="hyka-wa-row-label">
+                {c.label}
+                {c.primary && <small>Recommended</small>}
+              </span>
+              <span className="hyka-wa-radio" aria-hidden="true" />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** What will be built, drawn like a WhatsApp Flow screen. */
 function Summary({ s, onGo }: { s: NonNullable<HykaMsg['summary']>; onGo?: (page: string) => void }) {
   return (
     <div className="hyka-sum" data-testid="hyka-summary">
+      <div className="hyka-wa-flowbar">
+        <span className="material-icons" aria-hidden="true">close</span>
+        <span>{s.name}</span>
+        <span className="material-icons" aria-hidden="true">more_vert</span>
+      </div>
       <div className="hyka-sum-head">
         <span className="material-icons">{s.icon}</span>
         <div>
-          <div className="hyka-sum-name">{s.name}</div>
-          <div className="hyka-sum-sub">{s.title} · {s.screens} screen{s.screens === 1 ? '' : 's'}</div>
+          <div className="hyka-sum-name">{s.title}</div>
+          <div className="hyka-sum-sub">{s.screens} screen{s.screens === 1 ? '' : 's'} · ready to publish</div>
         </div>
       </div>
       {s.menu.length > 0 && (
@@ -183,7 +246,13 @@ export function HykaChat({
     endRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [msgs, typing, busy]);
 
-  const push = useCallback((m: HykaMsg[]) => setMsgs((l) => [...l, ...m]), []);
+  // When each message was sent, for the WhatsApp-style time under it.
+  const times = useRef<Record<string, number>>({});
+  const timeOf = (id: string) => (times.current[id] ??= Date.now());
+  const push = useCallback((m: HykaMsg[]) => {
+    for (const x of m) times.current[x.id] ??= Date.now();
+    setMsgs((l) => [...l, ...m]);
+  }, []);
   const said = (t: string) => {
     userSeq.current += 1;
     push([{ id: `u${userSeq.current}`, from: 'user', text: t }]);
@@ -351,38 +420,24 @@ export function HykaChat({
             <div className={`hyka-row ${m.from}`} key={m.id} data-testid="hyka-msg" data-from={m.from}>
               {m.from === 'bot' && <HykaMark size={26} />}
               <div className="hyka-col">
-                <div className={`hyka-bubble ${m.from}${m.tone ? ` ${m.tone}` : ''}`}>
-                  {rich(m.text)}
-                  {m.issues && m.issues.length > 0 && <ul className="hyka-issues">{m.issues.map((x, i) => <li key={i}>{x}</li>)}</ul>}
+                {/* A WhatsApp message: the bubble, then its buttons joined under it. */}
+                <div className={`hyka-wa${m.chips?.length || m.multi ? ' has-btns' : ''}`}>
+                  <div className={`hyka-bubble ${m.from}${m.tone ? ` ${m.tone}` : ''}`}>
+                    {m.from === 'bot' && <div className="hyka-wa-from">{HYKA_NAME}</div>}
+                    {rich(m.text)}
+                    {m.issues && m.issues.length > 0 && <ul className="hyka-issues">{m.issues.map((x, i) => <li key={i}>{x}</li>)}</ul>}
+                    <span className="hyka-wa-meta">
+                      {clock(timeOf(m.id))}
+                      {m.from === 'user' && <span className="material-icons" aria-label="Read">done_all</span>}
+                    </span>
+                  </div>
+                  {m.summary && <Summary s={m.summary} onGo={onNavigate ? (p) => action(`act:goto:${p}`, '') : undefined} />}
+                  {m.multi && (
+                    <WaFlowCard m={m} picks={picks} setPicks={setPicks} live={current} onDone={() => finishPicks(m)} />
+                  )}
+                  {m.chips && m.chips.length > 3 && <WaList chips={m.chips} live={current} onTap={chip} />}
+                  {m.chips && m.chips.length > 0 && m.chips.length <= 3 && <WaButtons chips={m.chips} live={current} onTap={chip} />}
                 </div>
-                {m.summary && <Summary s={m.summary} onGo={onNavigate ? (p) => action(`act:goto:${p}`, '') : undefined} />}
-                {current && m.multi && (
-                  <div className="hyka-chips multi" data-testid="hyka-multi">
-                    {m.multi.options.map((o) => {
-                      const on = picks.includes(o.id);
-                      const full = !on && picks.length >= (m.multi?.max || 8);
-                      return (
-                        <button type="button" key={o.id} className={`hyka-chip${on ? ' on' : ''}`} disabled={full}
-                          onClick={() => setPicks((p) => (on ? p.filter((x) => x !== o.id) : [...p, o.id]))}
-                          data-testid="hyka-chip" data-id={o.id} aria-pressed={on}>
-                          <span className="material-icons">{on ? 'check_circle' : o.icon || 'add_circle_outline'}</span>{o.label}
-                        </button>
-                      );
-                    })}
-                    <button type="button" className="hyka-chip primary" onClick={() => finishPicks(m)} data-testid="hyka-multi-done">
-                      <span className="material-icons">done</span> Done{picks.length ? ` (${picks.length})` : ''}
-                    </button>
-                  </div>
-                )}
-                {current && m.chips && m.chips.length > 0 && (
-                  <div className="hyka-chips">
-                    {m.chips.map((c) => (
-                      <button type="button" key={c.id} className={`hyka-chip${c.primary ? ' primary' : ''}`} onClick={() => chip(c)} data-testid="hyka-chip" data-id={c.id}>
-                        {c.icon && <span className="material-icons">{c.icon}</span>}{c.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           );
@@ -418,6 +473,49 @@ export function HykaChat({
           <span className="material-icons">send</span>
         </button>
       </form>
+    </div>
+  );
+}
+
+/** Pick several (the menu items): a WhatsApp Flow screen with tick boxes and a Done footer. */
+function WaFlowCard({ m, picks, setPicks, live, onDone }: {
+  m: HykaMsg; picks: string[]; setPicks: (f: (p: string[]) => string[]) => void; live: boolean; onDone: () => void;
+}) {
+  const [open, setOpen] = useState(true);
+  const max = m.multi?.max || 8;
+  return (
+    <div className="hyka-wa-btns">
+      <button type="button" className="hyka-wa-btn flow" disabled={!live} onClick={() => setOpen((o) => !o)} title="Flow button" data-kind="flow">
+        <span className="material-icons">dynamic_form</span>
+        <span className="hyka-wa-btn-label">Choose menu items</span>
+      </button>
+      {open && live && (
+        <div className="hyka-wa-flowcard" data-testid="hyka-multi">
+          <div className="hyka-wa-flowbar">
+            <span className="material-icons" aria-hidden="true">close</span>
+            <span>Menu items</span>
+            <span className="hyka-wa-flowcount">{picks.length}/{max}</span>
+          </div>
+          <div className="hyka-wa-flowbody">
+            {(m.multi?.options || []).map((o) => {
+              const on = picks.includes(o.id);
+              const full = !on && picks.length >= max;
+              return (
+                <button type="button" key={o.id} className={`hyka-wa-check${on ? ' on' : ''}`} disabled={full}
+                  onClick={() => setPicks((p) => (on ? p.filter((x) => x !== o.id) : [...p, o.id]))}
+                  data-testid="hyka-chip" data-id={o.id} aria-pressed={on}>
+                  <span className="material-icons hyka-wa-row-ic">{o.icon || 'label'}</span>
+                  <span className="hyka-wa-row-label">{o.label}</span>
+                  <span className="material-icons hyka-wa-box">{on ? 'check_box' : 'check_box_outline_blank'}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="hyka-wa-flowfoot">
+            <button type="button" onClick={onDone} data-testid="hyka-multi-done">Done{picks.length ? ` (${picks.length})` : ''}</button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

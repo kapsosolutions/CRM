@@ -14,6 +14,21 @@ import logger from '../services/logger.js';
 const ENDPOINT_URI = () =>
   `${(process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '')}/api/whatsapp/flow-endpoint`;
 
+/**
+ * A name for a new flow on Meta that no flow on the WABA has, deprecated ones
+ * included: "Bookings", else "Bookings (2)", "Bookings (3)"…
+ */
+export function metaFlowName(name, existing = []) {
+  const taken = new Set(existing.map((f) => String(f?.name || '').trim().toLowerCase()));
+  const base = String(name || 'Flow').trim().slice(0, 180) || 'Flow';
+  if (!taken.has(base.toLowerCase())) return base;
+  for (let i = 2; i < 1000; i += 1) {
+    const n = `${base} (${i})`;
+    if (!taken.has(n.toLowerCase())) return n;
+  }
+  return `${base} · ${Date.now().toString(36)}`;
+}
+
 // Meta's top-level `message` is often uselessly generic ("Updating attempt
 // failed"); the actionable text lives in error_user_msg / error_data. Pull the
 // whole lot out so a failure is diagnosable from one log line.
@@ -400,11 +415,24 @@ router.post('/:id/publish', async (req, res) => {
       );
       if (match) flowId = match.id;
       else {
-        const created = await wa.createFlow(
-          flow.name,
-          flow.categories?.length ? flow.categories : ['OTHER'],
-          endpointUri ? { endpointUri } : {},
-        );
+        // Meta keeps a deleted flow's name: a published flow is only
+        // deprecated, never removed, and its name stays taken on the WABA. So
+        // "create, delete, create again" was refused with "Flow name should be
+        // unique within one WhatsApp business account". The Meta-side name is
+        // internal, so a taken one gets a suffix; the CRM name is unchanged.
+        const categories = flow.categories?.length ? flow.categories : ['OTHER'];
+        const opts = endpointUri ? { endpointUri } : {};
+        let metaName = metaFlowName(flow.name, onThisWaba);
+        let created;
+        try {
+          created = await wa.createFlow(metaName, categories, opts);
+        } catch (e) {
+          // A name on the WABA that the list didn't show (more than one page).
+          if (!/unique/i.test(metaError(e).message || '')) throw e;
+          metaName = `${String(flow.name).slice(0, 180)} · ${Date.now().toString(36)}`;
+          created = await wa.createFlow(metaName, categories, opts);
+        }
+        if (metaName !== flow.name) logger.info('flow name taken on Meta, created under another', { flow: flow.name, metaName });
         flowId = created.id;
       }
       flow.metaFlowId = flowId;

@@ -1,5 +1,24 @@
-/* Hyka AI chat: Automation → Flows → Build with Hyka AI */
+/* Hyka AI chat: Automation → Flows → Build with Hyka AI. Messages are drawn
+   like WhatsApp's own: bubbles on the chat wallpaper, and reply / link / flow
+   buttons and lists joined under them. Light and dark follow the CRM theme. */
 .hyka {
+  --hk-wall: var(--wa-chat-bg, #efeae2);
+  --hk-in: #ffffff;
+  --hk-out: #d9fdd3;
+  --hk-ink: #111b21;
+  --hk-meta: #667781;
+  --hk-btn: #027eb5;
+  --hk-line: rgba(11, 20, 26, 0.08);
+  --hk-shadow: 0 1px 0.5px rgba(11, 20, 26, 0.13);
+  --hk-from: #0d9488;
+  --hk-green: #00a884;
+  --hk-tick: #53bdeb;
+  /* The Generating card */
+  --hk-gen-bg: radial-gradient(120% 140% at 50% 0%, #ffffff 0%, #eef2f7 75%);
+  --hk-gen-ink: #0f172a;
+  --hk-gen-glow: rgba(15, 23, 42, 0.35);
+  --hk-gen-status: #475569;
+  --hk-gen-border: #e2e8f0;
   height: 100%;
   min-height: 460px;
   display: flex;
@@ -8,6 +27,22 @@
   border: 1px solid var(--wa-hairline);
   border-radius: 16px;
   overflow: hidden;
+}
+:root[data-theme='dark'] .hyka {
+  --hk-wall: #0b141a;
+  --hk-in: #202c33;
+  --hk-out: #005c4b;
+  --hk-ink: #e9edef;
+  --hk-meta: #8696a0;
+  --hk-btn: #53bdeb;
+  --hk-line: rgba(233, 237, 239, 0.08);
+  --hk-shadow: 0 1px 0.5px rgba(0, 0, 0, 0.3);
+  --hk-from: #2dd4bf;
+  --hk-gen-bg: radial-gradient(120% 140% at 50% 0%, #1e293b 0%, #0b1120 70%);
+  --hk-gen-ink: #ffffff;
+  --hk-gen-glow: #ffffff;
+  --hk-gen-status: rgba(255, 255, 255, 0.72);
+  --hk-gen-border: transparent;
 }
 .hyka-head {
   display: flex;
@@ -26,104 +61,201 @@
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 18px 16px 8px;
+  padding: 18px 16px 10px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  background: var(--wa-surface-2);
+  gap: 12px;
+  background: var(--hk-wall);
 }
 /* The log scrolls: its rows keep their own height instead of squashing. */
 .hyka-log > * { flex-shrink: 0; }
-.hyka-row { display: flex; gap: 10px; align-items: flex-start; max-width: 760px; }
+.hyka-row { display: flex; gap: 8px; align-items: flex-start; max-width: 640px; }
 .hyka-row.user { align-self: flex-end; flex-direction: row-reverse; }
-.hyka-col { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.hyka-col { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 .hyka-row.user .hyka-col { align-items: flex-end; }
+
+/* One message and the buttons joined under it */
+.hyka-wa { display: flex; flex-direction: column; gap: 2px; max-width: 520px; }
+.hyka-wa.has-btns { min-width: min(300px, 100%); }
 .hyka-bubble {
-  padding: 10px 14px;
-  border-radius: 14px;
-  font-size: 14px;
-  line-height: 1.5;
-  color: var(--wa-ink);
-  white-space: normal;
+  position: relative;
+  padding: 7px 10px 8px;
+  border-radius: 8px;
+  font-size: 14.2px;
+  line-height: 1.45;
+  color: var(--hk-ink);
+  background: var(--hk-in);
+  box-shadow: var(--hk-shadow);
   overflow-wrap: anywhere;
   user-select: text;
 }
-.hyka-bubble.bot { background: var(--wa-surface); border: 1px solid var(--wa-hairline); border-top-left-radius: 4px; }
-.hyka-bubble.user { background: var(--wa-primary); color: var(--wa-primary-ink); border-top-right-radius: 4px; }
-.hyka-bubble.ok { border-color: rgba(36, 208, 110, 0.5); background: var(--wa-primary-soft); }
-.hyka-bubble.error { border-color: rgba(239, 68, 68, 0.45); background: rgba(239, 68, 68, 0.06); }
-.hyka-issues { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--wa-ink-muted); }
-
-.hyka-chips { display: flex; flex-wrap: wrap; gap: 8px; }
-.hyka-chip {
+.hyka-bubble.bot { border-top-left-radius: 0; }
+.hyka-bubble.user { background: var(--hk-out); border-top-right-radius: 0; }
+.hyka-bubble.ok { box-shadow: inset 3px 0 0 var(--hk-green), var(--hk-shadow); }
+.hyka-bubble.error { box-shadow: inset 3px 0 0 #ef4444, var(--hk-shadow); }
+.hyka-wa-from { font-size: 12.5px; font-weight: 600; color: var(--hk-from); margin-bottom: 2px; }
+.hyka-wa-meta {
+  float: right;
   display: inline-flex;
   align-items: center;
+  gap: 3px;
+  margin: 8px 0 -5px 12px;
+  font-size: 11px;
+  color: var(--hk-meta);
+  user-select: none;
+}
+.hyka-wa-meta .material-icons { font-size: 16px; color: var(--hk-tick); }
+.hyka-issues { margin: 8px 0 0; padding-left: 18px; font-size: 13px; color: var(--hk-meta); }
+
+/* Reply / link / flow buttons, WhatsApp style: each its own row under the bubble */
+.hyka-wa-btns { display: flex; flex-direction: column; gap: 2px; }
+.hyka-wa-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
   gap: 6px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  border: 1px solid var(--wa-hairline-strong);
-  background: var(--wa-surface);
-  color: var(--wa-ink);
+  min-height: 40px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: var(--hk-in);
+  box-shadow: var(--hk-shadow);
+  color: var(--hk-btn);
   font: inherit;
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s;
+  text-align: center;
+  transition: filter 0.15s, background 0.15s;
 }
-.hyka-chip .material-icons { font-size: 17px; color: var(--wa-ink-muted); }
-.hyka-chip:hover:not(:disabled) { border-color: var(--wa-primary); background: var(--wa-primary-soft); }
-.hyka-chip.primary { border-color: var(--wa-primary); background: var(--wa-primary-soft); font-weight: 600; }
-.hyka-chip.primary .material-icons, .hyka-chip.on .material-icons { color: var(--wa-primary-strong); }
-.hyka-chip.on { border-color: var(--wa-primary); background: var(--wa-primary-soft); }
-.hyka-chip:disabled { opacity: 0.45; cursor: not-allowed; }
-.hyka-chips.multi .hyka-chip.primary { background: var(--wa-primary); color: var(--wa-primary-ink); }
-.hyka-chips.multi .hyka-chip.primary .material-icons { color: var(--wa-primary-ink); }
+.hyka-wa-btn .material-icons { font-size: 18px; }
+.hyka-wa-btn:hover:not(:disabled) { filter: brightness(0.97); }
+:root[data-theme='dark'] .hyka-wa-btn:hover:not(:disabled) { filter: brightness(1.15); }
+.hyka-wa-btn.primary { font-weight: 600; }
+.hyka-wa-btn:disabled { color: var(--hk-meta); cursor: default; opacity: 0.75; }
+.hyka-wa-rec {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  padding: 2px 7px;
+  border-radius: 999px;
+  color: var(--hk-green);
+  background: rgba(0, 168, 132, 0.12);
+}
+.hyka-wa-btn:disabled .hyka-wa-rec { display: none; }
+
+/* A list message: the rows WhatsApp shows in its "Choose an option" sheet */
+.hyka-wa-list {
+  display: flex;
+  flex-direction: column;
+  background: var(--hk-in);
+  border-radius: 8px;
+  box-shadow: var(--hk-shadow);
+  overflow: hidden;
+}
+.hyka-wa-row, .hyka-wa-check {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 11px 14px;
+  border: 0;
+  border-top: 1px solid var(--hk-line);
+  background: transparent;
+  color: var(--hk-ink);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+}
+.hyka-wa-row:first-child, .hyka-wa-check:first-child { border-top: 0; }
+.hyka-wa-row:hover, .hyka-wa-check:hover:not(:disabled) { background: rgba(0, 168, 132, 0.06); }
+.hyka-wa-row-ic { font-size: 20px; color: var(--hk-meta); }
+.hyka-wa-row-label { flex: 1; display: flex; flex-direction: column; }
+.hyka-wa-row-label small { font-size: 11.5px; color: var(--hk-green); font-weight: 600; }
+.hyka-wa-radio {
+  width: 18px; height: 18px; border-radius: 50%; flex: none;
+  border: 2px solid var(--hk-meta);
+}
+.hyka-wa-row.primary .hyka-wa-radio { border-color: var(--hk-green); box-shadow: inset 0 0 0 3px var(--hk-in), inset 0 0 0 9px var(--hk-green); }
+
+/* A flow screen (pick menu items; the summary): top bar, body, green footer */
+.hyka-wa-flowcard, .hyka-sum {
+  background: var(--hk-in);
+  border-radius: 8px;
+  box-shadow: var(--hk-shadow);
+  overflow: hidden;
+  color: var(--hk-ink);
+}
+.hyka-wa-flowbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-bottom: 1px solid var(--hk-line);
+  font-weight: 600;
+  font-size: 14.5px;
+}
+.hyka-wa-flowbar > span:nth-child(2) { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hyka-wa-flowbar .material-icons { font-size: 20px; color: var(--hk-meta); }
+.hyka-wa-flowcount { font-size: 12px; font-weight: 500; color: var(--hk-meta); }
+.hyka-wa-flowbody { max-height: 320px; overflow-y: auto; }
+.hyka-wa-check:disabled { opacity: 0.45; cursor: not-allowed; }
+.hyka-wa-check .hyka-wa-box { font-size: 22px; color: var(--hk-meta); }
+.hyka-wa-check.on .hyka-wa-box { color: var(--hk-green); }
+.hyka-wa-flowfoot { padding: 10px 14px 12px; border-top: 1px solid var(--hk-line); }
+.hyka-wa-flowfoot button {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  border-radius: 999px;
+  background: var(--hk-green);
+  color: #fff;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.hyka-sum { display: flex; flex-direction: column; gap: 12px; padding-bottom: 14px; }
+.hyka-sum > :not(.hyka-wa-flowbar) { margin: 0 14px; }
+.hyka-sum-head { display: flex; gap: 10px; align-items: center; }
+.hyka-sum-head .material-icons {
+  font-size: 22px; color: #fff; background: linear-gradient(135deg, #24d06e, #0ea5e9);
+  border-radius: 10px; padding: 7px;
+}
+.hyka-sum-name { font-weight: 700; }
+.hyka-sum-sub { font-size: 12.5px; color: var(--hk-meta); }
+.hyka-sum-label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--hk-meta); margin-bottom: 6px; }
+.hyka-sum-menu { display: flex; flex-direction: column; border: 1px solid var(--hk-line); border-radius: 8px; overflow: hidden; }
+.hyka-sum-menu span { font-size: 13.5px; padding: 8px 12px; border-top: 1px solid var(--hk-line); display: flex; align-items: center; gap: 8px; }
+.hyka-sum-menu span:first-child { border-top: 0; }
+.hyka-sum-menu span::after { content: ''; margin-left: auto; width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--hk-meta); }
+.hyka-sum-steps { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
+.hyka-sum-warn {
+  display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;
+  font-size: 13px; padding: 9px 11px; border-radius: 8px;
+  background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35);
+}
+.hyka-sum-warn .material-icons { font-size: 18px; color: #d97706; }
+.hyka-sum-warn > span:nth-child(2) { flex: 1; min-width: 180px; }
+.hyka-link { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--hk-btn); cursor: pointer; display: inline-flex; align-items: center; gap: 3px; }
+.hyka-sum-needs { padding-left: 18px; font-size: 12.5px; color: var(--hk-meta); }
 
 .hyka-dots { display: inline-flex; gap: 4px; padding: 13px 14px; }
 .hyka-dots span {
-  width: 7px; height: 7px; border-radius: 50%; background: var(--wa-ink-muted);
+  width: 7px; height: 7px; border-radius: 50%; background: var(--hk-meta);
   animation: hyka-dot 1s infinite ease-in-out;
 }
 .hyka-dots span:nth-child(2) { animation-delay: 0.15s; }
 .hyka-dots span:nth-child(3) { animation-delay: 0.3s; }
 @keyframes hyka-dot { 0%, 80%, 100% { opacity: 0.3; transform: translateY(0); } 40% { opacity: 1; transform: translateY(-3px); } }
 
-.hyka-sum {
-  background: var(--wa-surface);
-  border: 1px solid var(--wa-hairline);
-  border-radius: 14px;
-  padding: 14px;
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  max-width: 560px;
-}
-.hyka-sum-head { display: flex; gap: 10px; align-items: center; }
-.hyka-sum-head .material-icons {
-  font-size: 22px; color: #fff; background: linear-gradient(135deg, #24d06e, #0ea5e9);
-  border-radius: 10px; padding: 7px;
-}
-.hyka-sum-name { font-weight: 700; color: var(--wa-ink); }
-.hyka-sum-sub { font-size: 12.5px; color: var(--wa-ink-muted); }
-.hyka-sum-label { font-size: 11.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase; color: var(--wa-ink-muted); margin-bottom: 6px; }
-.hyka-sum-menu { display: flex; flex-wrap: wrap; gap: 6px; }
-.hyka-sum-menu span { font-size: 12.5px; padding: 4px 10px; border-radius: 8px; background: var(--wa-surface-2); border: 1px solid var(--wa-hairline); }
-.hyka-sum-steps { margin: 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; color: var(--wa-ink); }
-.hyka-sum-warn {
-  display: flex; gap: 8px; align-items: flex-start; flex-wrap: wrap;
-  font-size: 13px; padding: 9px 11px; border-radius: 10px;
-  background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.35); color: var(--wa-ink);
-}
-.hyka-sum-warn .material-icons { font-size: 18px; color: #d97706; }
-.hyka-sum-warn > span:nth-child(2) { flex: 1; min-width: 180px; }
-.hyka-link { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; color: var(--wa-link); cursor: pointer; }
-.hyka-sum-needs { margin: 0; padding-left: 18px; font-size: 12.5px; color: var(--wa-ink-muted); }
-
 .hyka-input {
   display: flex;
   gap: 10px;
   align-items: flex-end;
-  padding: 12px 14px;
+  padding: 10px 14px;
   border-top: 1px solid var(--wa-hairline);
   background: var(--wa-surface);
 }
@@ -144,25 +276,28 @@
 .hyka-input textarea:focus { border-color: var(--wa-primary); }
 .hyka-send {
   flex: none; width: 42px; height: 42px; border-radius: 50%; border: 0;
-  background: var(--wa-primary); color: var(--wa-primary-ink); cursor: pointer;
+  background: var(--hk-green); color: #fff; cursor: pointer;
   display: inline-flex; align-items: center; justify-content: center;
 }
 .hyka-send:disabled { opacity: 0.45; cursor: default; }
 .hyka-send .material-icons { font-size: 20px; }
 
-/* "Generating": the letters light up one after another over a colour sweep. */
+/* "Generating": the letters light up one after another over a colour sweep.
+   Light card in the light theme, dark card in the dark theme. */
 .hyka-gen {
   align-self: center;
   width: min(100%, 520px);
   border-radius: 18px;
-  background: radial-gradient(120% 140% at 50% 0%, #1e293b 0%, #0b1120 70%);
+  background: var(--hk-gen-bg);
+  border: 1px solid var(--hk-gen-border);
+  box-shadow: var(--hk-shadow);
   padding: 8px 12px 16px;
   display: flex;
   flex-direction: column;
   align-items: center;
   overflow: hidden;
 }
-.hyka-gen-status { color: rgba(255, 255, 255, 0.72); font-size: 13px; margin-top: -6px; }
+.hyka-gen-status { color: var(--hk-gen-status); font-size: 13px; margin-top: -6px; }
 .hyka-loader-wrapper {
   position: relative;
   display: flex;
@@ -175,7 +310,7 @@
   font-size: 1.6em;
   font-weight: 600;
   user-select: none;
-  color: #fff;
+  color: var(--hk-gen-ink);
   scale: 1.6;
 }
 .hyka-loader {
@@ -231,7 +366,7 @@
 .hyka-loader-letter:nth-child(10) { animation-delay: 1.047s; }
 @keyframes hyka-letter {
   0% { opacity: 0; }
-  5% { opacity: 1; text-shadow: 0 0 4px #fff; transform: scale(1.1) translateY(-2px); }
+  5% { opacity: 1; text-shadow: 0 0 4px var(--hk-gen-glow); transform: scale(1.1) translateY(-2px); }
   20% { opacity: 0.2; }
   100% { opacity: 0; }
 }
@@ -250,6 +385,7 @@
 @media (max-width: 640px) {
   .hyka { border-radius: 0; border-left: 0; border-right: 0; }
   .hyka-log { padding: 14px 10px 8px; }
+  .hyka-wa, .hyka-wa.has-btns { max-width: 100%; min-width: 0; }
   .hyka-loader-wrapper { scale: 1.1; margin: 0.5rem 1rem; }
   .hyka-sub { display: none; }
 }
