@@ -339,3 +339,21 @@
 .crm-sidebar.collapsed .crm-side-crown {
   display: none;
 }
+
+/* A page WhatsApp Flows fill, while the daily limit keeps Flows closed: a lock beside its name. */
+.crm-side-lock {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 4px;
+  color: #9aa2ab;
+  flex: none;
+}
+:root[data-theme='dark'] .crm-side-lock {
+  color: #8b939c;
+}
+.crm-sidebar.collapsed .crm-side-lock {
+  display: none;
+}
+.rail-soon .lock-svg {
+  display: block;
+}

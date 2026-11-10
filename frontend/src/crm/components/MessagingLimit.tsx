@@ -22,6 +22,18 @@ type Ctx = {
 const MessagingLimitCtx = createContext<Ctx>({ data: null, loading: false, skeleton: false, refresh: () => {} });
 export const useMessagingLimit = () => useContext(MessagingLimitCtx);
 
+/** WhatsApp Flows open at this daily messaging limit (Meta's 2,000 tier). */
+export const FLOWS_MIN_LIMIT = 2000;
+/**
+ * The number's daily limit while it keeps WhatsApp Flows locked (under
+ * FLOWS_MIN_LIMIT), else null. A limit that isn't known (not loaded, not
+ * connected, unlimited) doesn't lock.
+ */
+export function flowsLockLimit(data: MessagingLimitUsage | null | undefined): number | null {
+  const n = data?.connected && data.limit && !data.limit.unlimited ? Number(data.limit.limit) : NaN;
+  return Number.isFinite(n) && n < FLOWS_MIN_LIMIT ? n : null;
+}
+
 // The server pushes every change (a template sent or failed) over the socket,
 // and the one change it can't push (a customer leaving the 24 hours) is read
 // at `nextFreeAt`. This slow re-read only catches what both could miss

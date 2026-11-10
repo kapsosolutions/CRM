@@ -1,6 +1,19 @@
 // The CRM sidebar: grouped sections with labels (collapses to icons, and is a drawer on small screens).
 import { CrownIcon } from './PlanLocked';
+import { FLOWS_MIN_LIMIT, flowsLockLimit, useMessagingLimit } from './MessagingLimit';
 import type { ReactNode } from 'react';
+
+/** A padlock, drawn like the sidebar's other icons. */
+export function LockRailSvg({ size = 16, className = '' }: { size?: number; className?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" className={`lock-svg${className ? ` ${className}` : ''}`} aria-hidden="true">
+      <rect x="3.5" y="8" width="13" height="9.5" rx="2" stroke="currentColor" strokeWidth="1.6" />
+      <path d="M6.5 8V5.5C6.5 3.567 8.067 2 10 2C11.933 2 13.5 3.567 13.5 5.5V8" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+      <circle cx="10" cy="12.5" r="1.1" fill="currentColor" />
+      <path d="M10 13.5V15" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+    </svg>
+  );
+}
 
 export type CrmView = 'chats' | 'templates' | 'campaigns' | 'flows' | 'catalog' | 'categories' | 'members' | 'offers' | 'orders' | 'ads' | 'create' | 'payment-config' | 'profile' | 'settings' | 'channel-status'
   // One ready-made form's submissions: 'form:pickup_request' (flowForms.ts).
@@ -31,6 +44,14 @@ interface Props {
   locked?: Partial<Record<CrmView, string>>;
   /** The Forms section: one page per ready-made form ("Pickup requests"). */
   forms?: FormRailItem[];
+  /**
+   * Pages that WhatsApp Flows fill (orders / appointments / enquiries, payment
+   * configuration, the form pages). They carry a lock while the number's daily
+   * limit keeps Flows closed (under FLOWS_MIN_LIMIT).
+   */
+  flowsFed?: CrmView[];
+  /** The daily-limit lock doesn't apply (the platform owner, the demo). */
+  limitBypass?: boolean;
 }
 
 /* User-provided vector SVGs matching WATI style navigation */
@@ -277,7 +298,12 @@ interface SidebarProps extends Props {
 
 export function NavRail({
   view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome, footer, forms = [], logoLight, logoDark,
+  flowsFed = [], limitBypass = false,
 }: SidebarProps) {
+  const { data: limitData } = useMessagingLimit();
+  const dayLimit = limitBypass ? null : flowsLockLimit(limitData);
+  const fed = new Set<CrmView>([...flowsFed, ...forms.map((f) => f.key)]);
+  const limitWhy = dayLimit === null ? '' : `Opens when your WhatsApp number can message ${FLOWS_MIN_LIMIT.toLocaleString('en-IN')} customers a day (now ${dayLimit.toLocaleString('en-IN')}). It fills from WhatsApp Flows.`;
   // Form pages come from the business's forms, not from its type's page list.
   const shown = (key: CrmView) => isFormView(key) || !allowed || allowed.includes(key);
   const byKey = new Map<CrmView, RailItem>([...ITEMS, ...forms].map((it) => [it.key, it]));
@@ -317,25 +343,28 @@ export function NavRail({
                 const isSoon = !!soon?.[it.key];
                 // A plan lock shows even on a "Soon" item (Ads, Create): the crown.
                 const needs = planLocked?.[it.key];
-                const locked = isSoon || !!needs;
+                // The plan's crown comes first: buying the plan is the next step.
+                const limitLocked = !needs && !isSoon && !!limitWhy && fed.has(it.key);
+                const locked = isSoon || !!needs || limitLocked;
                 return (
                   <button
                     key={it.key}
                     type="button"
-                    className={`rail-btn crm-side-item${view === it.key ? ' active' : ''}${locked ? ' soon' : ''}`}
+                    className={`rail-btn crm-side-item${view === it.key ? ' active' : ''}${locked ? ' soon' : ''}${limitLocked ? ' limit-locked' : ''}`}
                     onClick={() => onChange(it.key)}
-                    title={needs ? `${label} · ${needs} plan` : label}
-                    aria-label={isSoon ? `${label}, coming soon${needs ? `, needs the ${needs} plan` : ''}` : needs ? `${label}, needs the ${needs} plan` : count > 0 ? `${label}, ${count} unread` : label}
+                    title={needs ? `${label} · ${needs} plan` : limitLocked ? `${label} · ${limitWhy}` : label}
+                    aria-label={isSoon ? `${label}, coming soon${needs ? `, needs the ${needs} plan` : ''}` : needs ? `${label}, needs the ${needs} plan` : limitLocked ? `${label}, locked. ${limitWhy}` : count > 0 ? `${label}, ${count} unread` : label}
                     aria-current={view === it.key ? 'page' : undefined}
                     data-soon={isSoon ? 'true' : undefined}
                     data-plan-locked={needs || undefined}
+                    data-limit-locked={limitLocked ? 'true' : undefined}
                     data-view={it.key}
                   >
                     <span className="crm-side-icon">
                       {it.svg ? it.svg : <span className="material-icons">{it.icon}</span>}
                       {locked && (
                         <span className={`rail-soon${needs ? ' crown' : ''}`} aria-hidden="true">
-                          {needs ? <CrownIcon size={11} /> : <span className="material-icons">lock</span>}
+                          {needs ? <CrownIcon size={11} /> : <LockRailSvg size={10} />}
                         </span>
                       )}
                     </span>
@@ -343,6 +372,9 @@ export function NavRail({
                     {isSoon && <span className="crm-side-pill soon" aria-hidden="true">Soon</span>}
                     {needs && (
                       <span className="crm-side-crown" aria-hidden="true" data-testid="rail-crown"><CrownIcon size={15} /></span>
+                    )}
+                    {limitLocked && (
+                      <span className="crm-side-lock" aria-hidden="true" data-testid="rail-lock"><LockRailSvg size={15} /></span>
                     )}
                     {count > 0 && (
                       <span className="rail-badge" aria-hidden="true">{count > 99 ? '99+' : count}</span>

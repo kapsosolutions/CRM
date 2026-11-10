@@ -46,7 +46,7 @@ import { BladeSpinner } from './BladeSpinner';
 import { COMING_SOON } from '../features';
 import { ComingSoonPanel, SoonPill } from './ComingSoon';
 import { FullscreenButton, IN_HANDLE, inSideFor, organizeLayout, useCanvasFullscreen, type LayoutPort } from './canvasTools';
-import { useMessagingLimit } from './MessagingLimit';
+import { FLOWS_MIN_LIMIT, useMessagingLimit } from './MessagingLimit';
 
 type Kind =
   | 'start'
@@ -2731,8 +2731,7 @@ function JourneyManager({
   );
 }
 
-/** WhatsApp Flows open at this daily messaging limit (Meta's 2,000 tier). */
-export const FLOWS_MIN_LIMIT = 2000;
+export { FLOWS_MIN_LIMIT };
 
 /** What the Flows tab shows while the number's daily limit is under FLOWS_MIN_LIMIT. */
 function FlowsLockedPanel({ limit }: { limit: number }) {
