@@ -14,7 +14,7 @@ import { emitMessage } from './eventBus.js';
 import { takeParked, isStatusUpgrade, statusesBelow } from './messageStatus.js';
 import Template from '../models/Template.js';
 import { renderTemplate } from './templateRender.js';
-import { recordOutboundPreview } from './conversationState.js';
+import { recordOutboundPreview, recordLastStatus } from './conversationState.js';
 import { reserveCredit, refundCredit } from './credits.js';
 import { planOf, assertContact } from './planGate.js';
 import { decryptToken } from './tokenCrypto.js';
@@ -176,6 +176,13 @@ async function logOutbound(payload, resData, businessId = '', extra = null) {
     // A campaign send is tagged with its campaign, so the campaign's counts
     // come from the statuses Meta reports for these rows.
     const { campaignId, ...rest } = extra || {};
+    // The chat list's last message (text, id, a single tick), written before
+    // the message row: any receipt that finds the message then also finds the
+    // chat to move its ticks. A first message to a new number (a campaign)
+    // starts that chat here.
+    await recordOutboundPreview(phone, outboundPreview(d), businessId || null, {
+      messageId: metaMessageId, status: 'sent', upsert: !!businessId,
+    }).catch(() => {});
     const doc = await Message.create({
       phone, direction: 'out', type: d.type, body: d.body,
       raw: { outbound: d, ...rest }, metaMessageId,
@@ -194,9 +201,9 @@ async function logOutbound(payload, resData, businessId = '', extra = null) {
       const set = { status: early.status, ...(early.status === 'failed' && early.error ? { error: early.error } : {}) };
       Object.assign(doc, set);
       await Message.updateOne({ _id: doc._id, status: { $in: statusesBelow(early.status) } }, { $set: set });
+      // That receipt never reached the chat list either.
+      await recordLastStatus(metaMessageId, early.status, statusesBelow(early.status), businessId || null).catch(() => {});
     }
-    // With its id and status, so the list's ticks follow the receipts.
-    await recordOutboundPreview(phone, outboundPreview(d), businessId || null, { messageId: metaMessageId, status: doc.status }).catch(() => {});
     emitMessage(doc);
     // A template can use up Meta's daily limit: the sidebar bar follows.
     if (d.type === 'template' && businessId && !rest.sandbox) noteLimitActivity(businessId);

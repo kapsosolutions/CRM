@@ -18,7 +18,7 @@ import { CampaignOverview } from './CampaignOverview';
 import { TemplateComposerPage } from './TemplateComposerPage';
 import { CustomDateTimePicker } from './CustomDateTimePicker';
 import { CreateDripModal, type DripCampaign, type DripMessageStep } from './CreateDripModal';
-import { FlagSvg, COUNTRIES, countryOf, phoneProblem } from '../../site/PhoneField';
+import { FlagSvg, COUNTRIES, countryOf, phoneProblem, nationalNumber, countryFromCell } from '../../site/PhoneField';
 import { authBodyWithCode, isAuthTemplate, otpProblem } from '../authTemplate';
 
 interface Props {
@@ -487,7 +487,7 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
   }
 
   function handleAddDirectContact() {
-    const national = directPhone.replace(/\D/g, '');
+    const national = nationalNumber(directIso, directPhone);
     const c = countryOf(directIso);
     if (!national) {
       setDirectError('Please enter a phone number');
@@ -560,13 +560,17 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
           }
         }
       }
-      // A country column: added unless the number already starts with it AND
-      // is longer than a national number (an Indian mobile can begin with "91").
-      // No country column: a national-length number takes the country picked
-      // for "Add contact" (India by default), so it isn't sent abroad.
-      const cc = country.replace(/\D/g, '') || (phone && phone.length <= 10 ? countryOf(directIso).dial.replace(/\D/g, '') : '');
-      phone = phone.replace(/^00(?=\d{8,})/, '');
-      if (cc && phone && !(phone.startsWith(cc) && phone.length > 10)) phone = cc + phone;
+      // The country: the row's column (a code like 91 / +91, IN or India).
+      // Without one, a number written the national way (a leading 0, or no
+      // longer than a national number) takes the country picked for "Add
+      // contact" (India by default); a longer one already has its code.
+      // Then the number within that country: "09876543210", "+91 98765 43210"
+      // and "0091 98765 43210" all become 91 + 9876543210.
+      const rowCountry = countryFromCell(country);
+      phone = phone.replace(/^00(?=[1-9]\d{7,})/, '');
+      const national = !rowCountry && (/^0/.test(phone) || phone.length <= 10);
+      const target = rowCountry || (national ? countryOf(directIso) : null);
+      if (target && phone) phone = target.dial + nationalNumber(target.iso, phone);
 
       // Extract dynamic bodyParams
       const bodyParams: string[] = [];
@@ -1375,7 +1379,9 @@ export function CampaignsPage({ api, business, demo, onNavigate, focusRequest, s
                           className="k-input camp-direct-phone-input"
                           value={directPhone}
                           onChange={(e) => {
-                            setDirectPhone(e.target.value.replace(/\D/g, ''));
+                            // The national number: a leading trunk 0 (09876…) or a
+                            // pasted +91 / 0091 comes off as it's typed.
+                            setDirectPhone(nationalNumber(directIso, e.target.value));
                             setDirectError('');
                           }}
                           placeholder={countryOf(directIso).len ? `${countryOf(directIso).len} digits` : 'Phone number'}

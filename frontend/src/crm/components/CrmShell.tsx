@@ -863,14 +863,22 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     const f = featureOf(v);
     return !!f && !hasFeature(planState, f);
   };
+  // The trial or the paid plan has ended and nothing new is bought: every page
+  // shows the plans (PlanPaywall), so every sidebar link carries the crown.
+  const planEnded = !demo && planState?.status === 'free';
+  // An admin / master session chose to look past the plans (this visit only).
+  const [staffPastPaywall, setStaffPastPaywall] = useState(false);
   const lockedRail = useMemo(() => {
     const out: Partial<Record<CrmView, string>> = {};
     for (const v of ['templates', 'campaigns', 'flows', 'catalog', 'categories', 'members', 'offers', 'orders', 'ads', 'create', 'payment-config'] as CrmView[]) {
       const f = featureOf(v) as PlanFeature;
-      if (!hasFeature(planState, f)) out[v] = TIER_NAMES[tierFor(f)];
+      if (planEnded) out[v] = TIER_NAMES[tierFor(f)];
+      else if (!hasFeature(planState, f)) out[v] = TIER_NAMES[tierFor(f)];
     }
+    if (planEnded) out.chats = TIER_NAMES.free;
     return out;
-  }, [planState]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [planState, planEnded]);
 
   const vertical = useMemo(() => verticalConfig(category, labels), [category, labels]);
 
@@ -905,11 +913,11 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   );
   // Outside the plan (no WhatsApp Flows), the form pages carry its lock.
   const railLocks = useMemo(() => {
-    if (hasFeature(planState, 'flows')) return lockedRail;
+    if (hasFeature(planState, 'flows') && !planEnded) return lockedRail;
     const out = { ...lockedRail };
     for (const f of formRail) out[f.key] = TIER_NAMES[tierFor('flows')];
     return out;
-  }, [lockedRail, formRail, planState]);
+  }, [lockedRail, formRail, planState, planEnded]);
 
   // ---- Count badges on Orders and the form pages ---------------------------
   // Like the Chats badge: how many records arrived since the page was last
@@ -1398,13 +1406,15 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
               />
             </div>
             {/* The trial or the paid plan has ended and nothing new is bought:
-                the plans over every page, Settings (Billing, the profile) excepted. */}
-            {/* The platform owner (admin / master session) can still look after the account. */}
-            {!demo && !staffSession && planState?.status === 'free' && view !== 'profile' && view !== 'settings' && (
+                the plans over every page, Settings (Billing, the profile) excepted.
+                The platform owner (admin / master session) sees them too, and can
+                step past them for this visit to look after the account. */}
+            {planEnded && planState && !staffPastPaywall && view !== 'profile' && view !== 'settings' && (
               <PlanPaywall
                 api={api}
                 plan={planState}
                 onOpenBilling={openBilling}
+                onStaffContinue={staffSession ? () => setStaffPastPaywall(true) : undefined}
               />
             )}
             {/* A page outside the business's plan: its upgrade screen (Ads / Create stay 'coming soon'). */}

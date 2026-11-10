@@ -199,6 +199,155 @@ interface Props {
   onTemplatesChanged?: () => void;
 }
 
+/** The eight delivery cards (Sent … Queued), for the overview and one campaign's page. */
+type FunnelStats = { sent: number; delivered: number; read: number; replied: number; sending: number; failed: number; processing: number; queued: number; skipped: number };
+function FunnelCards({ stats, isMeta, channelName }: { stats: FunnelStats; isMeta: boolean; channelName: string }) {
+  return (
+            <section className="co-funnel-grid">
+              {/* 1. Sent */}
+              <div className="co-metric-card">
+                <div className="co-metric-left">
+                  <div className="co-metric-val">{stats.sent}</div>
+                  <div className="co-metric-lbl">
+                    <span>Sent</span>
+                    <span className="co-info-icon" title="Campaign messages Meta accepted for delivery">ⓘ</span>
+                  </div>
+                </div>
+                <div className="co-metric-badge green">
+                  <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1.66797 7L7.16797 12.5L16.3346 1.5" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 2. Delivered */}
+              <div className="co-metric-card">
+                <div className="co-metric-left">
+                  <div className="co-metric-val">{stats.delivered}</div>
+                  <div className="co-metric-lbl">
+                    <span>Delivered</span>
+                    <span className="co-info-icon" title={`Delivered, as reported by ${channelName} (includes read)`}>ⓘ</span>
+                  </div>
+                </div>
+                <div className="co-metric-badge green">
+                  <svg width="22" height="12" viewBox="0 0 22 12" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M1.83203 6L6.64453 10.5833L9.05078 7.83333" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M7.33203 5.99984L12.1445 10.5832L20.1654 1.4165" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M14.6654 1.4165L11.457 5.08317" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 3. Read */}
+              <div className="co-metric-card">
+                <div className="co-metric-left">
+                  <div className="co-metric-val">{stats.read}</div>
+                  <div className="co-metric-lbl">
+                    <span>Read</span>
+                    <span className="co-info-icon" title="Messages opened and read">ⓘ</span>
+                  </div>
+                </div>
+                <div className="co-metric-badge green">
+                  <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M20.2565 6.962C20.7305 7.582 20.7305 8.419 20.2565 9.038C18.7635 10.987 15.1815 15 10.9995 15C6.81752 15 3.23552 10.987 1.74252 9.038C1.51191 8.74113 1.38672 8.37592 1.38672 8C1.38672 7.62408 1.51191 7.25887 1.74252 6.962C3.23552 5.013 6.81752 1 10.9995 1C15.1815 1 18.7635 5.013 20.2565 6.962V6.962Z" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                    <path d="M11 11C12.6569 11 14 9.65685 14 8C14 6.34315 12.6569 5 11 5C9.34315 5 8 6.34315 8 8C8 9.65685 9.34315 11 11 11Z" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 4. Replied */}
+              <div className="co-metric-card">
+                <div className="co-metric-left">
+                  <div className="co-metric-val">{stats.replied}</div>
+                  <div className="co-metric-lbl">
+                    <span>Replied</span>
+                    <span className="co-info-icon" title="Recipients who wrote back after the campaign message">ⓘ</span>
+                  </div>
+                </div>
+                <div className="co-metric-badge green">
+                  <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M8.60219 0.736277C8.76965 0.805709 8.91277 0.923237 9.01344 1.074C9.11411 1.22476 9.16782 1.40199 9.16777 1.58328V3.03711L11.2697 0.935194C11.3979 0.807035 11.5612 0.719762 11.739 0.684408C11.9168 0.649055 12.1011 0.667208 12.2685 0.736572C12.436 0.805936 12.5792 0.923397 12.6799 1.07411C12.7806 1.22482 12.8344 1.40201 12.8344 1.58328V4.35986C14.5385 4.45978 15.9245 4.84203 17.0447 5.44519C18.2398 6.0821 19.2221 7.0554 19.8699 8.24469C21.0524 10.3851 21.0844 12.9023 21.0844 14.4166C21.0844 14.6597 20.9879 14.8929 20.816 15.0648C20.644 15.2367 20.4109 15.3333 20.1678 15.3333C19.9247 15.3333 19.6915 15.2367 19.5196 15.0648C19.3477 14.8929 19.2511 14.6597 19.2511 14.4166C19.2511 13.8474 19.0513 13.4257 18.7039 13.0783C18.3335 12.7089 17.7679 12.399 17.0245 12.1616C15.7925 11.7693 14.2562 11.6354 12.8344 11.6437V14.4166C12.8344 14.5979 12.7806 14.7751 12.6799 14.9258C12.5792 15.0765 12.436 15.1939 12.2685 15.2633C12.1011 15.3327 11.9168 15.3508 11.739 15.3155C11.5612 15.2801 11.3979 15.1929 11.2697 15.0647L1.18636 8.64803C1.01451 8.47613 0.917969 8.24301 0.917969 7.99994C0.917969 7.75688 1.01451 7.52376 1.18636 7.35186L7.60302 0.935194C7.73121 0.806922 7.89457 0.719555 8.07243 0.684147C8.25028 0.648739 8.43465 0.666881 8.60219 0.736277ZM7.33444 11.1294L4.85302 8.64803C4.68117 8.47613 4.58464 8.24301 4.58464 7.99994C4.58464 7.75688 4.68117 7.52376 4.85302 7.35186L7.33444 4.87044V3.79611L3.13061 7.99994L7.33444 12.2038V11.1294ZM18.955 11.0011C18.8138 10.3485 18.5814 9.719 18.2648 9.13111C17.7871 8.24994 17.0601 7.5293 16.1748 7.05944C15.1866 6.52686 13.8199 6.16661 11.9178 6.16661C11.6747 6.16661 11.4415 6.07003 11.2696 5.89812C11.0977 5.72622 11.0011 5.49306 11.0011 5.24994V3.79611L6.79727 7.99994L11.0011 12.2038V10.7499C11.0011 10.514 11.0921 10.2871 11.2552 10.1165C11.4182 9.94593 11.6408 9.84481 11.8765 9.83419C13.5989 9.75628 15.787 9.84336 17.5819 10.4154C18.0584 10.5635 18.5185 10.7601 18.955 11.002V11.0011Z" fill="#23A455" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 5. Sending */}
+              <div className="co-metric-card">
+                <div className="co-metric-left">
+                  <div className="co-metric-val">{stats.sending}</div>
+                  <div className="co-metric-lbl">
+                    <span>Sending</span>
+                    <span className="co-info-icon" title="Messages of campaigns being sent right now that haven't gone out yet">ⓘ</span>
+                  </div>
+                </div>
+                <div className="co-metric-badge green">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M17.6469 7.54313L4.8136 1.12646C4.30714 0.874384 3.73525 0.784643 3.17592 0.869473C2.61658 0.954302 2.09702 1.20957 1.68807 1.60048C1.27912 1.99139 1.00068 2.49891 0.890721 3.05385C0.780757 3.60879 0.84462 4.18414 1.0736 4.70146L3.2736 9.62396C3.32352 9.74297 3.34923 9.87074 3.34923 9.99979C3.34923 10.1288 3.32352 10.2566 3.2736 10.3756L1.0736 15.2981C0.887244 15.7168 0.808462 16.1754 0.844415 16.6322C0.880368 17.0891 1.02992 17.5297 1.27947 17.914C1.52902 18.2984 1.87067 18.6143 2.27336 18.833C2.67605 19.0517 3.12701 19.1663 3.58527 19.1665C4.01448 19.1622 4.4373 19.062 4.82277 18.8731L17.6561 12.4565C18.1113 12.2275 18.494 11.8765 18.7613 11.4427C19.0287 11.0089 19.1703 10.5094 19.1703 9.99979C19.1703 9.49022 19.0287 8.99068 18.7613 8.55689C18.494 8.1231 18.1113 7.77212 17.6561 7.54313H17.6469ZM16.8311 10.8156L3.99777 17.2323C3.82925 17.3132 3.64002 17.3407 3.45546 17.311C3.27089 17.2813 3.09981 17.1959 2.96516 17.0662C2.8305 16.9366 2.73871 16.7688 2.70209 16.5855C2.66547 16.4022 2.68577 16.2121 2.76027 16.0406L4.9511 11.1181C4.97946 11.0524 5.00395 10.9851 5.02444 10.9165H11.3403C11.5834 10.9165 11.8165 10.8199 11.9884 10.648C12.1604 10.4761 12.2569 10.2429 12.2569 9.99979C12.2569 9.75668 12.1604 9.52352 11.9884 9.35161C11.8165 9.1797 11.5834 9.08313 11.3403 9.08313H5.02444C5.00395 9.01453 4.97946 8.94719 4.9511 8.88146L2.76027 3.95896C2.68577 3.78751 2.66547 3.59738 2.70209 3.41406C2.73871 3.23075 2.8305 3.06301 2.96516 2.93334C3.09981 2.80368 3.27089 2.71828 3.45546 2.6886C3.64002 2.65892 3.82925 2.68638 3.99777 2.76729L16.8311 9.18396C16.9813 9.26088 17.1073 9.37776 17.1953 9.5217C17.2832 9.66565 17.3298 9.83108 17.3298 9.99979C17.3298 10.1685 17.2832 10.3339 17.1953 10.4779C17.1073 10.6218 16.9813 10.7387 16.8311 10.8156Z" fill="#23A455" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 6. Failed */}
+              <div className="co-metric-card">
+                <div className="co-metric-left">
+                  <div className="co-metric-val">{stats.failed}</div>
+                  <div className="co-metric-lbl">
+                    <span>Failed</span>
+                    <span className="co-info-icon" title="Messages Meta refused or couldn't deliver (open a campaign to see why)">ⓘ</span>
+                  </div>
+                </div>
+                <div className="co-metric-badge green">
+                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M4.51796 4.51898C6.02201 3.00511 8.00712 2.06343 10.1311 1.85629C12.255 1.64915 14.3846 2.18953 16.1529 3.38427C17.9211 4.57901 19.217 6.35324 19.8173 8.40108C20.4176 10.4489 20.2846 12.642 19.4413 14.6023C19.3534 14.7845 19.3246 14.9896 19.3588 15.189L20.1655 19.0665C20.1965 19.2151 20.1902 19.3692 20.147 19.5148C20.1038 19.6604 20.0251 19.793 19.918 19.9007C19.8301 19.9878 19.7256 20.0563 19.6106 20.102C19.4956 20.1477 19.3725 20.1696 19.2488 20.1665H19.0655L15.1421 19.3781C14.9427 19.3542 14.7405 19.3826 14.5555 19.4606C12.5952 20.304 10.4021 20.437 8.35422 19.8367C6.30638 19.2364 4.53216 17.9404 3.33741 16.1722C2.14267 14.404 1.60229 12.2743 1.80943 10.1504C2.01657 8.02648 2.95825 6.04137 4.47213 4.53732L4.51796 4.51898ZM3.75713 12.1823C3.93635 13.2768 4.36149 14.3164 5.00054 15.2228C5.63959 16.1292 6.47592 16.8789 7.44657 17.4154C8.41723 17.9519 9.49693 18.2613 10.6044 18.3202C11.7119 18.3792 12.8184 18.1861 13.8405 17.7557C14.203 17.6015 14.5924 17.5205 14.9863 17.5173C15.1584 17.5185 15.3301 17.5339 15.4996 17.5632L18.0846 18.0856L17.5621 15.5007C17.4581 14.9408 17.5251 14.3626 17.7546 13.8415C18.1851 12.8194 18.3781 11.7129 18.3192 10.6054C18.2603 9.49795 17.9509 8.41825 17.4144 7.4476C16.8779 6.47694 16.1282 5.64062 15.2218 5.00156C14.3154 4.36251 13.2758 3.93737 12.1813 3.75815C11.0325 3.56961 9.85524 3.65729 8.74702 4.01396C7.6388 4.37062 6.63142 4.98601 5.8082 5.80923C4.98499 6.63244 4.3696 7.63982 4.01293 8.74805C3.65627 9.85627 3.56858 11.0335 3.75713 12.1823Z" fill="#23A455" />
+                    <path d="M10.504 11.2619L8.93246 12.8335L9.16797 13.069L10.7396 11.4974L11.2699 10.9671L11.8002 11.4974L13.3718 13.069L13.6073 12.8335L12.0357 11.2619L11.5054 10.7316L12.0357 10.2012L13.6073 8.62966L13.3718 8.39416L11.8002 9.96574L11.2699 10.4961L10.7396 9.96574L9.16797 8.39416L8.93246 8.62966L10.504 10.2012L11.0344 10.7316L10.504 11.2619Z" stroke="#23A455" strokeWidth="1.5" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 7. Processing */}
+              <div className="co-metric-card">
+                <div className="co-metric-left">
+                  <div className="co-metric-val" data-testid="co-metric-processing">{isMeta ? stats.skipped : stats.processing}</div>
+                  <div className="co-metric-lbl">
+                    <span>{isMeta ? 'Skipped' : 'Processing'}</span>
+                    <span
+                      className="co-info-icon"
+                      title={isMeta ? 'Not sent: outside the 24-hour window when their turn came' : 'Accepted by Meta, no delivery receipt yet'}
+                    >
+                      ⓘ
+                    </span>
+                  </div>
+                </div>
+                <div className="co-metric-badge green">
+                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M7.1888 7.08317H3.4388C3.21779 7.08317 3.00583 6.99537 2.84955 6.83909C2.69327 6.68281 2.60547 6.47085 2.60547 6.24984V2.49984C2.60547 2.27882 2.69327 2.06686 2.84955 1.91058C3.00583 1.7543 3.21779 1.6665 3.4388 1.6665C3.65982 1.6665 3.87178 1.7543 4.02806 1.91058C4.18434 2.06686 4.27214 2.27882 4.27214 2.49984V5.4165H7.1888C7.40982 5.4165 7.62178 5.5043 7.77806 5.66058C7.93434 5.81686 8.02213 6.02882 8.02213 6.24984C8.02213 6.47085 7.93434 6.68281 7.77806 6.83909C7.62178 6.99537 7.40982 7.08317 7.1888 7.08317Z" fill="#23A455" />
+                    <path d="M17.501 10.8335C17.28 10.8335 17.068 10.7457 16.9117 10.5894C16.7554 10.4331 16.6676 10.2212 16.6676 10.0002C16.6683 8.53311 16.1847 7.10687 15.2919 5.94275C14.3991 4.77864 13.147 3.94174 11.73 3.56194C10.313 3.18213 8.8102 3.28065 7.45488 3.8422C6.09956 4.40376 4.96748 5.39696 4.23431 6.66767C4.12358 6.85895 3.9414 6.99842 3.72784 7.05538C3.51429 7.11235 3.28685 7.08214 3.09556 6.97142C2.90427 6.86069 2.76481 6.67851 2.70784 6.46495C2.65088 6.25139 2.68108 6.02395 2.79181 5.83267C3.70869 4.24453 5.12405 3.00337 6.81832 2.30174C8.51259 1.60011 10.3911 1.47722 12.1623 1.95216C13.9335 2.42709 15.4985 3.47328 16.6145 4.92844C17.7304 6.38359 18.335 8.16636 18.3343 10.0002C18.3343 10.2212 18.2465 10.4331 18.0902 10.5894C17.934 10.7457 17.722 10.8335 17.501 10.8335ZM16.5635 18.3335C16.3425 18.3335 16.1305 18.2457 15.9742 18.0894C15.8179 17.9331 15.7301 17.7212 15.7301 17.5002V14.5835H12.8135C12.5925 14.5835 12.3805 14.4957 12.2242 14.3394C12.0679 14.1831 11.9801 13.9712 11.9801 13.7502C11.9801 13.5292 12.0679 13.3172 12.2242 13.1609C12.3805 13.0046 12.5925 12.9168 12.8135 12.9168H16.5635C16.7845 12.9168 16.9965 13.0046 17.1527 13.1609C17.309 13.3172 17.3968 13.5292 17.3968 13.7502V17.5002C17.3968 17.7212 17.309 17.9331 17.1527 18.0894C16.9965 18.2457 16.7845 18.3335 16.5635 18.3335Z" fill="#23A455" />
+                    <path d="M10.0013 18.3332C7.79198 18.3305 5.6739 17.4517 4.11167 15.8895C2.54944 14.3272 1.67062 12.2092 1.66797 9.99984C1.66797 9.77882 1.75577 9.56686 1.91205 9.41058C2.06833 9.2543 2.28029 9.1665 2.5013 9.1665C2.72232 9.1665 2.93428 9.2543 3.09056 9.41058C3.24684 9.56686 3.33464 9.77882 3.33464 9.99984C3.334 11.4669 3.8176 12.8931 4.71039 14.0572C5.60318 15.2214 6.85524 16.0583 8.27227 16.4381C9.6893 16.8179 11.1921 16.7194 12.5474 16.1578C13.9027 15.5962 15.0348 14.603 15.768 13.3323C15.8228 13.2376 15.8957 13.1546 15.9826 13.0881C16.0695 13.0216 16.1687 12.9728 16.2744 12.9446C16.3802 12.9164 16.4904 12.9093 16.5989 12.9237C16.7074 12.9381 16.812 12.9738 16.9067 13.0286C17.0014 13.0834 17.0844 13.1564 17.1509 13.2433C17.2175 13.3302 17.2662 13.4293 17.2944 13.5351C17.3226 13.6408 17.3297 13.7511 17.3153 13.8595C17.3009 13.968 17.2653 14.0726 17.2105 14.1673C16.4776 15.4311 15.4263 16.4807 14.1614 17.2116C12.8965 17.9425 11.4622 18.3292 10.0013 18.3332Z" fill="#23A455" />
+                  </svg>
+                </div>
+              </div>
+
+              {/* 8. Queued */}
+              <div className="co-metric-card">
+                <div className="co-metric-left">
+                  <div className="co-metric-val">{stats.queued}</div>
+                  <div className="co-metric-lbl">
+                    <span>Queued</span>
+                    <span className="co-info-icon" title="Messages of scheduled campaigns waiting to go out">ⓘ</span>
+                  </div>
+                </div>
+                <div className="co-metric-badge green">
+                  <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <path d="M12.8626 1.36479V1.92329H5.66616C3.79786 1.92329 2.2794 3.44174 2.2794 5.31004V6.96775H2.27495C2.07347 6.96775 1.91016 6.80444 1.91016 6.60296V1.36479C1.91016 1.16335 2.07351 1 2.27495 1H12.4978C12.6993 1 12.8626 1.16335 12.8626 1.36479Z" stroke="#23A455" strokeWidth="2" />
+                    <path d="M16.2532 5.31004V5.86853H9.50209C7.63381 5.86853 6.11533 7.3869 6.11533 9.25528V10.9129H5.66558C5.46413 10.9129 5.30078 10.7496 5.30078 10.5481V5.31004C5.30078 5.1086 5.46413 4.94525 5.66558 4.94525H15.8884C16.0899 4.94525 16.2532 5.10857 16.2532 5.31004Z" stroke="#23A455" strokeWidth="2" />
+                    <path d="M9.50542 8.89056H19.7283C19.9298 8.89056 20.0931 9.05388 20.0931 9.25536V14.4935C20.0931 14.695 19.9298 14.8583 19.7283 14.8583H9.50542C9.30398 14.8583 9.14062 14.695 9.14062 14.4935V9.25536C9.14062 9.05391 9.30398 8.89056 9.50542 8.89056Z" stroke="#23A455" strokeWidth="2" />
+                  </svg>
+                </div>
+              </div>
+            </section>
+  );
+}
+
 export function CampaignOverview({
   api,
   business: _business,
@@ -646,6 +795,250 @@ export function CampaignOverview({
   const monthTitle = calMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
   const todayKey = dayKey(new Date());
 
+  /**
+   * Duplicate: the campaign editor opens filled in from this one (template,
+   * contacts with their values, drip, offer) as a new campaign to send again.
+   */
+  async function duplicateCampaign(id: string) {
+    try {
+      const { data: c } = await api.getCampaign(id);
+      const copyName = `${c.name} (copy)`.slice(0, 120);
+      if (channelOf(c) !== 'whatsapp') {
+        onCreateNew(undefined, { channel: channelOf(c), meta: { ...c, _id: '', name: copyName, status: 'draft', scheduledAt: null } });
+        return;
+      }
+      const auth = isAuthTemplate(templates.find((t) => t.name === c.templateName));
+      // Older servers send the list with its values only for drafts: the results' phones and names then.
+      const people = c.audience?.length
+        ? c.audience
+        : (c.recipients || []).map((r) => ({ phone: r.phone, name: r.name, bodyParams: [] as string[] }));
+      onCreateNew(c.templateName || undefined, {
+        campaignName: copyName,
+        campaignType: c.type || 'single',
+        templateName: c.templateName || '',
+        scheduleMode: 'now',
+        scheduledAt: '',
+        recipients: people.map((r) => ({
+          phone: r.phone,
+          name: r.name || `+${r.phone}`,
+          status: 'queued',
+          // A one-time code is never sent twice: an authentication template gets new ones.
+          ...(!auth && r.bodyParams && r.bodyParams.length ? { bodyParams: r.bodyParams } : {}),
+        })),
+        ltoCode: c.ltoCode || '',
+        ltoEndsAt: '',
+        drip: c.drip || null,
+      });
+      notify('success', 'Campaign copied', `“${copyName}” is ready to edit and send.`);
+    } catch (e) {
+      notify('error', 'Could not copy the campaign', (e as Error).message || 'Please try again.');
+    }
+  }
+
+  /** One campaign's page: its delivery cards, follow-ups and every recipient. */
+  function renderDetail() {
+    if (!detail) return null;
+    const ch = channelOf(detail);
+    const s = detail.stats || { ...ZERO_STATS, total: detail.total, pending: detail.total };
+    const cards: FunnelStats = {
+      sent: s.accepted,
+      delivered: s.delivered,
+      read: s.read,
+      replied: s.replied,
+      sending: detail.status === 'sending' ? s.pending : 0,
+      failed: s.failed,
+      processing: s.sentOnly,
+      queued: detail.status === 'scheduled' ? s.pending : 0,
+      skipped: s.skipped || 0,
+    };
+    const pct = (n: number) => (s.total ? `${Math.round((n / s.total) * 100)}%` : '0%');
+    return (
+      <div className="co-detail" data-testid="co-detail" data-campaign-id={detail._id}>
+        <header className="co-detail-head">
+          <div className="co-detail-title">
+            <button type="button" className="co-detail-back" onClick={() => setDetail(null)} aria-label="Back to campaigns" data-testid="co-detail-back">
+              <span className="material-icons" aria-hidden="true">arrow_back</span>
+            </button>
+            <div>
+              <div className="co-detail-crumb">Campaigns</div>
+              <h2>{detail.name}</h2>
+            </div>
+            <span className={`co-status-pill ${detail.status}`}>{STATUS_LABEL[detail.status] || detail.status}</span>
+          </div>
+          <div className="co-detail-actions">
+            <button type="button" className="co-btn-outline" onClick={() => duplicateCampaign(detail._id)} data-testid="co-detail-duplicate">
+              <span className="material-icons" aria-hidden="true">content_copy</span>
+              <span>Duplicate</span>
+            </button>
+            {(detail.status === 'scheduled' || detail.status === 'sending') && (
+              <button type="button" className="co-btn-outline danger" onClick={() => cancelCampaign(detail)}>
+                Cancel campaign
+              </button>
+            )}
+            {detail.status === 'scheduled' && (
+              <button
+                type="button"
+                className="co-btn-outline"
+                onClick={() => {
+                  const id = detail._id;
+                  setDetail(null);
+                  resumeCampaign(id);
+                }}
+              >
+                Edit
+              </button>
+            )}
+            {(detail.status === 'scheduled' || detail.status === 'cancelled') && (
+              <button type="button" className="co-btn-outline danger" onClick={() => deleteCampaign({ id: detail._id, name: detail.name })}>
+                Delete
+              </button>
+            )}
+          </div>
+        </header>
+
+        <div className="co-results-meta co-detail-meta">
+          <span className="co-channel-tag" data-channel={ch}>
+            <img src={CHANNEL_ICON[ch]} alt="" />
+            {CHANNEL_NAME[ch]}
+          </span>
+          {ch === 'whatsapp' ? (
+            <span>Template: <strong>{detail.templateName || '—'}</strong></span>
+          ) : (
+            <span>
+              Sends: <strong>
+                {[detail.content?.quickMessageName && `quick message “${detail.content.quickMessageName}”`,
+                  detail.content?.mode === 'text' && 'a text message',
+                  detail.content?.utilityTemplateName && `utility template “${detail.content.utilityTemplateName}”`]
+                  .filter(Boolean).join(' + ') || '—'}
+              </strong>
+            </span>
+          )}
+          <span>Recipients: <strong>{s.total}</strong></span>
+          <span>
+            {detail.status === 'scheduled' ? 'Scheduled for' : 'Started'}:{' '}
+            <strong>{formatWhen(new Date(detail.startedAt || detail.scheduledAt || detail.createdAt || 0).getTime())}</strong>
+          </span>
+          {detail.finishedAt && detail.status !== 'scheduled' && (
+            <span>Finished: <strong>{formatWhen(new Date(detail.finishedAt).getTime())}</strong></span>
+          )}
+          {detail.type === 'drip' && (
+            <span>Drip: <strong>{detail.drip?.name || 'sequence'}</strong> ({detail.drip?.steps.length || 0} follow-up{detail.drip?.steps.length === 1 ? '' : 's'})</span>
+          )}
+        </div>
+        {detail.error && <p className="err co-results-error">{detail.error}</p>}
+
+        <FunnelCards stats={cards} isMeta={ch !== 'whatsapp'} channelName={CHANNEL_NAME[ch]} />
+
+        {/* The rates, of everyone the campaign was for. */}
+        <div className="co-detail-rates" data-testid="co-detail-rates">
+          {([
+            ['Delivered', s.delivered, 'green'],
+            ['Read', s.read, 'blue'],
+            ['Replied', s.replied, 'purple'],
+            ['Failed', s.failed, 'red'],
+          ] as [string, number, string][]).map(([label, n, tone]) => (
+            <div key={label} className="co-detail-rate">
+              <div className="co-detail-rate-top">
+                <span>{label}</span>
+                <strong>{pct(n)}</strong>
+              </div>
+              <span className="co-detail-rate-bar"><span className={tone} style={{ width: pct(n) }} /></span>
+              <small>{n} of {s.total}</small>
+            </div>
+          ))}
+        </div>
+
+        {detail.dripProgress && (
+          <div className="co-drip" data-testid="co-drip">
+            <div className="co-drip-head">
+              <strong>Drip follow-ups</strong>
+              <span>
+                {detail.dripProgress.stopOnReply ? 'Stops for anyone who replies' : 'Sent whether or not they reply'}
+                {detail.dripProgress.nextAt && detail.status === 'sending'
+                  ? ` · next one ${formatWhen(new Date(detail.dripProgress.nextAt).getTime())}`
+                  : ''}
+              </span>
+            </div>
+            <table className="co-table co-drip-table">
+              <thead>
+                <tr>
+                  <th>Follow-up</th>
+                  <th>Sent after</th>
+                  <th>Sent</th>
+                  <th>Delivered</th>
+                  <th>Read</th>
+                  <th>Failed</th>
+                  <th>Waiting</th>
+                  <th>Stopped (replied)</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.dripProgress.steps.map((st) => (
+                  <tr key={st.step} data-step={st.step}>
+                    <td>{st.step}. <strong>{st.templateName}</strong></td>
+                    <td>{waitText(st.delayMs)}</td>
+                    <td>{st.sent}</td>
+                    <td>{st.delivered}</td>
+                    <td>{st.read}</td>
+                    <td className={st.failed ? 'co-drip-bad' : ''}>{st.failed}</td>
+                    <td>{st.waiting}</td>
+                    <td>{st.stopped}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+
+        <section className="co-detail-recipients">
+          <h3>Recipients</h3>
+          <div className="co-results-table-wrap">
+            <table className="co-table co-results-table">
+              <thead>
+                <tr>
+                  <th>Recipient</th>
+                  <th>{ch === 'whatsapp' ? 'Phone' : 'Sent as'}</th>
+                  <th>Status</th>
+                  <th>Reason</th>
+                </tr>
+              </thead>
+              <tbody>
+                {detail.recipients.length === 0 ? (
+                  <tr>
+                    <td colSpan={4} className="tl-empty">No recipients.</td>
+                  </tr>
+                ) : (
+                  recipientsPaged.items.map((r) => {
+                    const why = reasonText(r.error);
+                    return (
+                      <tr key={r.phone} data-phone={r.phone}>
+                        <td>{r.name && r.name !== `+${r.phone}` ? r.name : ch === 'whatsapp' ? '—' : `${CHANNEL_NAME[ch]} user`}</td>
+                        <td>
+                          {ch === 'whatsapp'
+                            ? `+${r.phone}`
+                            : r.via === 'utility' ? 'Utility template' : r.via === 'quick' ? 'Quick message' : '—'}
+                        </td>
+                        <td>
+                          <span className={`co-rcpt-status ${r.status}`}>{RECIPIENT_LABEL[r.status] || r.status}</span>
+                          {r.replied && <span className="co-rcpt-replied">Replied</span>}
+                        </td>
+                        <td className="co-rcpt-reason" title={why.full || undefined}>
+                          {why.short || ''}
+                          {why.full && r.error?.code ? <span className="co-rcpt-code"> ({r.error.code})</span> : null}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+          <Pager {...recipientsPaged.pager} />
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="co-shell">
       {/* ================= LEFT SUB-SIDEBAR ================= */}
@@ -742,6 +1135,7 @@ export function CampaignOverview({
 
       {/* ================= MAIN DASHBOARD BODY ================= */}
       <main className="co-main">
+        {detail ? renderDetail() : (<>
         {/* Top Header */}
         <header className="co-head">
           <div className="co-head-info">
@@ -1155,148 +1549,7 @@ export function CampaignOverview({
             )}
 
             {/* Funnel Metrics 8-Card Grid (4 Columns) */}
-            <section className="co-funnel-grid">
-              {/* 1. Sent */}
-              <div className="co-metric-card">
-                <div className="co-metric-left">
-                  <div className="co-metric-val">{stats.sent}</div>
-                  <div className="co-metric-lbl">
-                    <span>Sent</span>
-                    <span className="co-info-icon" title="Campaign messages Meta accepted for delivery">ⓘ</span>
-                  </div>
-                </div>
-                <div className="co-metric-badge green">
-                  <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1.66797 7L7.16797 12.5L16.3346 1.5" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* 2. Delivered */}
-              <div className="co-metric-card">
-                <div className="co-metric-left">
-                  <div className="co-metric-val">{stats.delivered}</div>
-                  <div className="co-metric-lbl">
-                    <span>Delivered</span>
-                    <span className="co-info-icon" title={`Delivered, as reported by ${CHANNEL_NAME[channelTab]} (includes read)`}>ⓘ</span>
-                  </div>
-                </div>
-                <div className="co-metric-badge green">
-                  <svg width="22" height="12" viewBox="0 0 22 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M1.83203 6L6.64453 10.5833L9.05078 7.83333" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M7.33203 5.99984L12.1445 10.5832L20.1654 1.4165" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M14.6654 1.4165L11.457 5.08317" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* 3. Read */}
-              <div className="co-metric-card">
-                <div className="co-metric-left">
-                  <div className="co-metric-val">{stats.read}</div>
-                  <div className="co-metric-lbl">
-                    <span>Read</span>
-                    <span className="co-info-icon" title="Messages opened and read">ⓘ</span>
-                  </div>
-                </div>
-                <div className="co-metric-badge green">
-                  <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M20.2565 6.962C20.7305 7.582 20.7305 8.419 20.2565 9.038C18.7635 10.987 15.1815 15 10.9995 15C6.81752 15 3.23552 10.987 1.74252 9.038C1.51191 8.74113 1.38672 8.37592 1.38672 8C1.38672 7.62408 1.51191 7.25887 1.74252 6.962C3.23552 5.013 6.81752 1 10.9995 1C15.1815 1 18.7635 5.013 20.2565 6.962V6.962Z" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <path d="M11 11C12.6569 11 14 9.65685 14 8C14 6.34315 12.6569 5 11 5C9.34315 5 8 6.34315 8 8C8 9.65685 9.34315 11 11 11Z" stroke="#23A455" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* 4. Replied */}
-              <div className="co-metric-card">
-                <div className="co-metric-left">
-                  <div className="co-metric-val">{stats.replied}</div>
-                  <div className="co-metric-lbl">
-                    <span>Replied</span>
-                    <span className="co-info-icon" title="Recipients who wrote back after the campaign message">ⓘ</span>
-                  </div>
-                </div>
-                <div className="co-metric-badge green">
-                  <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M8.60219 0.736277C8.76965 0.805709 8.91277 0.923237 9.01344 1.074C9.11411 1.22476 9.16782 1.40199 9.16777 1.58328V3.03711L11.2697 0.935194C11.3979 0.807035 11.5612 0.719762 11.739 0.684408C11.9168 0.649055 12.1011 0.667208 12.2685 0.736572C12.436 0.805936 12.5792 0.923397 12.6799 1.07411C12.7806 1.22482 12.8344 1.40201 12.8344 1.58328V4.35986C14.5385 4.45978 15.9245 4.84203 17.0447 5.44519C18.2398 6.0821 19.2221 7.0554 19.8699 8.24469C21.0524 10.3851 21.0844 12.9023 21.0844 14.4166C21.0844 14.6597 20.9879 14.8929 20.816 15.0648C20.644 15.2367 20.4109 15.3333 20.1678 15.3333C19.9247 15.3333 19.6915 15.2367 19.5196 15.0648C19.3477 14.8929 19.2511 14.6597 19.2511 14.4166C19.2511 13.8474 19.0513 13.4257 18.7039 13.0783C18.3335 12.7089 17.7679 12.399 17.0245 12.1616C15.7925 11.7693 14.2562 11.6354 12.8344 11.6437V14.4166C12.8344 14.5979 12.7806 14.7751 12.6799 14.9258C12.5792 15.0765 12.436 15.1939 12.2685 15.2633C12.1011 15.3327 11.9168 15.3508 11.739 15.3155C11.5612 15.2801 11.3979 15.1929 11.2697 15.0647L1.18636 8.64803C1.01451 8.47613 0.917969 8.24301 0.917969 7.99994C0.917969 7.75688 1.01451 7.52376 1.18636 7.35186L7.60302 0.935194C7.73121 0.806922 7.89457 0.719555 8.07243 0.684147C8.25028 0.648739 8.43465 0.666881 8.60219 0.736277ZM7.33444 11.1294L4.85302 8.64803C4.68117 8.47613 4.58464 8.24301 4.58464 7.99994C4.58464 7.75688 4.68117 7.52376 4.85302 7.35186L7.33444 4.87044V3.79611L3.13061 7.99994L7.33444 12.2038V11.1294ZM18.955 11.0011C18.8138 10.3485 18.5814 9.719 18.2648 9.13111C17.7871 8.24994 17.0601 7.5293 16.1748 7.05944C15.1866 6.52686 13.8199 6.16661 11.9178 6.16661C11.6747 6.16661 11.4415 6.07003 11.2696 5.89812C11.0977 5.72622 11.0011 5.49306 11.0011 5.24994V3.79611L6.79727 7.99994L11.0011 12.2038V10.7499C11.0011 10.514 11.0921 10.2871 11.2552 10.1165C11.4182 9.94593 11.6408 9.84481 11.8765 9.83419C13.5989 9.75628 15.787 9.84336 17.5819 10.4154C18.0584 10.5635 18.5185 10.7601 18.955 11.002V11.0011Z" fill="#23A455" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* 5. Sending */}
-              <div className="co-metric-card">
-                <div className="co-metric-left">
-                  <div className="co-metric-val">{stats.sending}</div>
-                  <div className="co-metric-lbl">
-                    <span>Sending</span>
-                    <span className="co-info-icon" title="Messages of campaigns being sent right now that haven't gone out yet">ⓘ</span>
-                  </div>
-                </div>
-                <div className="co-metric-badge green">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M17.6469 7.54313L4.8136 1.12646C4.30714 0.874384 3.73525 0.784643 3.17592 0.869473C2.61658 0.954302 2.09702 1.20957 1.68807 1.60048C1.27912 1.99139 1.00068 2.49891 0.890721 3.05385C0.780757 3.60879 0.84462 4.18414 1.0736 4.70146L3.2736 9.62396C3.32352 9.74297 3.34923 9.87074 3.34923 9.99979C3.34923 10.1288 3.32352 10.2566 3.2736 10.3756L1.0736 15.2981C0.887244 15.7168 0.808462 16.1754 0.844415 16.6322C0.880368 17.0891 1.02992 17.5297 1.27947 17.914C1.52902 18.2984 1.87067 18.6143 2.27336 18.833C2.67605 19.0517 3.12701 19.1663 3.58527 19.1665C4.01448 19.1622 4.4373 19.062 4.82277 18.8731L17.6561 12.4565C18.1113 12.2275 18.494 11.8765 18.7613 11.4427C19.0287 11.0089 19.1703 10.5094 19.1703 9.99979C19.1703 9.49022 19.0287 8.99068 18.7613 8.55689C18.494 8.1231 18.1113 7.77212 17.6561 7.54313H17.6469ZM16.8311 10.8156L3.99777 17.2323C3.82925 17.3132 3.64002 17.3407 3.45546 17.311C3.27089 17.2813 3.09981 17.1959 2.96516 17.0662C2.8305 16.9366 2.73871 16.7688 2.70209 16.5855C2.66547 16.4022 2.68577 16.2121 2.76027 16.0406L4.9511 11.1181C4.97946 11.0524 5.00395 10.9851 5.02444 10.9165H11.3403C11.5834 10.9165 11.8165 10.8199 11.9884 10.648C12.1604 10.4761 12.2569 10.2429 12.2569 9.99979C12.2569 9.75668 12.1604 9.52352 11.9884 9.35161C11.8165 9.1797 11.5834 9.08313 11.3403 9.08313H5.02444C5.00395 9.01453 4.97946 8.94719 4.9511 8.88146L2.76027 3.95896C2.68577 3.78751 2.66547 3.59738 2.70209 3.41406C2.73871 3.23075 2.8305 3.06301 2.96516 2.93334C3.09981 2.80368 3.27089 2.71828 3.45546 2.6886C3.64002 2.65892 3.82925 2.68638 3.99777 2.76729L16.8311 9.18396C16.9813 9.26088 17.1073 9.37776 17.1953 9.5217C17.2832 9.66565 17.3298 9.83108 17.3298 9.99979C17.3298 10.1685 17.2832 10.3339 17.1953 10.4779C17.1073 10.6218 16.9813 10.7387 16.8311 10.8156Z" fill="#23A455" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* 6. Failed */}
-              <div className="co-metric-card">
-                <div className="co-metric-left">
-                  <div className="co-metric-val">{stats.failed}</div>
-                  <div className="co-metric-lbl">
-                    <span>Failed</span>
-                    <span className="co-info-icon" title="Messages Meta refused or couldn't deliver (open a campaign to see why)">ⓘ</span>
-                  </div>
-                </div>
-                <div className="co-metric-badge green">
-                  <svg width="22" height="22" viewBox="0 0 22 22" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4.51796 4.51898C6.02201 3.00511 8.00712 2.06343 10.1311 1.85629C12.255 1.64915 14.3846 2.18953 16.1529 3.38427C17.9211 4.57901 19.217 6.35324 19.8173 8.40108C20.4176 10.4489 20.2846 12.642 19.4413 14.6023C19.3534 14.7845 19.3246 14.9896 19.3588 15.189L20.1655 19.0665C20.1965 19.2151 20.1902 19.3692 20.147 19.5148C20.1038 19.6604 20.0251 19.793 19.918 19.9007C19.8301 19.9878 19.7256 20.0563 19.6106 20.102C19.4956 20.1477 19.3725 20.1696 19.2488 20.1665H19.0655L15.1421 19.3781C14.9427 19.3542 14.7405 19.3826 14.5555 19.4606C12.5952 20.304 10.4021 20.437 8.35422 19.8367C6.30638 19.2364 4.53216 17.9404 3.33741 16.1722C2.14267 14.404 1.60229 12.2743 1.80943 10.1504C2.01657 8.02648 2.95825 6.04137 4.47213 4.53732L4.51796 4.51898ZM3.75713 12.1823C3.93635 13.2768 4.36149 14.3164 5.00054 15.2228C5.63959 16.1292 6.47592 16.8789 7.44657 17.4154C8.41723 17.9519 9.49693 18.2613 10.6044 18.3202C11.7119 18.3792 12.8184 18.1861 13.8405 17.7557C14.203 17.6015 14.5924 17.5205 14.9863 17.5173C15.1584 17.5185 15.3301 17.5339 15.4996 17.5632L18.0846 18.0856L17.5621 15.5007C17.4581 14.9408 17.5251 14.3626 17.7546 13.8415C18.1851 12.8194 18.3781 11.7129 18.3192 10.6054C18.2603 9.49795 17.9509 8.41825 17.4144 7.4476C16.8779 6.47694 16.1282 5.64062 15.2218 5.00156C14.3154 4.36251 13.2758 3.93737 12.1813 3.75815C11.0325 3.56961 9.85524 3.65729 8.74702 4.01396C7.6388 4.37062 6.63142 4.98601 5.8082 5.80923C4.98499 6.63244 4.3696 7.63982 4.01293 8.74805C3.65627 9.85627 3.56858 11.0335 3.75713 12.1823Z" fill="#23A455" />
-                    <path d="M10.504 11.2619L8.93246 12.8335L9.16797 13.069L10.7396 11.4974L11.2699 10.9671L11.8002 11.4974L13.3718 13.069L13.6073 12.8335L12.0357 11.2619L11.5054 10.7316L12.0357 10.2012L13.6073 8.62966L13.3718 8.39416L11.8002 9.96574L11.2699 10.4961L10.7396 9.96574L9.16797 8.39416L8.93246 8.62966L10.504 10.2012L11.0344 10.7316L10.504 11.2619Z" stroke="#23A455" strokeWidth="1.5" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* 7. Processing */}
-              <div className="co-metric-card">
-                <div className="co-metric-left">
-                  <div className="co-metric-val" data-testid="co-metric-processing">{isMeta ? stats.skipped : stats.processing}</div>
-                  <div className="co-metric-lbl">
-                    <span>{isMeta ? 'Skipped' : 'Processing'}</span>
-                    <span
-                      className="co-info-icon"
-                      title={isMeta ? 'Not sent: outside the 24-hour window when their turn came' : 'Accepted by Meta, no delivery receipt yet'}
-                    >
-                      ⓘ
-                    </span>
-                  </div>
-                </div>
-                <div className="co-metric-badge green">
-                  <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M7.1888 7.08317H3.4388C3.21779 7.08317 3.00583 6.99537 2.84955 6.83909C2.69327 6.68281 2.60547 6.47085 2.60547 6.24984V2.49984C2.60547 2.27882 2.69327 2.06686 2.84955 1.91058C3.00583 1.7543 3.21779 1.6665 3.4388 1.6665C3.65982 1.6665 3.87178 1.7543 4.02806 1.91058C4.18434 2.06686 4.27214 2.27882 4.27214 2.49984V5.4165H7.1888C7.40982 5.4165 7.62178 5.5043 7.77806 5.66058C7.93434 5.81686 8.02213 6.02882 8.02213 6.24984C8.02213 6.47085 7.93434 6.68281 7.77806 6.83909C7.62178 6.99537 7.40982 7.08317 7.1888 7.08317Z" fill="#23A455" />
-                    <path d="M17.501 10.8335C17.28 10.8335 17.068 10.7457 16.9117 10.5894C16.7554 10.4331 16.6676 10.2212 16.6676 10.0002C16.6683 8.53311 16.1847 7.10687 15.2919 5.94275C14.3991 4.77864 13.147 3.94174 11.73 3.56194C10.313 3.18213 8.8102 3.28065 7.45488 3.8422C6.09956 4.40376 4.96748 5.39696 4.23431 6.66767C4.12358 6.85895 3.9414 6.99842 3.72784 7.05538C3.51429 7.11235 3.28685 7.08214 3.09556 6.97142C2.90427 6.86069 2.76481 6.67851 2.70784 6.46495C2.65088 6.25139 2.68108 6.02395 2.79181 5.83267C3.70869 4.24453 5.12405 3.00337 6.81832 2.30174C8.51259 1.60011 10.3911 1.47722 12.1623 1.95216C13.9335 2.42709 15.4985 3.47328 16.6145 4.92844C17.7304 6.38359 18.335 8.16636 18.3343 10.0002C18.3343 10.2212 18.2465 10.4331 18.0902 10.5894C17.934 10.7457 17.722 10.8335 17.501 10.8335ZM16.5635 18.3335C16.3425 18.3335 16.1305 18.2457 15.9742 18.0894C15.8179 17.9331 15.7301 17.7212 15.7301 17.5002V14.5835H12.8135C12.5925 14.5835 12.3805 14.4957 12.2242 14.3394C12.0679 14.1831 11.9801 13.9712 11.9801 13.7502C11.9801 13.5292 12.0679 13.3172 12.2242 13.1609C12.3805 13.0046 12.5925 12.9168 12.8135 12.9168H16.5635C16.7845 12.9168 16.9965 13.0046 17.1527 13.1609C17.309 13.3172 17.3968 13.5292 17.3968 13.7502V17.5002C17.3968 17.7212 17.309 17.9331 17.1527 18.0894C16.9965 18.2457 16.7845 18.3335 16.5635 18.3335Z" fill="#23A455" />
-                    <path d="M10.0013 18.3332C7.79198 18.3305 5.6739 17.4517 4.11167 15.8895C2.54944 14.3272 1.67062 12.2092 1.66797 9.99984C1.66797 9.77882 1.75577 9.56686 1.91205 9.41058C2.06833 9.2543 2.28029 9.1665 2.5013 9.1665C2.72232 9.1665 2.93428 9.2543 3.09056 9.41058C3.24684 9.56686 3.33464 9.77882 3.33464 9.99984C3.334 11.4669 3.8176 12.8931 4.71039 14.0572C5.60318 15.2214 6.85524 16.0583 8.27227 16.4381C9.6893 16.8179 11.1921 16.7194 12.5474 16.1578C13.9027 15.5962 15.0348 14.603 15.768 13.3323C15.8228 13.2376 15.8957 13.1546 15.9826 13.0881C16.0695 13.0216 16.1687 12.9728 16.2744 12.9446C16.3802 12.9164 16.4904 12.9093 16.5989 12.9237C16.7074 12.9381 16.812 12.9738 16.9067 13.0286C17.0014 13.0834 17.0844 13.1564 17.1509 13.2433C17.2175 13.3302 17.2662 13.4293 17.2944 13.5351C17.3226 13.6408 17.3297 13.7511 17.3153 13.8595C17.3009 13.968 17.2653 14.0726 17.2105 14.1673C16.4776 15.4311 15.4263 16.4807 14.1614 17.2116C12.8965 17.9425 11.4622 18.3292 10.0013 18.3332Z" fill="#23A455" />
-                  </svg>
-                </div>
-              </div>
-
-              {/* 8. Queued */}
-              <div className="co-metric-card">
-                <div className="co-metric-left">
-                  <div className="co-metric-val">{stats.queued}</div>
-                  <div className="co-metric-lbl">
-                    <span>Queued</span>
-                    <span className="co-info-icon" title="Messages of scheduled campaigns waiting to go out">ⓘ</span>
-                  </div>
-                </div>
-                <div className="co-metric-badge green">
-                  <svg width="22" height="16" viewBox="0 0 22 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M12.8626 1.36479V1.92329H5.66616C3.79786 1.92329 2.2794 3.44174 2.2794 5.31004V6.96775H2.27495C2.07347 6.96775 1.91016 6.80444 1.91016 6.60296V1.36479C1.91016 1.16335 2.07351 1 2.27495 1H12.4978C12.6993 1 12.8626 1.16335 12.8626 1.36479Z" stroke="#23A455" strokeWidth="2" />
-                    <path d="M16.2532 5.31004V5.86853H9.50209C7.63381 5.86853 6.11533 7.3869 6.11533 9.25528V10.9129H5.66558C5.46413 10.9129 5.30078 10.7496 5.30078 10.5481V5.31004C5.30078 5.1086 5.46413 4.94525 5.66558 4.94525H15.8884C16.0899 4.94525 16.2532 5.10857 16.2532 5.31004Z" stroke="#23A455" strokeWidth="2" />
-                    <path d="M9.50542 8.89056H19.7283C19.9298 8.89056 20.0931 9.05388 20.0931 9.25536V14.4935C20.0931 14.695 19.9298 14.8583 19.7283 14.8583H9.50542C9.30398 14.8583 9.14062 14.695 9.14062 14.4935V9.25536C9.14062 9.05391 9.30398 8.89056 9.50542 8.89056Z" stroke="#23A455" strokeWidth="2" />
-                  </svg>
-                </div>
-              </div>
-            </section>
+            <FunnelCards stats={stats} isMeta={isMeta} channelName={CHANNEL_NAME[channelTab]} />
           </>
         )}
 
@@ -1708,7 +1961,16 @@ export function CampaignOverview({
                   <tbody>
                     {campaignsPaged.items.map((c) => (
                       <tr key={c.id} data-campaign-id={c.id}>
-                        <td className="co-table-title">{c.name}</td>
+                        <td className="co-table-title">
+                          <button
+                            type="button"
+                            className="co-row-name"
+                            onClick={() => openEvent(c.id, c.status)}
+                            title={c.status === 'draft' ? 'Edit this draft' : 'Open the campaign’s results'}
+                          >
+                            {c.name}
+                          </button>
+                        </td>
                         <td>
                           <span className="co-tmpl-chip">{c.template}</span>
                         </td>
@@ -1727,33 +1989,39 @@ export function CampaignOverview({
                           >
                             {c.dripNextAt && c.status === 'sending' ? 'Drip running' : STATUS_LABEL[c.status] || c.status}
                           </span>
-                          {c.status !== 'draft' && (
-                            <div className="co-row-counts" data-testid="co-row-counts">
-                              {c.stats.accepted} sent · {c.stats.delivered} delivered · {c.stats.read} read
-                              {' · '}
-                              <span className={c.stats.failed ? 'co-count-failed' : ''}>{c.stats.failed} failed</span>
-                              {c.stats.pending > 0 && ` · ${c.stats.pending} pending`}
-                              {(c.stats.skipped || 0) > 0 && ` · ${c.stats.skipped} skipped`}
-                            </div>
-                          )}
                         </td>
                         <td>
                           <div className="co-row-actions">
                             <button
-                              className="co-btn-table-action"
-                              onClick={() => (c.status === 'draft' ? resumeCampaign(c.id) : openDetail(c.id))}
-                              title={c.status === 'draft' ? 'Edit / Resume Draft Campaign' : 'See each recipient\'s delivery status'}
+                              type="button"
+                              className="co-icon-action"
+                              onClick={() => openEvent(c.id, c.status)}
+                              title={c.status === 'draft' ? 'Edit draft' : 'View results'}
+                              aria-label={c.status === 'draft' ? `Edit draft ${c.name}` : `View ${c.name}`}
                               disabled={detailBusy}
+                              data-testid="co-row-view"
                             >
-                              {c.status === 'draft' ? 'Edit Draft' : 'View'}
+                              <span className="material-icons" aria-hidden="true">{c.status === 'draft' ? 'edit' : 'visibility'}</span>
+                            </button>
+                            <button
+                              type="button"
+                              className="co-icon-action"
+                              onClick={() => duplicateCampaign(c.id)}
+                              title="Duplicate: a new campaign with the same template and contacts"
+                              aria-label={`Duplicate ${c.name}`}
+                              data-testid="co-row-duplicate"
+                            >
+                              <span className="material-icons" aria-hidden="true">content_copy</span>
                             </button>
                             {(c.status === 'draft' || c.status === 'cancelled') && (
                               <button
-                                className="co-btn-table-action danger"
+                                type="button"
+                                className="co-icon-action danger"
                                 onClick={() => deleteCampaign(c)}
                                 title="Delete this campaign"
+                                aria-label={`Delete ${c.name}`}
                               >
-                                Delete
+                                <span className="material-icons" aria-hidden="true">delete_outline</span>
                               </button>
                             )}
                           </div>
@@ -1795,188 +2063,6 @@ export function CampaignOverview({
           </svg>
         </button>
 
-        {/* Campaign results: every recipient's real delivery state */}
-        {detail && (
-          <div className="demo-backdrop" onClick={() => setDetail(null)}>
-            <div className="demo-box co-results-modal" onClick={(e) => e.stopPropagation()} role="dialog" aria-label="Campaign results">
-              <div className="demo-head">
-                <span>{detail.name}</span>
-                <button className="demo-close" onClick={() => setDetail(null)} aria-label="Close">
-                  ✕
-                </button>
-              </div>
-              <div className="demo-body co-results-body">
-                <div className="co-results-meta">
-                  <span className={`co-status-pill ${detail.status}`}>{STATUS_LABEL[detail.status] || detail.status}</span>
-                  <span className="co-channel-tag" data-channel={channelOf(detail)}>
-                    <img src={CHANNEL_ICON[channelOf(detail)]} alt="" />
-                    {CHANNEL_NAME[channelOf(detail)]}
-                  </span>
-                  {channelOf(detail) === 'whatsapp' ? (
-                    <span>Template: <strong>{detail.templateName || '—'}</strong></span>
-                  ) : (
-                    <span>
-                      Sends: <strong>
-                        {[detail.content?.quickMessageName && `quick message “${detail.content.quickMessageName}”`,
-                          detail.content?.mode === 'text' && 'a text message',
-                          detail.content?.utilityTemplateName && `utility template “${detail.content.utilityTemplateName}”`]
-                          .filter(Boolean).join(' + ') || '—'}
-                      </strong>
-                    </span>
-                  )}
-                  <span>
-                    {detail.status === 'scheduled' ? 'Scheduled for' : 'Started'}:{' '}
-                    <strong>{formatWhen(new Date(detail.startedAt || detail.scheduledAt || detail.createdAt || 0).getTime())}</strong>
-                  </span>
-                  {detail.finishedAt && detail.status !== 'scheduled' && (
-                    <span>Finished: <strong>{formatWhen(new Date(detail.finishedAt).getTime())}</strong></span>
-                  )}
-                  {detail.type === 'drip' && (
-                    <span>Drip: <strong>{detail.drip?.name || 'sequence'}</strong> ({detail.drip?.steps.length || 0} follow-up{detail.drip?.steps.length === 1 ? '' : 's'})</span>
-                  )}
-                </div>
-                {detail.error && <p className="err co-results-error">{detail.error}</p>}
-                {detail.stats && (
-                  <div className="co-results-stats" data-testid="co-results-stats">
-                    {([
-                      ['Recipients', detail.stats.total],
-                      ['Sent', detail.stats.accepted],
-                      ['Delivered', detail.stats.delivered],
-                      ['Read', detail.stats.read],
-                      ['Replied', detail.stats.replied],
-                      ['Failed', detail.stats.failed],
-                      ['Not delivered yet', detail.stats.sentOnly],
-                      ['Pending', detail.stats.pending],
-                      ...(detail.stats.cancelled ? [['Cancelled', detail.stats.cancelled] as [string, number]] : []),
-                      ...(channelOf(detail) !== 'whatsapp' ? [['Skipped (outside 24 h)', detail.stats.skipped || 0] as [string, number]] : []),
-                      // WhatsApp: numbers another campaign had just sent the same template to.
-                      ...(channelOf(detail) === 'whatsapp' && detail.stats.skipped ? [['Skipped (already sent)', detail.stats.skipped] as [string, number]] : []),
-                    ] as [string, number][]).map(([label, n]) => (
-                      <div key={label} className={`co-results-stat${label === 'Failed' && n ? ' failed' : ''}`}>
-                        <strong>{n}</strong>
-                        <span>{label}</span>
-                      </div>
-                    ))}
-                  </div>
-                )}
-                {detail.dripProgress && (
-                  <div className="co-drip" data-testid="co-drip">
-                    <div className="co-drip-head">
-                      <strong>Drip follow-ups</strong>
-                      <span>
-                        {detail.dripProgress.stopOnReply ? 'Stops for anyone who replies' : 'Sent whether or not they reply'}
-                        {detail.dripProgress.nextAt && detail.status === 'sending'
-                          ? ` · next one ${formatWhen(new Date(detail.dripProgress.nextAt).getTime())}`
-                          : ''}
-                      </span>
-                    </div>
-                    <table className="co-table co-drip-table">
-                      <thead>
-                        <tr>
-                          <th>Follow-up</th>
-                          <th>Sent after</th>
-                          <th>Sent</th>
-                          <th>Delivered</th>
-                          <th>Read</th>
-                          <th>Failed</th>
-                          <th>Waiting</th>
-                          <th>Stopped (replied)</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {detail.dripProgress.steps.map((s) => (
-                          <tr key={s.step} data-step={s.step}>
-                            <td>{s.step}. <strong>{s.templateName}</strong></td>
-                            <td>{waitText(s.delayMs)}</td>
-                            <td>{s.sent}</td>
-                            <td>{s.delivered}</td>
-                            <td>{s.read}</td>
-                            <td className={s.failed ? 'co-drip-bad' : ''}>{s.failed}</td>
-                            <td>{s.waiting}</td>
-                            <td>{s.stopped}</td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                )}
-                <div className="co-results-table-wrap">
-                  <table className="co-table co-results-table">
-                    <thead>
-                      <tr>
-                        <th>Recipient</th>
-                        <th>{channelOf(detail) === 'whatsapp' ? 'Phone' : 'Sent as'}</th>
-                        <th>Status</th>
-                        <th>Reason</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {detail.recipients.length === 0 ? (
-                        <tr>
-                          <td colSpan={4} className="tl-empty">No recipients.</td>
-                        </tr>
-                      ) : (
-                        recipientsPaged.items.map((r) => {
-                          const why = reasonText(r.error);
-                          return (
-                            <tr key={r.phone} data-phone={r.phone}>
-                              <td>{r.name && r.name !== `+${r.phone}` ? r.name : channelOf(detail) === 'whatsapp' ? '—' : `${CHANNEL_NAME[channelOf(detail)]} user`}</td>
-                              <td>
-                                {channelOf(detail) === 'whatsapp'
-                                  ? `+${r.phone}`
-                                  : r.via === 'utility' ? 'Utility template' : r.via === 'quick' ? 'Quick message' : '—'}
-                              </td>
-                              <td>
-                                <span className={`co-rcpt-status ${r.status}`}>{RECIPIENT_LABEL[r.status] || r.status}</span>
-                                {r.replied && <span className="co-rcpt-replied">Replied</span>}
-                              </td>
-                              <td className="co-rcpt-reason" title={why.full || undefined}>
-                                {why.short || ''}
-                                {why.full && r.error?.code ? <span className="co-rcpt-code"> ({r.error.code})</span> : null}
-                              </td>
-                            </tr>
-                          );
-                        })
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-                <Pager {...recipientsPaged.pager} />
-                <div className="co-results-actions">
-                  {(detail.status === 'scheduled' || detail.status === 'sending') && (
-                    <button className="co-btn-outline danger" onClick={() => cancelCampaign(detail)}>
-                      Cancel campaign
-                    </button>
-                  )}
-                  {detail.status === 'scheduled' && (
-                    <button
-                      className="co-btn-outline"
-                      onClick={() => {
-                        const id = detail._id;
-                        setDetail(null);
-                        resumeCampaign(id);
-                      }}
-                    >
-                      Edit
-                    </button>
-                  )}
-                  {(detail.status === 'scheduled' || detail.status === 'cancelled') && (
-                    <button
-                      className="co-btn-outline danger"
-                      onClick={() => deleteCampaign({ id: detail._id, name: detail.name })}
-                    >
-                      Delete
-                    </button>
-                  )}
-                  <button className="co-btn-primary" onClick={() => setDetail(null)}>
-                    Close
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
-
         {/* Tutorial Modal */}
         {showTutorial && (
           <div className="demo-backdrop" onClick={() => setShowTutorial(false)}>
@@ -2016,6 +2102,7 @@ export function CampaignOverview({
             </div>
           </div>
         )}
+        </>)}
       </main>
     </div>
   );

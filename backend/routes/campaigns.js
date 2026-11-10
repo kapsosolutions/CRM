@@ -346,17 +346,15 @@ router.get('/:id', async (req, res) => {
       campaignResults(req.business._id, c),
       dripProgress(req.business._id, c),
     ]);
-    const editable = c.status === 'draft' || c.status === 'scheduled';
     res.json({
       success: true,
       data: {
         ...present(c, stats.get(String(c._id))),
         recipients: results,
         ...(drip ? { dripProgress: drip } : {}),
-        // What a draft or scheduled campaign is resumed with.
-        ...(editable
-          ? { audience: (c.recipients || []).map((r) => ({ phone: r.phone, name: r.name || '', bodyParams: r.bodyParams || [] })) }
-          : {}),
+        // The list with each contact's values: what a draft or scheduled
+        // campaign is resumed with, and what Duplicate copies from any campaign.
+        audience: (c.recipients || []).map((r) => ({ phone: r.phone, name: r.name || '', bodyParams: r.bodyParams || [] })),
       },
     });
   } catch (err) {

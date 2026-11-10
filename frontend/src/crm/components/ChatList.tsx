@@ -4,7 +4,7 @@ import type { Chat, SandboxContacts } from '../types';
 import { chatDisplayName, listTime } from '../utils';
 import { DefaultAvatar } from './DefaultAvatar';
 import { TemplateSearchSvg } from './TemplateIcons';
-import { COUNTRIES } from '../../site/PhoneField';
+import { COUNTRIES, dropTrunkZero } from '../../site/PhoneField';
 import { CountryFlag } from './CountryFlag';
 import { COMING_SOON } from '../features';
 import { SoonPill } from './ComingSoon';
@@ -263,15 +263,14 @@ function getCountryRule(country: (typeof COUNTRIES)[number]): CountryValidationR
   };
 }
 
-function extractNationalDigits(digits: string, dial: string, rule: CountryValidationRule): string {
+function extractNationalDigits(digits: string, dial: string, rule: CountryValidationRule, iso: string): string {
   let d = digits;
-  if (d.startsWith(dial) && (rule.exact ? d.length === dial.length + rule.exact : d.length >= dial.length + rule.min)) {
+  if (d.startsWith(`00${dial}`)) d = d.slice(2);
+  if (d.startsWith(dial) && (rule.exact ? d.replace(/^0+/, '').length >= dial.length + rule.exact : d.length >= dial.length + rule.min)) {
     d = d.slice(dial.length);
   }
-  if (d.startsWith('0') && rule.exact && d.length === rule.exact + 1) {
-    d = d.slice(1);
-  }
-  return d;
+  // The trunk 0 dialled inside the country (09876…, 07911…) isn't part of the number.
+  return dropTrunkZero(iso, d);
 }
 
 function AddContactModal({ isOpen, onClose, onAdd }: AddContactModalProps) {
@@ -329,8 +328,8 @@ function AddContactModal({ isOpen, onClose, onAdd }: AddContactModalProps) {
 
   const rawDigits = mobileNumber.replace(/\D/g, '');
   const nationalDigits = useMemo(
-    () => extractNationalDigits(rawDigits, currentCountry.dial, rule),
-    [rawDigits, currentCountry.dial, rule],
+    () => extractNationalDigits(rawDigits, currentCountry.dial, rule, currentCountry.iso),
+    [rawDigits, currentCountry.dial, currentCountry.iso, rule],
   );
 
   const isValid = useMemo(() => {

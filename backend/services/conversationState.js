@@ -70,7 +70,7 @@ export async function touchOutbound(phone, body, businessId, { markRead = false 
  * message is logged — before the CRM is told about it, so a refresh triggered
  * by that event already reads the new text. Unread is left alone.
  */
-export async function recordOutboundPreview(phone, body, businessId, { messageId = '', status = 'sent' } = {}) {
+export async function recordOutboundPreview(phone, body, businessId, { messageId = '', status = 'sent', upsert = false } = {}) {
   return Conversation.updateOne(
     key(phone, businessId),
     {
@@ -82,7 +82,11 @@ export async function recordOutboundPreview(phone, body, businessId, { messageId
         lastMessageId: messageId ? String(messageId) : '',
         lastStatus: status || 'sent',
       },
+      // `upsert` (WhatsApp sends): the first message to a new number, e.g. a
+      // campaign, creates its chat, the same row touchOutbound would make.
+      ...(upsert ? { $setOnInsert: { unread: 0, channel: 'whatsapp' } } : {}),
     },
+    upsert ? { upsert: true } : undefined,
   );
 }
 

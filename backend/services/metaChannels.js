@@ -36,7 +36,7 @@ import Conversation from '../models/Conversation.js';
 import Message from '../models/Message.js';
 import { encryptToken, decryptToken } from './tokenCrypto.js';
 import { emitMessage } from './eventBus.js';
-import { recordOutboundPreview } from './conversationState.js';
+import { recordOutboundPreview, recordLastStatus } from './conversationState.js';
 import { takeParked, isStatusUpgrade, statusesBelow } from './messageStatus.js';
 import { outboundPreview } from './metaCloud.js';
 import { notify } from './notifications.js';
@@ -626,6 +626,8 @@ function mapSendError(err, channel) {
 /** Log an outbound Messenger / Instagram message, like metaCloud's logOutbound. */
 export async function logOutbound({ businessId, channel, psid, d, mid, extra = {}, campaignId = null }) {
   try {
+    // The chat list's line first, so a receipt for the message finds its chat (ticks).
+    await recordOutboundPreview(psid, outboundPreview(d), String(businessId), { messageId: mid, status: 'sent' }).catch(() => {});
     const doc = await Message.create({
       phone: psid,
       direction: 'out',
@@ -642,8 +644,8 @@ export async function logOutbound({ businessId, channel, psid, d, mid, extra = {
     if (early && isStatusUpgrade(doc.status, early.status)) {
       Object.assign(doc, { status: early.status });
       await Message.updateOne({ _id: doc._id, status: { $in: statusesBelow(early.status) } }, { $set: { status: early.status } });
+      await recordLastStatus(mid, early.status, statusesBelow(early.status), String(businessId)).catch(() => {});
     }
-    await recordOutboundPreview(psid, outboundPreview(d), String(businessId), { messageId: mid, status: doc.status }).catch(() => {});
     emitMessage(doc);
     return doc;
   } catch (err) {

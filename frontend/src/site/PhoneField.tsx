@@ -431,6 +431,63 @@ export const COUNTRIES: { iso: string; dial: string; name: string; len?: number 
 
 export const countryOf = (iso: string) => COUNTRIES.find((x) => x.iso.toUpperCase() === (iso || '').toUpperCase()) || COUNTRIES[0];
 
+/**
+ * Countries whose own numbers can begin with 0, so a leading 0 is part of the
+ * number, not the trunk prefix dialled inside the country (Italy's landlines,
+ * Côte d'Ivoire's 10-digit numbers).
+ */
+const ZERO_IS_PART: ReadonlySet<string> = new Set(['IT', 'SM', 'VA', 'CI']);
+const MAIN_FOR_DIAL: Record<string, string> = { 1: 'US', 7: 'RU', 44: 'GB', 61: 'AU', 47: 'NO', 599: 'CW', 590: 'GP', 262: 'RE', 212: 'MA', 39: 'IT' };
+
+/**
+ * The trunk prefix taken off: "09876543210" (India) → "9876543210",
+ * "07911123456" (UK) → "7911123456". Numbers are written that way inside a
+ * country, but WhatsApp needs them without it after the country code.
+ */
+export function dropTrunkZero(iso: string, digits: string): string {
+  const d = digits.replace(/\D/g, '');
+  const c = countryOf(iso);
+  if (ZERO_IS_PART.has(c.iso.toUpperCase())) return d;
+  return d.replace(/^0+/, '');
+}
+
+/**
+ * The number within its country, from however it was written: "+91 98765
+ * 43210", "0091 98765 43210", "919876543210", "09876543210" and "98765 43210"
+ * are all "9876543210" for India.
+ */
+export function nationalNumber(iso: string, raw: string): string {
+  const c = countryOf(iso);
+  let d = String(raw || '').replace(/\D/g, '');
+  // "00" is the international prefix: 0091… is +91….
+  if (d.startsWith(`00${c.dial}`)) d = d.slice(2);
+  // Written with the country code: take it off when what's left is a whole
+  // national number (an Indian mobile can itself begin with 91).
+  if (d.startsWith(c.dial)) {
+    const rest = d.slice(c.dial.length);
+    if (c.len ? rest.replace(/^0+/, '').length === c.len : rest.length >= 6) d = rest;
+  }
+  return dropTrunkZero(c.iso, d);
+}
+
+/**
+ * A country from a spreadsheet's "country" cell: a dial code ("91", "+91"),
+ * an ISO code ("IN") or a name ("India"). null when it isn't one.
+ */
+export function countryFromCell(cell: string): (typeof COUNTRIES)[number] | null {
+  const v = String(cell || '').trim();
+  if (!v) return null;
+  const dial = v.replace(/\D/g, '');
+  if (dial && /^[+\d\s()-]+$/.test(v)) {
+    const code = dial.replace(/^00/, '');
+    // A code shared by several countries reads as its main one (+1 → US, +44 → UK).
+    const main = MAIN_FOR_DIAL[code];
+    return (main && COUNTRIES.find((x) => x.iso === main)) || COUNTRIES.find((x) => x.dial === code) || null;
+  }
+  const low = v.toLowerCase();
+  return COUNTRIES.find((x) => x.iso.toLowerCase() === low || x.name.toLowerCase() === low) || null;
+}
+
 /** "+<code> <digits>" for a picked country + typed number. */
 export const fullPhone = (iso: string, number: string) => `+${countryOf(iso).dial} ${number.replace(/\D/g, '')}`;
 

@@ -143,7 +143,15 @@ export function BuyPlanModal({ onClose, api, plan, highlightTier, reason, onPaid
  * paid plan has ended and nothing new has been bought: the plans, to buy one.
  * It goes away as soon as a payment is confirmed (the plan state changes).
  */
-export function PlanPaywall({ api, plan, onOpenBilling }: { api: CrmApi; plan: PlanState; onOpenBilling: () => void }) {
+export function PlanPaywall({
+  api, plan, onOpenBilling, onStaffContinue,
+}: {
+  api: CrmApi;
+  plan: PlanState;
+  onOpenBilling: () => void;
+  /** Platform admin / master session: go on to the CRM anyway (this visit). */
+  onStaffContinue?: () => void;
+}) {
   const ended = plan.ended;
   const title = ended?.kind === 'plan' ? `Your ${ended.name} plan has ended` : 'Your free trial has ended';
   return (
@@ -157,6 +165,14 @@ export function PlanPaywall({ api, plan, onOpenBilling }: { api: CrmApi; plan: P
             {' '}
             <button type="button" className="plan-paywall-link" onClick={onOpenBilling}>Billing and payments</button>
           </p>
+          {onStaffContinue && (
+            <p className="bpm-subtitle plan-paywall-staff">
+              You&apos;re signed in as the platform admin.{' '}
+              <button type="button" className="plan-paywall-link" onClick={onStaffContinue} data-testid="paywall-staff-continue">
+                Open the CRM anyway
+              </button>
+            </p>
+          )}
         </div>
         <PlansPicker api={api} plan={plan} />
       </div>
