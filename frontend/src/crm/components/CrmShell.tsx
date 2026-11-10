@@ -1505,7 +1505,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
               needsConnect ? (
                 <WhatsAppConnectRequired page="members" api={api} business={business} onConnected={onConnected} />
               ) : (
-                <MembersPage api={api} vertical={vertical} business={business} demo={demo} onConnected={onConnected} />
+                <MembersPage api={api} vertical={vertical} business={business} demo={demo} onConnected={onConnected} onOpenCategories={vertical.showsPage('categories') ? () => navigate('categories') : undefined} />
               )
             )}
             {view === 'offers' && show('offers') && !planLocked('offers') && (

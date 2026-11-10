@@ -159,9 +159,11 @@ interface Props {
   business?: BusinessProfile;
   demo?: boolean;
   onConnected?: (b: BusinessProfile) => void;
+  /** Open the categories page (the member form links there when there are none). */
+  onOpenCategories?: () => void;
 }
 
-export function MembersPage({ api, vertical, business, demo, onConnected }: Props) {
+export function MembersPage({ api, vertical, business, demo, onConnected, onOpenCategories }: Props) {
   const v = vertical || verticalConfig('other');
   const flash = useFlash();
   const confirm = useConfirm();
@@ -230,6 +232,7 @@ export function MembersPage({ api, vertical, business, demo, onConnected }: Prop
         vertical={v}
         member={editing === 'new' ? null : editing}
         categories={categories}
+        onOpenCategories={onOpenCategories}
         onBack={() => setEditing(null)}
         onSaved={(note) => {
           setEditing(null);
@@ -346,12 +349,15 @@ function MemberEditor({
   categories,
   onBack,
   onSaved,
+  onOpenCategories,
 }: {
   api: CrmApi;
   vertical: VerticalConfig;
   member: Member | null;
   categories: Category[];
   onBack: () => void;
+  /** Open this business's categories page (Property types, Specialisations…). */
+  onOpenCategories?: () => void;
   /** `note` carries any message about absences announced by this save. */
   onSaved: (note?: string) => void;
 }) {
@@ -399,6 +405,21 @@ function MemberEditor({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   const [showDiscard, setShowDiscard] = useState(false);
+  const confirmLeave = useConfirm();
+  /** To the categories page; unsaved changes are asked about first. */
+  async function openCategories() {
+    if (!onOpenCategories) return;
+    if (snapshot() !== baseline.current) {
+      const ok = await confirmLeave({
+        title: `Leave this ${v.memberSingular.toLowerCase()} unsaved?`,
+        message: `Add your ${v.categoryPlural.toLowerCase()} first, then come back to add this ${v.memberSingular.toLowerCase()}. What you typed here isn't saved.`,
+        confirmLabel: `Go to ${v.categoryPlural}`,
+        cancelLabel: 'Stay here',
+      });
+      if (!ok) return;
+    }
+    onOpenCategories();
+  }
   function handleClose() {
     if (snapshot() !== baseline.current) setShowDiscard(true);
     else onBack();
@@ -590,18 +611,6 @@ function MemberEditor({
             </div>
             <div className="mem-row">
               <div className="k-field">
-                <label className="k-label">{v.categoryLabel}</label>
-                <select className="k-input" value={form.category || ''} onChange={(e) => set({ category: e.target.value })}>
-                  <option value="">Uncategorised</option>
-                  {categories.map((c) => (
-                    <option key={c._id} value={c.name}>{c.name}</option>
-                  ))}
-                </select>
-                {categories.length === 0 && (
-                  <p className="k-hint">Add categories first — they group {v.memberLabel.toLowerCase()} in your flows.</p>
-                )}
-              </div>
-              <div className="k-field">
                 <label className="k-label">{v.memberTitleLabel}</label>
                 <input
                   className="k-input"
@@ -609,6 +618,36 @@ function MemberEditor({
                   onChange={(e) => set({ title: e.target.value })}
                   placeholder={`e.g. ${v.memberTitleExample}`}
                 />
+              </div>
+              {/* The group in this business's own words (Property type, Specialisation…), optional.
+                  With none made yet there is nothing to pick: say so and offer the page. */}
+              <div className="k-field" data-testid="mem-category-field">
+                <label className="k-label">
+                  {v.categoryLabel} <span className="k-label-optional">(optional)</span>
+                </label>
+                {categories.length > 0 || form.category ? (
+                  <select className="k-input" value={form.category || ''} onChange={(e) => set({ category: e.target.value })} data-testid="mem-category">
+                    <option value="">None</option>
+                    {form.category && !categories.some((c) => c.name === form.category) && (
+                      <option value={form.category}>{form.category}</option>
+                    )}
+                    {categories.map((c) => (
+                      <option key={c._id} value={c.name}>{c.name}</option>
+                    ))}
+                  </select>
+                ) : (
+                  <div className="mem-cat-empty" data-testid="mem-category-empty">
+                    <span>
+                      No {v.categoryPlural.toLowerCase()} yet. Add some to group your {v.memberLabel.toLowerCase()} by{' '}
+                      {v.categoryLabel.toLowerCase()} in WhatsApp flows (e.g. {v.categoryExample}).
+                    </span>
+                    {onOpenCategories && (
+                      <button type="button" className="k-btn ghost sm" onClick={openCategories} data-testid="mem-category-add">
+                        <span className="material-icons">add</span> Add {v.categoryPlural.toLowerCase()}
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
             <div className="k-field">

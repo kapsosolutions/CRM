@@ -16970,6 +16970,33 @@ label.k-label,
   transition: all 0.15s;
 }
 
+/* Member form: the optional group field, and its note while none exist. */
+.k-label-optional {
+  font-weight: 400;
+  color: #94a3b8;
+}
+.mem-cat-empty {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px dashed #cbd5e1;
+  border-radius: 8px;
+  background: #f8fafc;
+  font-size: 12.5px;
+  color: #475569;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+.mem-cat-empty > span {
+  flex: 1 1 200px;
+}
+.mem-cat-empty .k-btn {
+  flex: none;
+}
+
 .co-btn-table-action:hover {
   background: #f1f5f9;
   border-color: #cbd5e1;
