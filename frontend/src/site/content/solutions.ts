@@ -235,6 +235,16 @@ export const INDUSTRIES: SolutionContent[] = [
     ],
     [{ out: true, text: '482913 is your verification code. Don’t share it.', button: 'Copy code' }],
     ['templates', 'notifications', 'team-inbox', 'whatsapp-business-api']),
+  ind('it-software', 'it', 'computer', 'IT & Software Services', 'Hiring and client work, *on WhatsApp*',
+    'Candidates apply, send resumes and book interview slots in WhatsApp. Clients send project enquiries, book demos and raise support tickets, all landing in your CRM.',
+    [
+      { icon: 'work', title: 'Job applications', text: 'Role, experience, CTC, notice period and the resume, in one WhatsApp form.' },
+      { icon: 'event_available', title: 'Interviews and meetings', text: 'Candidates and clients pick a real free time with your team.' },
+      { icon: 'request_quote', title: 'Project enquiries', text: 'Services, budget, timeline and the brief arrive ready to quote.' },
+      { icon: 'support_agent', title: 'Support tickets', text: 'Issue type, priority and screenshots, answered from one inbox.' },
+    ],
+    [{ text: 'Any openings for React developers?' }, { out: true, text: 'Yes! Apply in 1 minute and attach your resume 📄', button: 'Apply now' }],
+    ['whatsapp-flows', 'appointments', 'team-inbox', 'chatbot']),
 ];
 
 export const SOLUTION_BY_SLUG = new Map<string, SolutionContent>([...TEAMS, ...INDUSTRIES].map((s) => [s.slug, s]));

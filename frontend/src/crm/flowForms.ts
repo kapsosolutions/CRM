@@ -40,7 +40,7 @@ export function blockShown(id: BlockId, v: VerticalConfig): boolean {
   return !HIDDEN[v.archetype].includes(id);
 }
 
-const BOOK_LABEL: Record<string, string> = { hotel: 'Book a room', rooms: 'Book a space', events: 'Book a venue' };
+const BOOK_LABEL: Record<string, string> = { hotel: 'Book a room', rooms: 'Book a space', events: 'Book a venue', it: 'Book a meeting' };
 
 /** The chip's name in this business's words ("Doctors list", "Cancel appointment"). */
 export function blockLabel(id: BlockId, fallback: string, v: VerticalConfig): string {
@@ -150,6 +150,11 @@ const who = (nameLabel?: string) => [NAME(nameLabel), PHONE];
 
 const TIMES = opts('Morning (9 am – 12 pm)', 'Afternoon (12 – 4 pm)', 'Evening (4 – 8 pm)');
 const ID_TYPES = opts('Aadhaar', 'Passport', 'Driving licence', 'Voter ID', 'PAN card');
+const IT_ROLES = opts(
+  'Software developer', 'Frontend developer', 'Backend developer', 'Mobile app developer', 'QA / testing',
+  'UI / UX design', 'DevOps / cloud', 'Data / AI', 'Project manager', 'Sales / business', 'HR / admin', 'Other',
+);
+const IT_EXPERIENCE = opts('Fresher', '1–2 years', '3–5 years', '6–9 years', '10+ years');
 
 /** The 1–5 rating list, best first. Ids are rate_<n> so the CRM can draw stars. */
 export const RATING_OPTIONS: [string, string][] = [
@@ -623,6 +628,116 @@ const BY_VERTICAL: Record<string, FormPreset[]> = {
       ],
     },
   ],
+  // IT & software companies: clients (projects, support, demos) and
+  // candidates (jobs, resumes, interviews, internships).
+  it: [
+    {
+      id: 'job_application', title: 'Job application', icon: 'work', heading: 'Apply for a job',
+      body: 'Tell us about yourself and attach your resume.', button: 'Submit application',
+      fields: [
+        ...who('Full name'),
+        text('email', 'Email', true, { inputType: 'email' }),
+        drop('position', 'Applying for', IT_ROLES),
+        drop('experience_years', 'Experience', IT_EXPERIENCE),
+        text('current_ctc', 'Current CTC', false),
+        text('expected_ctc', 'Expected CTC', false),
+        drop('notice_period', 'Notice period', opts('Immediate', '15 days', '30 days', '60 days', '90 days')),
+        text('portfolio_link', 'LinkedIn / portfolio', false),
+        doc('resume', 'Resume / CV', true, 1, 'PDF or Word file'),
+      ],
+    },
+    {
+      id: 'resume_upload', title: 'Upload resume', icon: 'upload_file', heading: 'Share your resume',
+      body: 'No opening right now? Send your resume and we’ll reach out when one fits.', button: 'Send resume',
+      fields: [
+        ...who('Full name'),
+        text('email', 'Email', true, { inputType: 'email' }),
+        drop('skill_area', 'Main skill', IT_ROLES),
+        drop('experience_years', 'Experience', IT_EXPERIENCE),
+        text('preferred_city', 'Preferred city', false),
+        doc('cv', 'Resume / CV', true, 1, 'PDF or Word file'),
+      ],
+    },
+    {
+      id: 'interview_slot', title: 'Interview scheduling', icon: 'event_available', heading: 'Schedule your interview',
+      body: 'Pick a day and a time that works for you. We’ll confirm here.', button: 'Request interview',
+      fields: [
+        ...who('Full name'),
+        text('email', 'Email', true, { inputType: 'email' }),
+        drop('interview_role', 'Role', IT_ROLES),
+        radio('interview_round', 'Interview round', opts('First round', 'Technical round', 'HR / final round')),
+        radio('interview_mode', 'How to meet', opts('Video call', 'In person', 'Phone call')),
+        date('interview_date', 'Interview date', 21),
+        drop('interview_time', 'Preferred time', TIMES),
+      ],
+    },
+    {
+      id: 'internship_application', title: 'Internship application', icon: 'school', heading: 'Apply for an internship',
+      button: 'Apply',
+      fields: [
+        ...who('Full name'),
+        text('email', 'Email', true, { inputType: 'email' }),
+        text('college', 'College'),
+        drop('degree', 'Course', opts('B.Tech / B.E.', 'BCA / MCA', 'B.Sc / M.Sc', 'MBA', 'Diploma', 'Other')),
+        drop('graduation_year', 'Year of passing', opts('2026', '2027', '2028', '2029', 'Already passed')),
+        drop('internship_area', 'Area of interest', IT_ROLES),
+        drop('internship_length', 'Duration', opts('1 month', '2 months', '3 months', '6 months')),
+        doc('intern_resume', 'Resume / CV', true, 1, 'PDF or Word file'),
+      ],
+    },
+    {
+      id: 'project_enquiry', title: 'Project enquiry', icon: 'request_quote', heading: 'Tell us about your project',
+      body: 'We’ll reply with the next steps and a rough estimate.', button: 'Send enquiry',
+      fields: [
+        ...who(),
+        text('company', 'Company name', false),
+        text('email', 'Email', true, { inputType: 'email' }),
+        checks('services_needed', 'Services needed', opts('Website', 'Mobile app', 'Custom software', 'Cloud / DevOps', 'AI / data', 'UI / UX design', 'IT support / AMC'), true),
+        drop('project_budget', 'Budget', opts('Under ₹1 lakh', '₹1–5 lakh', '₹5–20 lakh', 'Above ₹20 lakh', 'Not sure yet')),
+        drop('project_timeline', 'Timeline', opts('As soon as possible', '1–3 months', '3–6 months', 'Flexible')),
+        area('project_brief', 'Project details'),
+        doc('project_docs', 'Requirement document', false, 1, 'Optional: a brief, RFP or wireframes'),
+      ],
+    },
+    {
+      id: 'demo_request', title: 'Product demo request', icon: 'co_present', heading: 'Book a product demo',
+      button: 'Request demo',
+      fields: [
+        ...who(),
+        text('company', 'Company name'),
+        text('email', 'Work email', true, { inputType: 'email' }),
+        drop('team_size', 'Team size', opts('1–10', '11–50', '51–200', '201–1,000', 'Above 1,000')),
+        radio('demo_mode', 'How to meet', opts('Video call', 'In person')),
+        date('demo_on', 'Preferred date', 30),
+        drop('demo_slot', 'Preferred time', TIMES),
+      ],
+    },
+    {
+      id: 'it_support', title: 'IT support ticket', icon: 'support_agent', heading: 'Raise a support ticket',
+      body: 'Tell us what’s wrong and we’ll get back to you here.', button: 'Raise ticket',
+      fields: [
+        ...who(),
+        text('company', 'Company name', false),
+        drop('support_issue', 'Issue type', opts('Software bug', 'System down', 'Network / internet', 'Email / login', 'Hardware', 'Other')),
+        radio('priority', 'Priority', opts('Low', 'Medium', 'High', 'Critical')),
+        area('issue_description', 'Describe the issue'),
+        photo('issue_screenshot', 'Screenshot (optional)', false, 3),
+      ],
+    },
+    {
+      id: 'client_onboarding', title: 'Client onboarding', icon: 'handshake', heading: 'Welcome aboard',
+      body: 'A few details so we can set up your project.', button: 'Submit',
+      fields: [
+        ...who('Contact person'),
+        text('company', 'Company name'),
+        text('email', 'Email', true, { inputType: 'email' }),
+        text('gstin', 'GSTIN', false),
+        area('billing_address', 'Billing address'),
+        drop('preferred_contact', 'Best way to reach', opts('WhatsApp', 'Email', 'Phone call')),
+        doc('signed_docs', 'Signed agreement / PO', false, 2),
+      ],
+    },
+  ],
   other: [
     {
       id: 'enquiry', title: 'Enquiry form', icon: 'contact_support', heading: 'Send us your enquiry',
@@ -692,6 +807,14 @@ const PAGE_LABEL: Record<string, string> = {
   loan_enquiry: 'Loan enquiries',
   kyc_documents: 'KYC documents',
   claim_intimation: 'Claims',
+  job_application: 'Job applications',
+  resume_upload: 'Resumes',
+  interview_slot: 'Interview requests',
+  internship_application: 'Internship applications',
+  project_enquiry: 'Project enquiries',
+  demo_request: 'Demo requests',
+  it_support: 'Support tickets',
+  client_onboarding: 'Client onboarding',
   enquiry: 'Enquiries',
 };
 

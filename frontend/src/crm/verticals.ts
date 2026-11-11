@@ -479,6 +479,8 @@ export interface Vertical {
   defaultUnit?: string;
   /** The closing line of the appointment confirmation and its slip, when "arrive early" doesn't fit. */
   confirmNote?: string;
+  /** The Orders page's name when the archetype's ("Appointments") doesn't fit: "Meetings". */
+  ordersLabel?: string;
 }
 
 export const VERTICALS: Record<string, Vertical> = {
@@ -620,6 +622,19 @@ export const VERTICALS: Record<string, Vertical> = {
     categoryLabel: 'Product', categoryPlural: 'Products', categoryExample: 'Home loans',
     memberExample: 'Rahul Verma', memberTitleExample: 'Relationship manager',
   },
+  it: {
+    // Clients book a meeting or a demo with an expert; candidates apply,
+    // send a resume and ask for an interview through the forms.
+    label: 'IT & Software Services', archetype: 'person',
+    memberLabel: 'Experts', memberSingular: 'Expert', feeLabel: 'Consultation fee',
+    categoryLabel: 'Service', categoryPlural: 'Services', categoryExample: 'Web development',
+    memberExample: 'Anil Reddy', memberTitleExample: 'Solutions architect',
+    qualificationsExample: 'AWS Certified Solutions Architect',
+    memberFields: ['fee', 'duration', 'availability', 'experience', 'qualifications', 'languages', 'email'],
+    memberIcon: 'engineering', memberTitleLabel: 'Designation',
+    confirmNote: 'We’ll share the meeting link or address here before it starts. Reply here to change or cancel.',
+    ordersLabel: 'Meetings',
+  },
   other: {
     label: 'Other / Generic', archetype: 'catalog',
     memberLabel: 'Members', memberSingular: 'Member', feeLabel: 'Price',
@@ -697,6 +712,7 @@ const CUSTOMER_TERMS: Record<string, { one: string; many: string }> = {
   realestate: { one: 'Client', many: 'Clients' },
   education: { one: 'Client', many: 'Clients' },
   finance: { one: 'Client', many: 'Clients' },
+  it: { one: 'Client', many: 'Clients' },
 };
 export const customerTerm = (key?: string) =>
   CUSTOMER_TERMS[String(key || '')] || { one: 'Customer', many: 'Customers' };
@@ -756,7 +772,7 @@ export function verticalConfig(key?: string, overrides?: LabelOverrides | null):
     qualificationsExample: v.qualificationsExample || 'Qualifications',
     customerLabel,
     customerPlural,
-    ordersLabel: a.ordersLabel,
+    ordersLabel: v.ordersLabel || a.ordersLabel,
     orderStatuses: a.orderStatuses,
     // "Other / Generic" opts into every page, so it keeps the forms tab too.
     formsTab: v.allPages ? true : a.formsTab,

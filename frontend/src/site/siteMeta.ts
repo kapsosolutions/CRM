@@ -34,7 +34,7 @@ export const TEAM_SLUGS = ['marketing', 'sales', 'support'] as const;
 export const INDUSTRY_SLUGS = [
   'ecommerce', 'restaurants', 'grocery-pharmacy', 'healthcare', 'salons-spas', 'gyms-fitness', 'automobile',
   'professional-services', 'home-services', 'hotels', 'pg-coworking', 'events-venues', 'real-estate', 'education',
-  'logistics', 'banking-insurance',
+  'logistics', 'banking-insurance', 'it-software',
 ] as const;
 export type TeamSlug = (typeof TEAM_SLUGS)[number];
 export type IndustrySlug = (typeof INDUSTRY_SLUGS)[number];
@@ -85,6 +85,7 @@ const INDUSTRY_META: Record<IndustrySlug, [string, string]> = {
   education: ['WhatsApp for Education & Coaching', 'Turn admission enquiries into students with WhatsApp, and keep students and parents informed.'],
   logistics: ['WhatsApp for Logistics & Delivery', 'Send pickup, shipment and delivery updates on WhatsApp and answer customers in one inbox.'],
   'banking-insurance': ['WhatsApp for Banking, NBFC & Insurance', 'Send policy, payment and loan updates on WhatsApp, with one-time codes and a secure team inbox.'],
+  'it-software': ['WhatsApp for IT & Software Companies', 'Hire on WhatsApp with job applications, resumes and interview slots, and win clients with project enquiries, demos and support tickets.'],
 };
 
 const DEV_META: Record<DevSlug, [string, string]> = {

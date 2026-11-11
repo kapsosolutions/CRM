@@ -60,8 +60,8 @@ const WELCOME = 'Hi {{name}} 👋 Welcome to {{business_name}}!';
 const TALK_TEXT = 'Sure! Type your question here and our team will reply shortly. 🙂';
 const TIMINGS_TEXT = '🕘 We’re open Monday to Saturday, 9 am to 8 pm. (Change this to your own hours.)';
 const shopLabel = (v: VerticalConfig) => (v.key === 'restaurant' ? 'See the menu' : v.key === 'grocery' ? 'Order groceries' : 'Shop now');
-const bookLabel = (v: VerticalConfig) => (v.archetype === 'unit' ? 'Check availability' : v.archetype === 'lead' ? 'Book a visit' : 'Book appointment');
-const bookBlockTitle = (v: VerticalConfig) => (v.archetype === 'unit' ? 'Confirm booking' : v.archetype === 'lead' ? 'Book a visit' : 'Book appointment');
+const bookLabel = (v: VerticalConfig) => (v.key === 'it' ? 'Book a meeting' : v.archetype === 'unit' ? 'Check availability' : v.archetype === 'lead' ? 'Book a visit' : 'Book appointment');
+const bookBlockTitle = (v: VerticalConfig) => (v.key === 'it' ? 'Book a meeting' : v.archetype === 'unit' ? 'Confirm booking' : v.archetype === 'lead' ? 'Book a visit' : 'Book appointment');
 
 // ---- Block data (the same defaults the palette gives) ------------------------
 const msg = (text: string) => ({ kind: 'message', header: 'none', text });

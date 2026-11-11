@@ -43,6 +43,7 @@ const WA_CATEGORY: Record<string, string> = {
   events: 'EVENT_PLAN',
   education: 'EDU',
   finance: 'FINANCE',
+  it: 'PROF_SERVICES',
   realestate: 'OTHER',
   logistics: 'OTHER',
   other: 'OTHER',

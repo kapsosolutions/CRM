@@ -341,6 +341,22 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('callback', {}, 'Callback from an advisor'),
     form('loan_enquiry', { extras: ['form:kyc_documents', 'form:claim_intimation', 'form:callback', 'call', 'location'] }, 'Full banking menu', 'Loan enquiry, KYC, claims, callback, call and location, in one menu.', 'finance_full'),
   ],
+  it: [
+    booking('it_meeting', 'Book a meeting · service → expert', 'Service → expert → your details and project → a free time → meeting confirmed.', { personal: false, pay: 'none' }, 'video_call'),
+    booking('it_quick', 'Quick meeting', 'Pick an expert and a free time, with no service step or questions.', { categoryStep: false, personal: false, extraQuestions: false, pay: 'none' }, 'bolt'),
+    booking('it_paid', 'Paid consultation', 'Service → expert → time → the consultation fee is paid on WhatsApp → PDF slip.', { personal: false, pay: 'online', confirm: 'pdf' }, 'credit_card'),
+    form('job_application'),
+    form('resume_upload'),
+    form('interview_slot'),
+    form('internship_application'),
+    form('project_enquiry'),
+    form('demo_request'),
+    form('it_support'),
+    form('client_onboarding'),
+    form('job_application', { extras: ['form:resume_upload', 'form:interview_slot', 'form:internship_application'] }, 'Careers menu', 'Apply for a job, send a resume, schedule an interview and apply for an internship, in one menu.', 'it_careers'),
+    form('project_enquiry', { extras: ['form:demo_request', 'form:it_support', 'form:client_onboarding', 'call', 'website'] }, 'Client services menu', 'Project enquiry, product demo, support ticket, onboarding, call and website, in one menu.', 'it_clients'),
+    booking('it_full', 'Full company menu', 'Book a meeting, my meetings, reschedule, cancel, project enquiry, careers, support and call, in one menu.', { personal: false, pay: 'none', extras: ['my_list', 'reschedule', 'cancel', 'form:project_enquiry', 'form:job_application', 'form:it_support', 'call'] }, 'business_center'),
+  ],
   other: [
     order('other_order', 'Order from the catalog', 'Category → catalog → location → pay online or cash.', { pay: 'both' }),
     booking('other_booking', 'Booking with time slots', 'Category → member → details → time; pay at the visit.', { pay: 'cash', personal: false }),
@@ -449,6 +465,16 @@ function bookingQuestions(v: VerticalConfig): { fields: FieldSpec[]; lines: stri
           { type: 'TextInput', name: 'guests', label: 'Guests', required: true, inputType: 'number' },
         ],
         lines: ['Event: {{event_type}}', 'Guests: {{guests}}'],
+      };
+    case 'it':
+      return {
+        label: 'Ask how to meet and the project',
+        fields: [
+          { type: 'Dropdown', name: 'meeting_mode', label: 'How to meet', required: true, options: opts('Video call', 'In person', 'Phone call') },
+          { type: 'TextInput', name: 'company', label: 'Company name', required: false, inputType: 'text' },
+          { type: 'TextArea', name: 'topic', label: 'What is it about?', required: false },
+        ],
+        lines: ['Meeting: {{meeting_mode}}', 'Company: {{company}}'],
       };
     case 'salon':
       return { label: 'Ask for notes', fields: [{ type: 'TextArea', name: 'notes', label: 'Anything to add?', required: false }], lines: [] };

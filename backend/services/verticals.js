@@ -153,6 +153,12 @@ export const VERTICALS = {
     memberLabel: 'Advisors', memberSingular: 'Advisor', feeLabel: 'Fee', categoryLabel: 'Product',
     categoryPlural: 'Products', categoryExample: 'Home loans', memberExample: 'Rahul Verma', memberTitleExample: 'Relationship manager',
   },
+  it: {
+    label: 'IT & Software Services', archetype: 'person',
+    memberLabel: 'Experts', memberSingular: 'Expert', feeLabel: 'Consultation fee', categoryLabel: 'Service',
+    categoryPlural: 'Services', categoryExample: 'Web development', memberExample: 'Anil Reddy', memberTitleExample: 'Solutions architect', qualificationsExample: 'AWS Certified Solutions Architect',
+    ordersLabel: 'Meetings',
+  },
   other: {
     label: 'Other / Generic', archetype: 'catalog',
     memberLabel: 'Members', memberSingular: 'Member', feeLabel: 'Price', categoryLabel: 'Category',
@@ -183,6 +189,7 @@ const CUSTOMER_TERMS = {
   realestate: { one: 'Client', many: 'Clients' },
   education: { one: 'Client', many: 'Clients' },
   finance: { one: 'Client', many: 'Clients' },
+  it: { one: 'Client', many: 'Clients' },
 };
 export const customerTerm = (key) => CUSTOMER_TERMS[String(key || '')] || { one: 'Customer', many: 'Customers' };
 
@@ -215,7 +222,7 @@ export function verticalConfig(key, overrides = null) {
     qualificationsExample: v.qualificationsExample || 'Qualifications',
     customerLabel: ov(o.customerLabel) ?? cust.one,
     customerPlural: ov(o.customerPlural) ?? cust.many,
-    ordersLabel: a.ordersLabel,
+    ordersLabel: v.ordersLabel || a.ordersLabel,
     confirm: a.confirm,
     pages: v.allPages ? [...ALL_PAGES] : a.pages,
     memberFields: a.memberFields,
