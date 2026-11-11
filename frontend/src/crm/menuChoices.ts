@@ -5,9 +5,26 @@
 // Chats, Templates, Campaigns and Automation are always there. Nothing a
 // customer sent is ever hidden: a form page with answers, or an Orders page
 // with records, shows even when it wasn't picked (CrmShell).
+import { createContext, useContext } from 'react';
 import type { CrmView } from './components/NavRail';
 import { formsFor } from './flowForms';
+import type { TemplateCard } from './flowTemplates';
 import type { VerticalConfig } from './verticals';
+
+/** The menu items picked, for the pages below the shell (null = not chosen: every one). */
+export const MenuPicksCtx = createContext<string[] | null>(null);
+export const useMenuPicks = () => useContext(MenuPicksCtx);
+
+/**
+ * Is a ready-made flow for something the business picked? Its form, or its
+ * booking / order journey; a full menu always is. With nothing picked, every one.
+ */
+export function cardPicked(card: TemplateCard, picks: string[] | null): boolean {
+  if (!picks) return true;
+  if (card.id.endsWith('_full')) return true;
+  if (card.main.kind === 'form') return picks.includes(`form:${card.main.form}`);
+  return picks.includes('main') || picks.includes('book');
+}
 
 export interface MenuChoice {
   /** 'main' | 'book' | 'offers' | 'payments' | 'form:<preset id>' */

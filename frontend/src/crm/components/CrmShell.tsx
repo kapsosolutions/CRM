@@ -15,7 +15,7 @@ import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { CallProvider } from './CallCenter';
 import { MessagingLimitProvider, SidebarMessagingLimit } from './MessagingLimit';
 import { MenuSetup } from './MenuSetup';
-import { menuPages, startingPicks, type MenuState } from '../menuChoices';
+import { MenuPicksCtx, menuPages, startingPicks, type MenuState } from '../menuChoices';
 import { prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, isFormView, type CrmView, type FormRailItem, SettingsRailSvg, ProfileRailSvg } from './NavRail';
@@ -1340,6 +1340,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   return (
     <PlanContext.Provider value={planCtx}>
+    <MenuPicksCtx.Provider value={menu?.picks ?? null}>
     <CallProvider
       api={api}
       socket={demo ? demoSocket : notificationSocket}
@@ -1683,6 +1684,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     </div>
     </MessagingLimitProvider>
     </CallProvider>
+    </MenuPicksCtx.Provider>
     </PlanContext.Provider>
   );
 }

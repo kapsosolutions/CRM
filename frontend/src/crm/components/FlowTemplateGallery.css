@@ -409,3 +409,19 @@
   text-underline-offset: 2px;
   cursor: pointer;
 }
+
+/* Templates for what the business picked, then the rest */
+.ftg-section {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 4px 0 10px;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--wa-ink-muted);
+}
+.ftg-section span { text-transform: none; letter-spacing: 0; font-weight: 400; }
+.ftg-grid + .ftg-section { margin-top: 22px; }
