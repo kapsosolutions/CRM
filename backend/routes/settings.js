@@ -72,6 +72,37 @@ router.post('/pages-seen', async (req, res) => {
   }
 });
 
+// ---------------------------------------------------------------------------
+// "What do you want to do on WhatsApp?": the menu items picked (null = every
+// page). The CRM turns them into pages (frontend crm/menuChoices.ts).
+// ---------------------------------------------------------------------------
+const MENU_PICK = /^(main|book|offers|payments|form:[a-z0-9_]{1,48})$/;
+const MENU_MAX = 40;
+
+/** { picks } from the browser → what's stored; null when it isn't valid. */
+export function pickMenu(body) {
+  const raw = body?.picks;
+  if (raw === null) return { picks: null };
+  if (!Array.isArray(raw) || raw.length > MENU_MAX) return null;
+  const picks = [...new Set(raw.map((x) => String(x || '')))];
+  if (!picks.every((x) => MENU_PICK.test(x))) return null;
+  return { picks };
+}
+
+router.put('/menu', async (req, res) => {
+  const picked = pickMenu(req.body);
+  if (!picked) return res.status(400).json({ success: false, message: 'Unknown menu items.' });
+  try {
+    const menu = { ...picked, seen: true, at: new Date().toISOString() };
+    await Business.updateOne({ _id: req.business._id }, { $set: { menu } });
+    logger.info('menu chosen', { business: req.business.name, picks: menu.picks ? menu.picks.length : 'all' });
+    return res.json({ success: true, data: menu });
+  } catch (err) {
+    logger.warn('menu save failed', { business: req.business.name, error: err.message });
+    return res.status(500).json({ success: false, message: 'Could not save your menu.' });
+  }
+});
+
 router.put('/', async (req, res) => {
   const biz = req.business;
   const b = req.body || {};

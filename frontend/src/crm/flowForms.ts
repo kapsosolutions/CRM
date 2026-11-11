@@ -1273,7 +1273,7 @@ export function presetsInFlows(flows: WaFlowDef[]): Set<string> {
  * form it has put in a flow or received answers from, then "Other forms" for
  * answers from forms built by hand.
  */
-export function formPagesFor(v: VerticalConfig, flows: WaFlowDef[], regs: Registration[]): FormPage[] {
+export function formPagesFor(v: VerticalConfig, flows: WaFlowDef[], regs: Registration[], picked: Set<string> | null = null): FormPage[] {
   const byId = new Map(flows.map((f) => [f._id, f]));
   const used = presetsInFlows(flows);
   let other = false;
@@ -1282,7 +1282,9 @@ export function formPagesFor(v: VerticalConfig, flows: WaFlowDef[], regs: Regist
     if (id) used.add(id);
     else other = true;
   }
-  const ids = formsFor(v).own.map((p) => p.id);
+  // The business's own forms: the ones it picked (menuChoices.ts), or all of
+  // them when it hasn't chosen. A form in a flow or with answers shows anyway.
+  const ids = formsFor(v).own.map((p) => p.id).filter((id) => !picked || picked.has(id) || used.has(id));
   for (const p of allFormPresets()) if (used.has(p.id) && !ids.includes(p.id)) ids.push(p.id);
   const pages = ids.map(formPageOf);
   if (other) pages.push(formPageOf(OTHER_FORMS));

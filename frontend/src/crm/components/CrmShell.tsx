@@ -14,6 +14,8 @@ import { WalletButton } from './WalletButton';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { CallProvider } from './CallCenter';
 import { MessagingLimitProvider, SidebarMessagingLimit } from './MessagingLimit';
+import { MenuSetup } from './MenuSetup';
+import { menuPages, startingPicks, type MenuState } from '../menuChoices';
 import { prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, isFormView, type CrmView, type FormRailItem, SettingsRailSvg, ProfileRailSvg } from './NavRail';
@@ -767,6 +769,20 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   const [labels, setLabels] = useState<LabelOverrides | undefined>(undefined);
   // The signed-in business, for the WhatsApp connection state.
   const [business, setBusiness] = useState<BusinessProfile | undefined>(undefined);
+  // "What do you want to do on WhatsApp?" (menuChoices.ts): the pages picked.
+  // undefined = not known yet; null = from before the question (every page).
+  // Dev-only demo hook: localStorage `__demoMenu` = the stored state as JSON.
+  const [menu, setMenu] = useState<MenuState | null | undefined>(() => {
+    if (!demo) return undefined;
+    try {
+      const raw = import.meta.env.DEV && typeof localStorage !== 'undefined' ? localStorage.getItem('__demoMenu') : null;
+      return raw ? (JSON.parse(raw) as MenuState) : { picks: null, seen: true };
+    } catch {
+      return { picks: null, seen: true };
+    }
+  });
+  // Opened again from the profile menu (Pages in my menu).
+  const [menuEditing, setMenuEditing] = useState(false);
 
   // The account details have come back (or failed): until then the chat page
   // doesn't know whether to show the connect-WhatsApp page or the empty inbox.
@@ -780,6 +796,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         // test number's QR. Get it ready now, so it appears in one go.
         if (r.business && !r.business.whatsappConnected) prepareOnboarding(api).catch(() => {});
         setBusiness(r.business);
+        setMenu(r.business?.menu ?? null);
         setCategory(r.business?.category || 'other');
         setLabels(r.business?.labels);
         setBusinessId(r.business?._id);
@@ -903,10 +920,39 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     if (lastView.current === 'flows' && view !== 'flows' && ready && formsAllowed) loadFormIndex();
     lastView.current = view;
   }, [view, ready, formsAllowed, loadFormIndex]);
+  // The pages the business picked (all of them until it has chosen).
+  const menuOn = useMemo(() => menuPages(vertical, menu?.picks), [vertical, menu]);
   const formPages = useMemo(
-    () => (category ? formPagesFor(vertical, formIndex.flows, formIndex.regs) : []),
-    [category, vertical, formIndex],
+    () => (category ? formPagesFor(vertical, formIndex.flows, formIndex.regs, menuOn.forms) : []),
+    [category, vertical, formIndex, menuOn],
   );
+  // Orders / Appointments / Meetings left out of the menu, but customers have
+  // sent some anyway (a booking journey made later): it shows, so none is lost.
+  const ordersHidden = vertical.showsPage('orders') && !menuOn.pages.includes('orders');
+  const [ordersExist, setOrdersExist] = useState(false);
+  useEffect(() => {
+    if (!ordersHidden || !ready) return;
+    api.getOrders().then((r) => setOrdersExist((r.data || []).length > 0)).catch(() => {});
+  }, [api, ordersHidden, ready]);
+  const railPages = useMemo<CrmView[]>(
+    () => (ordersHidden && ordersExist ? [...menuOn.pages, 'orders'] : menuOn.pages),
+    [menuOn, ordersHidden, ordersExist],
+  );
+  const askMenu = !!category && (menuEditing || (!staffSession && menu !== undefined && (menu === null || !menu.seen)));
+  async function saveMenu(picks: string[] | null) {
+    let next: MenuState = { picks, seen: true };
+    if (demo) {
+      try {
+        localStorage.setItem('__demoMenu', JSON.stringify(next));
+      } catch {
+        /* private mode */
+      }
+    } else {
+      next = (await api.saveMenu(picks)).data;
+    }
+    setMenu(next);
+    setMenuEditing(false);
+  }
   const formRail = useMemo<FormRailItem[]>(
     () => formPages.map((p) => ({ key: `form:${p.id}`, label: p.label, icon: p.icon })),
     [formPages],
@@ -1328,7 +1374,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
             setDrawerOpen(false);
             navigate(v);
           }}
-          allowed={vertical.pages}
+          allowed={railPages}
           badges={{ ...pageBadges, chats: unreadChats }}
           soon={{ ads: COMING_SOON.ads, create: COMING_SOON.create }}
           locked={railLocks}
@@ -1603,6 +1649,15 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
           }}
         />
       )}
+      {askMenu && (
+        <MenuSetup
+          vertical={vertical}
+          initial={startingPicks(vertical, menu)}
+          mode={menuEditing ? 'edit' : menu?.isNew ? 'new' : 'existing'}
+          onSave={saveMenu}
+          onClose={() => setMenuEditing(false)}
+        />
+      )}
       {showDemoModal && <DemoModal onClose={() => setShowDemoModal(false)} />}
       {!demo && <OtherAppsDialog api={api} business={business} onConnected={onConnected} />}
       <NotificationDrawer
@@ -1621,6 +1676,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         demo={demo}
         onNavigate={navigate}
         onOpenChannelStatus={handleOpenChannelStatus}
+        onOpenMenu={category ? () => setMenuEditing(true) : undefined}
         onLogout={onLogout}
         socket={demo ? demoSocket : notificationSocket}
       />
