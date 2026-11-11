@@ -4,7 +4,7 @@ import type { BusinessProfile } from '../types';
 import { ConnectWhatsAppButton } from './ConnectWhatsApp';
 import './WhatsAppConnectRequired.css';
 
-export type WhatsAppRequiredPage = 'catalog' | 'categories' | 'members' | 'offers' | 'ads' | 'orders' | 'payment-config';
+export type WhatsAppRequiredPage = 'catalog' | 'categories' | 'members' | 'offers' | 'ads' | 'orders' | 'payment-config' | 'flows';
 
 export const PAGE_CONNECT_DETAILS: Record<
   WhatsAppRequiredPage,
@@ -68,6 +68,16 @@ export const PAGE_CONNECT_DETAILS: Record<
       'Send automated order confirmations and status updates on WhatsApp',
       'Track order lifecycle from pending to delivered in real time',
       'Support online payments and pay-on-delivery seamlessly',
+    ],
+  },
+  flows: {
+    title: 'Connect WhatsApp to unlock Automation',
+    subtitle: 'Reply to customers automatically, day and night, with chatbot journeys on your own number.\nConnect your WhatsApp account to start automating.',
+    benefitsTitle: 'Benefits of connecting your own number',
+    benefits: [
+      'Welcome every new chat with buttons and menus',
+      'Take bookings, orders and enquiries without typing a reply',
+      'Answers, bookings and orders land straight in your CRM',
     ],
   },
   'payment-config': {

@@ -52,6 +52,11 @@ interface Props {
   flowsFed?: CrmView[];
   /** The daily-limit lock doesn't apply (the platform owner, the demo). */
   limitBypass?: boolean;
+  /**
+   * Other locks, with why: WhatsApp not connected yet, or a page the
+   * automation doesn't use yet (flowForms.ts pagesInUse).
+   */
+  extraLocks?: Partial<Record<CrmView, string>>;
 }
 
 /* User-provided vector SVGs matching WATI style navigation */
@@ -298,7 +303,7 @@ interface SidebarProps extends Props {
 
 export function NavRail({
   view, onChange, allowed, labels, badges, soon, locked: planLocked, collapsed = false, onToggleCollapsed, theme = 'light', onHome, footer, forms = [], logoLight, logoDark,
-  flowsFed = [], limitBypass = false,
+  flowsFed = [], limitBypass = false, extraLocks = {},
 }: SidebarProps) {
   const { data: limitData } = useMessagingLimit();
   const dayLimit = limitBypass ? null : flowsLockLimit(limitData);
@@ -344,7 +349,8 @@ export function NavRail({
                 // A plan lock shows even on a "Soon" item (Ads, Create): the crown.
                 const needs = planLocked?.[it.key];
                 // The plan's crown comes first: buying the plan is the next step.
-                const limitLocked = !needs && !isSoon && !!limitWhy && fed.has(it.key);
+                const why = needs || isSoon ? '' : extraLocks[it.key] || (fed.has(it.key) ? limitWhy : '');
+                const limitLocked = !!why;
                 const locked = isSoon || !!needs || limitLocked;
                 return (
                   <button
@@ -352,8 +358,8 @@ export function NavRail({
                     type="button"
                     className={`rail-btn crm-side-item${view === it.key ? ' active' : ''}${locked ? ' soon' : ''}${limitLocked ? ' limit-locked' : ''}`}
                     onClick={() => onChange(it.key)}
-                    title={needs ? `${label} · ${needs} plan` : limitLocked ? `${label} · ${limitWhy}` : label}
-                    aria-label={isSoon ? `${label}, coming soon${needs ? `, needs the ${needs} plan` : ''}` : needs ? `${label}, needs the ${needs} plan` : limitLocked ? `${label}, locked. ${limitWhy}` : count > 0 ? `${label}, ${count} unread` : label}
+                    title={needs ? `${label} · ${needs} plan` : limitLocked ? `${label} · ${why}` : label}
+                    aria-label={isSoon ? `${label}, coming soon${needs ? `, needs the ${needs} plan` : ''}` : needs ? `${label}, needs the ${needs} plan` : limitLocked ? `${label}, locked. ${why}` : count > 0 ? `${label}, ${count} unread` : label}
                     aria-current={view === it.key ? 'page' : undefined}
                     data-soon={isSoon ? 'true' : undefined}
                     data-plan-locked={needs || undefined}

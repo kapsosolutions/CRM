@@ -14,8 +14,6 @@ import { WalletButton } from './WalletButton';
 import { MockCrmApi, MockCrmSocket } from '../demo/mockApi';
 import { CallProvider } from './CallCenter';
 import { MessagingLimitProvider, SidebarMessagingLimit } from './MessagingLimit';
-import { MenuSetup } from './MenuSetup';
-import { MenuPicksCtx, menuPages, startingPicks, type MenuState } from '../menuChoices';
 import { prepareOnboarding } from './ConnectWhatsAppOnboarding';
 import { defaultConfig, type CrmConfig } from '../config';
 import { NavRail, viewLabel, isFormView, type CrmView, type FormRailItem, SettingsRailSvg, ProfileRailSvg } from './NavRail';
@@ -23,8 +21,9 @@ import { EventAnnouncement } from './EventAnnouncement';
 import { EventPreviewBadge } from '../../event/EventPreviewBadge';
 import { useLiveEvent } from '../../event/liveEvent';
 import { FormSubmissionsPage } from './FormSubmissionsPage';
-import { formPagesFor, formPageOf, presetOfSubmission, OTHER_FORMS } from '../flowForms';
-import type { Order, Registration, WaFlowDef } from '../types';
+import { formPagesFor, formPageOf, pagesInUse, presetOfSubmission, OTHER_FORMS } from '../flowForms';
+import type { Journey, Order, Registration, WaFlowDef } from '../types';
+import { AutomationLockedPage } from './AutomationLockedPage';
 import { useCrmTheme, ThemeToggleSvg, type CrmTheme } from '../theme';
 import { useCrmScale } from '../uiScale';
 import { ProfileSidebarDrawer } from './ProfileSidebarDrawer';
@@ -758,7 +757,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // Automation → the Flows tab (native WhatsApp Flows): every signed-in
   // business sees it. On a plan without Flows (Starter) it carries the crown
   // and opens the plans dialog; Basic and up open it (FlowsPage).
-  const [canUseFlows, setCanUseFlows] = useState(demo);
+  const [canUseFlows, setCanUseFlows] = useState(false);
   // The platform owner (admin, or a master-password session): the Flows tab's
   // daily-limit lock doesn't apply, so any tenant's flows can be looked after.
   const [staffSession, setStaffSession] = useState(false);
@@ -769,20 +768,6 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   const [labels, setLabels] = useState<LabelOverrides | undefined>(undefined);
   // The signed-in business, for the WhatsApp connection state.
   const [business, setBusiness] = useState<BusinessProfile | undefined>(undefined);
-  // "What do you want to do on WhatsApp?" (menuChoices.ts): the pages picked.
-  // undefined = not known yet; null = from before the question (every page).
-  // Dev-only demo hook: localStorage `__demoMenu` = the stored state as JSON.
-  const [menu, setMenu] = useState<MenuState | null | undefined>(() => {
-    if (!demo) return undefined;
-    try {
-      const raw = import.meta.env.DEV && typeof localStorage !== 'undefined' ? localStorage.getItem('__demoMenu') : null;
-      return raw ? (JSON.parse(raw) as MenuState) : { picks: null, seen: true };
-    } catch {
-      return { picks: null, seen: true };
-    }
-  });
-  // Opened again from the profile menu (Pages in my menu).
-  const [menuEditing, setMenuEditing] = useState(false);
 
   // The account details have come back (or failed): until then the chat page
   // doesn't know whether to show the connect-WhatsApp page or the empty inbox.
@@ -796,15 +781,15 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         // test number's QR. Get it ready now, so it appears in one go.
         if (r.business && !r.business.whatsappConnected) prepareOnboarding(api).catch(() => {});
         setBusiness(r.business);
-        setMenu(r.business?.menu ?? null);
         setCategory(r.business?.category || 'other');
         setLabels(r.business?.labels);
         setBusinessId(r.business?._id);
         // Early access (features.ts): set before the state below re-renders the pages.
         setEarlyAccess(!!r.earlyAccess);
         setPlanState(r.planState || null);
-        // Every business has the tab; its plan decides whether it opens.
-        setCanUseFlows(true);
+        // The WhatsApp Flows builder is the platform owner's: only a master-
+        // password (or admin) session gets the tab. A business uses Journeys.
+        setCanUseFlows(r.role === 'admin' || !!r.master);
         setStaffSession(r.role === 'admin' || !!r.master);
       })
       .catch(() => setCategory('other')) // on failure, don't hide anything
@@ -903,13 +888,14 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // The business's own forms are always there; any other form joins once it's
   // in a flow or has answers. Read when the account is known, and again on
   // leaving Automation (a form may have just been added to a flow).
-  const [formIndex, setFormIndex] = useState<{ flows: WaFlowDef[]; regs: Registration[] }>({ flows: [], regs: [] });
+  const [formIndex, setFormIndex] = useState<{ flows: WaFlowDef[]; regs: Registration[]; journeys: Journey[]; known: boolean }>({ flows: [], regs: [], journeys: [], known: false });
   const ready = demo || !!businessId;
   const loadFormIndex = useCallback(() => {
     Promise.all([
       api.listFlows().then((r) => r.data || []).catch(() => [] as WaFlowDef[]),
       api.getRegistrations().then((r) => r.data || []).catch(() => [] as Registration[]),
-    ]).then(([flows, regs]) => setFormIndex({ flows, regs }));
+      api.listJourneys().then((r) => r.data || []).catch(() => [] as Journey[]),
+    ]).then(([flows, regs, journeys]) => setFormIndex({ flows, regs, journeys, known: true }));
   }, [api]);
   const formsAllowed = !!planState && hasFeature(planState, 'flows');
   useEffect(() => {
@@ -920,39 +906,10 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     if (lastView.current === 'flows' && view !== 'flows' && ready && formsAllowed) loadFormIndex();
     lastView.current = view;
   }, [view, ready, formsAllowed, loadFormIndex]);
-  // The pages the business picked (all of them until it has chosen).
-  const menuOn = useMemo(() => menuPages(vertical, menu?.picks), [vertical, menu]);
   const formPages = useMemo(
-    () => (category ? formPagesFor(vertical, formIndex.flows, formIndex.regs, menuOn.forms) : []),
-    [category, vertical, formIndex, menuOn],
+    () => (category ? formPagesFor(vertical, formIndex.flows, formIndex.regs) : []),
+    [category, vertical, formIndex],
   );
-  // Orders / Appointments / Meetings left out of the menu, but customers have
-  // sent some anyway (a booking journey made later): it shows, so none is lost.
-  const ordersHidden = vertical.showsPage('orders') && !menuOn.pages.includes('orders');
-  const [ordersExist, setOrdersExist] = useState(false);
-  useEffect(() => {
-    if (!ordersHidden || !ready) return;
-    api.getOrders().then((r) => setOrdersExist((r.data || []).length > 0)).catch(() => {});
-  }, [api, ordersHidden, ready]);
-  const railPages = useMemo<CrmView[]>(
-    () => (ordersHidden && ordersExist ? [...menuOn.pages, 'orders'] : menuOn.pages),
-    [menuOn, ordersHidden, ordersExist],
-  );
-  const askMenu = !!category && (menuEditing || (!staffSession && menu !== undefined && (menu === null || !menu.seen)));
-  async function saveMenu(picks: string[] | null) {
-    let next: MenuState = { picks, seen: true };
-    if (demo) {
-      try {
-        localStorage.setItem('__demoMenu', JSON.stringify(next));
-      } catch {
-        /* private mode */
-      }
-    } else {
-      next = (await api.saveMenu(picks)).data;
-    }
-    setMenu(next);
-    setMenuEditing(false);
-  }
   const formRail = useMemo<FormRailItem[]>(
     () => formPages.map((p) => ({ key: `form:${p.id}`, label: p.label, icon: p.icon })),
     [formPages],
@@ -1069,6 +1026,11 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // (stripped from production builds): localStorage `__demoFlowsLock` = '1'
   // applies the daily-limit lock to the demo too (its number is on 250).
   const demoFlowsLock = demo && import.meta.env.DEV && typeof localStorage !== 'undefined' && localStorage.getItem('__demoFlowsLock') === '1';
+  // The demo is a business's view: Journeys only, pages locked until the
+  // automation uses them. Dev-only test hook `__demoStaff` = '1' shows it as a
+  // master-password session would (the Flows tab, nothing locked).
+  const demoStaff = demo && import.meta.env.DEV && typeof localStorage !== 'undefined' && localStorage.getItem('__demoStaff') === '1';
+  const staff = staffSession || demoStaff;
 
   // ---- Sound and desktop nudge for every notification ----------------------
   // Settings → Manage Notifications decides, per kind of event (the
@@ -1324,6 +1286,38 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // Registered but WhatsApp not connected yet: every page is there, with a bar
   // on top to connect the number (Embedded Signup).
   const needsConnect = !demo && !!business && !business.whatsappConnected;
+
+  // ---- Locks: WhatsApp not connected, or a page the automation doesn't use yet
+  // Not connected: Automation and the pages that need the number carry a lock
+  // (each opens on its "Connect WhatsApp" screen). Connected: a form page and
+  // the Orders / Appointments / Enquiries page stay locked until a published
+  // flow or a journey fills them (flowForms.ts pagesInUse). The platform owner
+  // sees everything open.
+  const inUse = useMemo(
+    () => pagesInUse(vertical, formIndex.flows, formIndex.regs, formIndex.journeys, badgeOrders.length > 0),
+    [vertical, formIndex, badgeOrders],
+  );
+  const usageLocks = useMemo(() => {
+    const out: Partial<Record<CrmView, string>> = {};
+    if (staff || needsConnect || !formIndex.known) return out;
+    for (const f of formRail) {
+      const id = f.key.slice(5);
+      const open = id === OTHER_FORMS ? inUse.other : inUse.forms.has(id);
+      if (!open) out[f.key] = `Opens when a published WhatsApp flow uses the “${f.label}” form`;
+    }
+    if (vertical.showsPage('orders') && !inUse.orders) {
+      out.orders = `Opens when your automation takes ${vertical.ordersLabel.toLowerCase()}: a journey with a Book or Order step, or a published flow`;
+    }
+    return out;
+  }, [staff, needsConnect, formIndex.known, formRail, inUse, vertical]);
+  const railExtraLocks = useMemo(() => {
+    if (!needsConnect) return usageLocks;
+    const out: Partial<Record<CrmView, string>> = {};
+    const why = 'Connect WhatsApp to open it';
+    for (const v of ['flows', 'catalog', 'categories', 'members', 'offers', 'orders', 'payment-config'] as CrmView[]) out[v] = why;
+    for (const f of formRail) out[f.key] = why;
+    return out;
+  }, [needsConnect, usageLocks, formRail]);
   // Connecting WhatsApp is the next thing this business will do: get Meta's
   // sign-in ready in the background, so the Connect button works on the first
   // click instead of waiting while it loads.
@@ -1340,7 +1334,6 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
 
   return (
     <PlanContext.Provider value={planCtx}>
-    <MenuPicksCtx.Provider value={menu?.picks ?? null}>
     <CallProvider
       api={api}
       socket={demo ? demoSocket : notificationSocket}
@@ -1375,7 +1368,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
             setDrawerOpen(false);
             navigate(v);
           }}
-          allowed={railPages}
+          allowed={vertical.pages}
           badges={{ ...pageBadges, chats: unreadChats }}
           soon={{ ads: COMING_SOON.ads, create: COMING_SOON.create }}
           locked={railLocks}
@@ -1383,6 +1376,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
           forms={formRail}
           flowsFed={['orders', 'payment-config']}
           limitBypass={staffSession || (demo && !demoFlowsLock)}
+          extraLocks={railExtraLocks}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={toggleSidebar}
           theme={theme}
@@ -1470,7 +1464,16 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
             {planLocked(view) && !(view === 'ads' && COMING_SOON.ads) && !(view === 'create' && COMING_SOON.create) && (view === 'payment-config' || isFormView(view) || show(view)) && (
               <PlanLockedPage feature={featureOf(view) as PlanFeature} vertical={vertical} />
             )}
-            {openForm && !planLocked(view) && (
+            {/* A form page or Orders the automation doesn't fill yet. */}
+            {usageLocks[view] && !planLocked(view) && (view === 'orders' ? show('orders') : !!openForm) && (
+              <AutomationLockedPage
+                label={railLabels[view] || viewLabel(view, railLabels)}
+                form={openForm?.preset?.title}
+                ordersWord={vertical.ordersLabel.toLowerCase()}
+                onOpenAutomation={() => navigate('flows')}
+              />
+            )}
+            {openForm && !planLocked(view) && !usageLocks[view] && (
               needsConnect ? (
                 <WhatsAppConnectRequired page="orders" api={api} business={business} onConnected={onConnected} />
               ) : (
@@ -1519,9 +1522,12 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
               />
             )}
             {view === 'flows' && show('flows') && !planLocked('flows') && (
+              needsConnect ? (
+                <WhatsAppConnectRequired page="flows" api={api} business={business} onConnected={onConnected} />
+              ) : (
               <FlowsPage
                 api={api}
-                canUseFlows={canUseFlows}
+                canUseFlows={canUseFlows || demoStaff}
                 limitBypass={staffSession || (demo && !demoFlowsLock)}
                 registerDirty={registerDirty}
                 vertical={vertical}
@@ -1529,6 +1535,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                 demo={demo}
                 onNavigate={pageNavigate}
               />
+              )
             )}
             {view === 'catalog' && show('catalog') && !planLocked('catalog') && (
               needsConnect ? (
@@ -1565,7 +1572,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                 <OffersPage api={api} business={business} demo={demo} onConnected={onConnected} />
               )
             )}
-            {view === 'orders' && show('orders') && !planLocked('orders') && (
+            {view === 'orders' && show('orders') && !planLocked('orders') && !usageLocks.orders && (
               needsConnect ? (
                 <WhatsAppConnectRequired page="orders" api={api} business={business} onConnected={onConnected} />
               ) : (
@@ -1650,15 +1657,6 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
           }}
         />
       )}
-      {askMenu && (
-        <MenuSetup
-          vertical={vertical}
-          initial={startingPicks(vertical, menu)}
-          mode={menuEditing ? 'edit' : menu?.isNew ? 'new' : 'existing'}
-          onSave={saveMenu}
-          onClose={() => setMenuEditing(false)}
-        />
-      )}
       {showDemoModal && <DemoModal onClose={() => setShowDemoModal(false)} />}
       {!demo && <OtherAppsDialog api={api} business={business} onConnected={onConnected} />}
       <NotificationDrawer
@@ -1677,14 +1675,12 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
         demo={demo}
         onNavigate={navigate}
         onOpenChannelStatus={handleOpenChannelStatus}
-        onOpenMenu={category ? () => setMenuEditing(true) : undefined}
         onLogout={onLogout}
         socket={demo ? demoSocket : notificationSocket}
       />
     </div>
     </MessagingLimitProvider>
     </CallProvider>
-    </MenuPicksCtx.Provider>
     </PlanContext.Provider>
   );
 }

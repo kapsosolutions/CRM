@@ -463,15 +463,6 @@ export class CrmApi {
     return this.request('/api/settings/pages-seen', { headers: this.authHeaders() });
   }
 
-  /** "What do you want to do on WhatsApp?": the picked menu items; null = every page. */
-  saveMenu(picks: string[] | null): Promise<{ success: boolean; data: { picks: string[] | null; seen: boolean } }> {
-    return this.request('/api/settings/menu', {
-      method: 'PUT',
-      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
-      body: JSON.stringify({ picks }),
-    });
-  }
-
   /** The page is open now: its count starts again from here. */
   markPageSeen(page: string): Promise<{ success: boolean; data: Record<string, string> }> {
     return this.request('/api/settings/pages-seen', {

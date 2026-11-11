@@ -28,8 +28,6 @@ interface Props {
   onLogout?: () => void;
   /** The shell's live feed: pushes the free service message count as replies are delivered. */
   socket?: CrmSocket | null;
-  /** "Pages in my menu": the sign-up question again (MenuSetup). */
-  onOpenMenu?: () => void;
 }
 
 /**
@@ -254,7 +252,6 @@ export function ProfileSidebarDrawer({
   onOpenChannelStatus,
   onLogout,
   socket,
-  onOpenMenu,
 }: Props) {
   const confirm = useConfirm();
   const [copiedLink, setCopiedLink] = useState(false);
@@ -702,22 +699,6 @@ export function ProfileSidebarDrawer({
               <NotificationIconSvg />
               <span>Manage Notifications</span>
             </button>
-
-            {onOpenMenu && (
-              <button
-                type="button"
-                className="crm-ps-link-btn"
-                onClick={() => {
-                  onClose();
-                  onOpenMenu();
-                }}
-                title="Choose which pages are in your menu"
-                data-testid="ps-menu-pages"
-              >
-                <span className="material-icons" aria-hidden="true" style={{ fontSize: 20 }}>tune</span>
-                <span>Pages in my menu</span>
-              </button>
-            )}
           </div>
         </div>
 

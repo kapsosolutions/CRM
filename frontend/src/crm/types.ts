@@ -200,8 +200,6 @@ export interface BusinessProfile {
   flowsEnabled?: boolean;
   /** Per-business wording overrides (members / categories / customer term). */
   labels?: Record<string, string | undefined>;
-  /** "What do you want to do on WhatsApp?": the pages picked (menuChoices.ts). */
-  menu?: { picks: string[] | null; seen: boolean; isNew?: boolean } | null;
   username?: string;
   phoneNumberId?: string;
   wabaId?: string;

@@ -163,8 +163,6 @@ async function createOwnerBusiness({ firstName, lastName, email, phone, category
     sandboxCode: await uniqueJoinCode(),
     // Every feature for the first 7 days, then the Free plan unless it buys one.
     trialEndsAt: new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000),
-    // Asked straight after sign-up which pages it wants (from the recommended set).
-    menu: { picks: null, seen: false, isNew: true },
     active: true,
   });
 }

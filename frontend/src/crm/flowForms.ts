@@ -1260,6 +1260,63 @@ export function presetOfSubmission(
   return best;
 }
 
+// ---------------------------------------------------------------------------
+// Pages that open with the automation
+// ---------------------------------------------------------------------------
+// A form page, and the Orders / Appointments / Enquiries page, stay locked
+// until the business's automation fills them: a published WhatsApp flow that
+// uses the form (or takes orders / bookings), or a journey with a Book or
+// Order step. Anything a customer already sent opens its page too.
+const ORDER_BLOCKS = new Set(['orderconfirm', 'payment', 'paymethod', 'pdfdoc', 'catalog']);
+
+/** Does this flow create orders or bookings? */
+export function flowTakesOrders(f: Pick<WaFlowDef, 'screens' | 'blocks'>): boolean {
+  if ((f.blocks || []).some((b) => ORDER_BLOCKS.has(b.kind))) return true;
+  return (f.screens || []).some((s) => (s.components || []).some((c) => c.source === 'slots' || c.name === 'selected_slot'));
+}
+
+/** Does this journey (its live version) book or take orders? */
+export function journeyTakesOrders(j: { nodes?: unknown[] }): boolean {
+  return (j.nodes || []).some((n) => {
+    const kind = (n as { data?: { kind?: string } })?.data?.kind;
+    return kind === 'book' || kind === 'order';
+  });
+}
+
+export interface PageUse {
+  /** Form presets whose pages are open. */
+  forms: Set<string>;
+  /** Answers from forms built by hand (the "Other forms" page). */
+  other: boolean;
+  /** The Orders / Appointments / Enquiries page is open. */
+  orders: boolean;
+}
+
+/** Which of these pages the business's automation (or its customers) already use. */
+export function pagesInUse(
+  v: VerticalConfig,
+  flows: WaFlowDef[],
+  regs: Registration[],
+  journeys: { nodes?: unknown[] }[],
+  ordersExist: boolean,
+): PageUse {
+  const live = flows.filter((f) => f.status === 'PUBLISHED');
+  const forms = presetsInFlows(live);
+  const byId = new Map(flows.map((f) => [f._id, f]));
+  let other = false;
+  for (const r of regs) {
+    const id = presetOfSubmission(r, byId);
+    if (id) forms.add(id);
+    else other = true;
+  }
+  const orders = ordersExist
+    || live.some(flowTakesOrders)
+    || journeys.some(journeyTakesOrders)
+    // Enquiries: a lead business's forms land there too (its Form submissions tab).
+    || (v.archetype === 'lead' && (live.length > 0 || regs.length > 0));
+  return { forms, other, orders };
+}
+
 /** The ready-made forms used anywhere in these flows. */
 export function presetsInFlows(flows: WaFlowDef[]): Set<string> {
   const out = new Set<string>();
@@ -1273,7 +1330,7 @@ export function presetsInFlows(flows: WaFlowDef[]): Set<string> {
  * form it has put in a flow or received answers from, then "Other forms" for
  * answers from forms built by hand.
  */
-export function formPagesFor(v: VerticalConfig, flows: WaFlowDef[], regs: Registration[], picked: Set<string> | null = null): FormPage[] {
+export function formPagesFor(v: VerticalConfig, flows: WaFlowDef[], regs: Registration[]): FormPage[] {
   const byId = new Map(flows.map((f) => [f._id, f]));
   const used = presetsInFlows(flows);
   let other = false;
@@ -1282,9 +1339,7 @@ export function formPagesFor(v: VerticalConfig, flows: WaFlowDef[], regs: Regist
     if (id) used.add(id);
     else other = true;
   }
-  // The business's own forms: the ones it picked (menuChoices.ts), or all of
-  // them when it hasn't chosen. A form in a flow or with answers shows anyway.
-  const ids = formsFor(v).own.map((p) => p.id).filter((id) => !picked || picked.has(id) || used.has(id));
+  const ids = formsFor(v).own.map((p) => p.id);
   for (const p of allFormPresets()) if (used.has(p.id) && !ids.includes(p.id)) ids.push(p.id);
   const pages = ids.map(formPageOf);
   if (other) pages.push(formPageOf(OTHER_FORMS));

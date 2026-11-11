@@ -172,11 +172,6 @@ const BusinessSchema = new Schema(
     // count of new records on it: { _since: ISO, orders: ISO, 'form:<id>': ISO }.
     // _since is when this started, the baseline for a page never opened.
     pagesSeenAt: { type: Schema.Types.Mixed, default: null },
-    // "What do you want to do on WhatsApp?", asked once after sign-up: which
-    // menu items it picked (frontend crm/menuChoices.ts decides their pages).
-    // { picks: string[] | null (null = every page), seen: boolean, isNew?: boolean, at?: ISO }.
-    // null = a business from before the question: every page, asked once.
-    menu: { type: Schema.Types.Mixed, default: null },
 
     // ----- Generated tenant login -----
     // A stable handle for every business (admin list, support logins with the

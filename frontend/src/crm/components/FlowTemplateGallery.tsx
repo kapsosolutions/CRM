@@ -10,7 +10,6 @@ import {
   asksCategoryFirst, buildTemplate, checkTemplateFlow, choicesFor, extrasFor, isLinkKind, LINK_INFO, LINK_KINDS, LINK_NEED, linkProblem, MAX_EXTRAS, optionsFor, templateCardsFor,
   type ChoiceDef, type LinkDetails, type LinkKind, type TemplateCard, type TemplateOptions,
 } from '../flowTemplates';
-import { cardPicked, useMenuPicks } from '../menuChoices';
 import './FlowTemplateGallery.css';
 
 /** "Delivery · pay online", or "… (2)" when a flow already has that name. */
@@ -164,7 +163,6 @@ export function ReadyTemplates({
   onCreated: (flow: WaFlowDef) => void;
 }) {
   const cards = useMemo(() => templateCardsFor(vertical), [vertical]);
-  const picks = useMenuPicks();
   const [card, setCard] = useState<TemplateCard | null>(null);
   const [opts, setOpts] = useState<TemplateOptions | null>(null);
   const [busy, setBusy] = useState(false);
@@ -227,33 +225,20 @@ export function ReadyTemplates({
   }
 
   if (!card || !opts || !built) {
-    const tile = (c: TemplateCard) => (
-      <button type="button" className="ftg-card" key={c.id} onClick={() => open(c)} data-testid={`ftg-card-${c.id}`}>
-        <span className="material-icons ftg-card-ic">{c.icon}</span>
-        <span className="ftg-card-title">{c.title}</span>
-        <span className="ftg-card-desc">{c.description}</span>
-        <span className="ftg-tags">
-          {tagsOf(c, vertical).map((t) => <span className="ftg-tag" key={t.text} title={t.title}>{t.text}</span>)}
-        </span>
-      </button>
-    );
-    // What the business picked ("What do you want to do on WhatsApp?") first;
-    // the rest stay one scroll away, and using one adds its page.
-    const mine = cards.filter((c) => cardPicked(c, picks));
-    const more = cards.filter((c) => !cardPicked(c, picks));
     return (
       <div className="ftg" data-testid="ftg-gallery">
-        {more.length > 0 && <div className="ftg-section" data-testid="ftg-mine-title">For what you picked</div>}
-        <div className="ftg-grid" data-testid="ftg-mine">{mine.map(tile)}</div>
-        {more.length > 0 && (
-          <>
-            <div className="ftg-section" data-testid="ftg-more-title">
-              More templates
-              <span>Not in your menu yet. Creating one adds its page to the sidebar.</span>
-            </div>
-            <div className="ftg-grid" data-testid="ftg-more">{more.map(tile)}</div>
-          </>
-        )}
+        <div className="ftg-grid">
+          {cards.map((c) => (
+            <button type="button" className="ftg-card" key={c.id} onClick={() => open(c)} data-testid={`ftg-card-${c.id}`}>
+              <span className="material-icons ftg-card-ic">{c.icon}</span>
+              <span className="ftg-card-title">{c.title}</span>
+              <span className="ftg-card-desc">{c.description}</span>
+              <span className="ftg-tags">
+                {tagsOf(c, vertical).map((t) => <span className="ftg-tag" key={t.text} title={t.title}>{t.text}</span>)}
+              </span>
+            </button>
+          ))}
+        </div>
       </div>
     );
   }
