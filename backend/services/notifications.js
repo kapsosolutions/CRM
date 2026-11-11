@@ -48,9 +48,40 @@ export function present(n) {
   };
 }
 
-/** Unread notifications of one tenant. */
+// The bell keeps 7 days. Anything older, read or not, is out of date (the
+// chat, order or template it points to has its own page) and is deleted by
+// startNotificationPrune; until that runs it's already left out of the list
+// and the unread count.
+export const KEEP_DAYS = 7;
+const DAY_MS = 24 * 60 * 60 * 1000;
+/** The oldest a notification shown in the bell can be. */
+export const keptSince = (now = Date.now()) => new Date(now - KEEP_DAYS * DAY_MS);
+
+/** Unread notifications of one tenant (the last 7 days). */
 export async function unreadCount(businessId) {
-  return Number(await Notification.countDocuments({ businessId: String(businessId), readAt: null })) || 0;
+  return Number(await Notification.countDocuments({ businessId: String(businessId), readAt: null, lastAt: { $gte: keptSince() } })) || 0;
+}
+
+/** Delete every tenant's notifications older than 7 days, read or not. */
+export async function pruneOldNotifications(now = Date.now()) {
+  const before = keptSince(now);
+  const r = await Notification.deleteMany({
+    $or: [{ lastAt: { $lt: before } }, { lastAt: null, createdAt: { $lt: before } }],
+  });
+  const deleted = r?.deletedCount || 0;
+  if (deleted) logger.info('old notifications deleted', { deleted, olderThanDays: KEEP_DAYS });
+  return deleted;
+}
+
+let pruneTimer = null;
+/** Start the sweep: a few minutes after boot, then every 6 hours. */
+export function startNotificationPrune() {
+  if (pruneTimer) return;
+  const run = () => pruneOldNotifications().catch((err) => logger.warn('notification prune failed', { error: err.message }));
+  const first = setTimeout(run, 3 * 60 * 1000);
+  if (first.unref) first.unref();
+  pruneTimer = setInterval(run, 6 * 60 * 60 * 1000);
+  if (pruneTimer.unref) pruneTimer.unref();
 }
 
 // Writes for one (tenant, groupKey) run one after another, so two messages
@@ -81,7 +112,8 @@ async function write(bid, { type, title, body, target, groupKey }) {
     lastAt: now,
   };
   if (groupKey) {
-    const open = await Notification.findOne({ businessId: bid, groupKey, readAt: null }).sort({ lastAt: -1 }).lean();
+    // Only a row still in the bell: an unread one older than 7 days isn't brought back.
+    const open = await Notification.findOne({ businessId: bid, groupKey, readAt: null, lastAt: { $gte: keptSince() } }).sort({ lastAt: -1 }).lean();
     if (open) {
       const count = (Number(open.count) || 1) + 1;
       const updated = await Notification.findOneAndUpdate(
@@ -214,4 +246,5 @@ export const money = (n) => `₹${Number(n || 0).toLocaleString('en-IN')}`;
 
 export default {
   notify, notifyChatMessage, markChatRead, notifyTemplateStatus, unreadCount, present, money,
+  KEEP_DAYS, keptSince, pruneOldNotifications, startNotificationPrune,
 };

@@ -4,7 +4,7 @@
 import express from 'express';
 import { requireBusiness } from '../middleware/auth.js';
 import Notification from '../models/Notification.js';
-import { present, unreadCount } from '../services/notifications.js';
+import { keptSince, present, unreadCount } from '../services/notifications.js';
 import { emitNotificationCount } from '../services/eventBus.js';
 import logger from '../services/logger.js';
 
@@ -30,11 +30,11 @@ function parseCursor(raw) {
   return { at, id: i > 0 ? s.slice(i + 1) : '' };
 }
 
-// GET /api/notifications?before=<cursor>&limit=20 — newest first.
+// GET /api/notifications?before=<cursor>&limit=20 — newest first, the last 7 days.
 router.get('/', async (req, res) => {
   try {
     const limit = Math.min(50, Math.max(1, Math.floor(Number(req.query.limit)) || 20));
-    const filter = { ...owner(req) };
+    const filter = { ...owner(req), lastAt: { $gte: keptSince() } };
     if (req.query.before) {
       const c = parseCursor(req.query.before);
       if (!c) return res.status(400).json({ success: false, message: 'Invalid cursor' });
@@ -65,7 +65,7 @@ router.get('/unread-count', async (req, res) => {
 
 router.post('/read-all', async (req, res) => {
   try {
-    const r = await Notification.updateMany({ ...owner(req), readAt: null }, { $set: { readAt: new Date() } });
+    const r = await Notification.updateMany({ ...owner(req), readAt: null, lastAt: { $gte: keptSince() } }, { $set: { readAt: new Date() } });
     const unread = await unreadCount(req.business._id);
     if (r.modifiedCount) emitNotificationCount(req.business._id, unread);
     res.json({ success: true, updated: r.modifiedCount || 0, unread });

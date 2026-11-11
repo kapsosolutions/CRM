@@ -50,6 +50,7 @@ import { startPaymentLinkSync } from './services/subscriptions.js';
 import { requireFeature } from './services/planGate.js';
 import { startPlanReminders } from './services/planReminders.js';
 import { startBuilderMediaSweep } from './services/builderMediaSweep.js';
+import { startNotificationPrune } from './services/notifications.js';
 import metaChannelsRouter, { metaSubscriptionsAdminRouter } from './routes/metaChannels.js';
 import metaWebhookRouter from './routes/metaWebhook.js';
 import instagramChannelRouter from './routes/instagramChannel.js';
@@ -199,6 +200,8 @@ if (!DATABASE_URL) {
       startBuilderMediaSweep();
       // Every 5 min: plan Payment Links paid in a tab closed before returning.
       startPaymentLinkSync();
+      // Every 6 hours: bell notifications older than 7 days, read or not.
+      startNotificationPrune();
     })
     .catch((err) => logger.error('Database connection error', { error: err.message }));
 }

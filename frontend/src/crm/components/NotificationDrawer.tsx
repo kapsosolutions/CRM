@@ -283,6 +283,7 @@ export function NotificationDrawer({ isOpen, onClose, api, socket, onUnreadChang
               <span className="material-icons nd-state-icon" aria-hidden="true">notifications_none</span>
               <h4>You’re all caught up</h4>
               <p>New messages, orders, bookings, payments, campaign results and template updates will show up here.</p>
+              <p className="nd-keep-note">Notifications are kept for 7 days.</p>
             </div>
           ) : (
             <>
