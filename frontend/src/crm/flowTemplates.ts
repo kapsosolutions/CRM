@@ -217,6 +217,7 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('table_reservation'),
     form('party_catering'),
     form('feedback'),
+    form('franchise_enquiry'),
     order('rest_full', 'Full restaurant menu', 'Order food, my orders, track, cancel, reserve a table, location and call, in one menu.', { mode: 'delivery', pay: 'both', confirm: 'pdf', extras: ['my_list', 'track', 'cancel', 'form:table_reservation', 'location', 'call'] }, 'menu_book'),
   ],
   ecommerce: [
@@ -229,6 +230,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('return_exchange'),
     form('bulk_order'),
     form('feedback'),
+    form('warranty_claim'),
+    form('product_enquiry'),
     order('shop_full', 'Full store menu', 'Shop, my orders, track, cancel, returns and call, in one menu.', { address: 'typed', pay: 'both', confirm: 'pdf', extras: ['my_list', 'track', 'cancel', 'form:return_exchange', 'call'] }, 'menu_book'),
   ],
   grocery: [
@@ -239,6 +242,7 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('prescription_upload'),
     form('monthly_list'),
     form('feedback'),
+    form('product_request'),
     order('groc_full', 'Full store menu', 'Order, my orders, track, cancel, prescriptions, monthly list and call, in one menu.', { address: 'typed', deliveryTime: true, pay: 'both', extras: ['my_list', 'track', 'cancel', 'form:prescription_upload', 'form:monthly_list', 'call'] }, 'menu_book'),
   ],
   hospital: [
@@ -250,6 +254,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('patient_registration'),
     form('consultation_request', { categoryStep: true }),
     form('upload_reports'),
+    form('home_sample_collection'),
+    form('health_checkup'),
     booking('hosp_full', 'Full hospital menu', 'Book, my appointments, reschedule, cancel, upload reports, location and call, in one menu.', { pay: 'both', confirm: 'pdf', extras: ['my_list', 'reschedule', 'cancel', 'form:upload_reports', 'location', 'call'] }, 'local_hospital'),
   ],
   salon: [
@@ -259,6 +265,7 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('service_preferences'),
     form('skin_allergy_check'),
     form('feedback'),
+    form('bridal_enquiry'),
     booking('salon_full', 'Full salon menu', 'Book, my appointments, reschedule, cancel, location and call, in one menu.', { pay: 'both', extras: ['my_list', 'reschedule', 'cancel', 'location', 'call'] }, 'spa'),
   ],
   gym: [
@@ -267,6 +274,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('free_trial'),
     form('membership_enquiry'),
     form('health_declaration'),
+    form('personal_training'),
+    form('membership_freeze'),
     booking('gym_full', 'Full gym menu', 'Book, my sessions, reschedule, cancel, free trial, location and call, in one menu.', { pay: 'both', extras: ['my_list', 'reschedule', 'cancel', 'form:free_trial', 'location', 'call'] }, 'sports_gymnastics'),
   ],
   automobile: [
@@ -274,6 +283,9 @@ const CARDS: Record<string, TemplateCard[]> = {
     booking('auto_quick', 'Quick service booking', 'Pick a service and a time, with no vehicle questions.', { categoryStep: false, extraQuestions: false, pay: 'cash' }, 'bolt'),
     form('vehicle_service'),
     form('accident_claim'),
+    form('test_drive'),
+    form('car_valuation'),
+    form('roadside_assistance'),
     booking('auto_full', 'Full service-centre menu', 'Book, my bookings, reschedule, cancel, insurance claim, location and call, in one menu.', { pay: 'both', confirm: 'pdf', extras: ['my_list', 'reschedule', 'cancel', 'form:accident_claim', 'location', 'call'] }, 'garage'),
   ],
   professional: [
@@ -282,6 +294,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     booking('pro_free', 'Free first call', 'A short intro call with no payment and no personal questions.', { pay: 'none', personal: false }, 'call'),
     form('client_intake'),
     form('document_collection'),
+    form('tax_filing'),
+    form('case_enquiry'),
     booking('pro_full', 'Full practice menu', 'Book, my appointments, reschedule, cancel, share documents and call, in one menu.', { pay: 'both', extras: ['my_list', 'reschedule', 'cancel', 'form:document_collection', 'call'] }, 'business_center'),
   ],
   homeservices: [
@@ -289,6 +303,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     booking('home_online', 'Book a visit · pay online', 'The visit charge is paid on WhatsApp first.', { pay: 'online', personal: false, confirm: 'pdf' }, 'credit_card'),
     form('service_request'),
     form('feedback'),
+    form('amc_enquiry'),
+    form('site_inspection'),
     booking('home_full', 'Full services menu', 'Book, my bookings, reschedule, cancel, service request and call, in one menu.', { pay: 'both', personal: false, extras: ['my_list', 'reschedule', 'cancel', 'form:service_request', 'call'] }, 'handyman'),
   ],
   hotel: [
@@ -297,6 +313,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     booking('hotel_online', 'Book & pay online', 'The room is paid on WhatsApp first and a PDF slip is sent.', { pay: 'online', confirm: 'pdf' }, 'credit_card'),
     form('stay_enquiry'),
     form('pre_arrival'),
+    form('airport_transfer'),
+    form('group_booking'),
     booking('hotel_full', 'Full hotel menu', 'Book, my bookings, change dates, cancel, pre-arrival check-in, location and call, in one menu.', { pay: 'both', confirm: 'pdf', extras: ['my_list', 'reschedule', 'cancel', 'form:pre_arrival', 'location', 'call'] }, 'king_bed'),
   ],
   rooms: [
@@ -304,6 +322,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     booking('rooms_online', 'Book & pay online', 'The booking is paid on WhatsApp first.', { pay: 'online', confirm: 'pdf' }, 'credit_card'),
     form('space_enquiry'),
     form('tenant_kyc'),
+    form('maintenance_request'),
+    form('move_out_notice'),
     booking('rooms_full', 'Full menu', 'Book, my bookings, change dates, cancel, KYC, location and call, in one menu.', { pay: 'both', extras: ['my_list', 'reschedule', 'cancel', 'form:tenant_kyc', 'location', 'call'] }, 'apartment'),
   ],
   events: [
@@ -311,6 +331,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     booking('events_online', 'Book & pay online', 'The booking is paid on WhatsApp first and a PDF slip is sent.', { pay: 'online', confirm: 'pdf' }, 'credit_card'),
     form('event_enquiry'),
     form('feedback'),
+    form('guest_rsvp'),
+    form('vendor_registration'),
     booking('events_full', 'Full venue menu', 'Book, my bookings, change dates, cancel, event enquiry, location and call, in one menu.', { pay: 'both', extras: ['my_list', 'reschedule', 'cancel', 'form:event_enquiry', 'location', 'call'] }, 'festival'),
   ],
   realestate: [
@@ -318,6 +340,7 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('property_requirement', { categoryStep: true, memberStep: true }, 'Property enquiry · pick an agent', 'Property type → agent → requirement form.', 'form_property_agent'),
     form('site_visit'),
     form('list_property'),
+    form('home_loan_help'),
     form('property_requirement', { categoryStep: true, extras: ['form:site_visit', 'form:list_property', 'brochure', 'call', 'location'] }, 'Full real-estate menu', 'Enquiry, site visit, list a property, brochure, call and location, in one menu.', 'realestate_full'),
   ],
   education: [
@@ -325,6 +348,7 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('admission_enquiry', {}, 'Admission enquiry', 'The enquiry form on its own.', 'form_admission_plain'),
     form('demo_class'),
     form('admission_documents'),
+    form('counselling_request'),
     form('admission_enquiry', { categoryStep: true, extras: ['form:demo_class', 'form:admission_documents', 'brochure', 'call', 'location'] }, 'Full admissions menu', 'Enquiry, demo class, documents, brochure, call and location, in one menu.', 'education_full'),
   ],
   logistics: [
@@ -332,6 +356,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('delivery_issue'),
     form('track_shipment'),
     form('rate_enquiry'),
+    form('business_account'),
+    form('delivery_partner'),
     form('pickup_request', { extras: ['form:delivery_issue', 'form:track_shipment', 'form:rate_enquiry', 'call'] }, 'Full courier menu', 'Book a pickup, report an issue, track, get a quote and call, in one menu.', 'logistics_full'),
   ],
   finance: [
@@ -339,6 +365,8 @@ const CARDS: Record<string, TemplateCard[]> = {
     form('kyc_documents'),
     form('claim_intimation'),
     form('callback', {}, 'Callback from an advisor'),
+    form('insurance_quote'),
+    form('account_opening'),
     form('loan_enquiry', { extras: ['form:kyc_documents', 'form:claim_intimation', 'form:callback', 'call', 'location'] }, 'Full banking menu', 'Loan enquiry, KYC, claims, callback, call and location, in one menu.', 'finance_full'),
   ],
   it: [
