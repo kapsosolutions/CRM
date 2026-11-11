@@ -2761,7 +2761,6 @@ export function FlowsPage({
   demo: _demo,
   onNavigate,
   limitBypass = false,
-  staff = false,
 }: {
   api: CrmApi;
   canUseFlows?: boolean;
@@ -2772,8 +2771,6 @@ export function FlowsPage({
   onNavigate?: (view: any) => void;
   /** The daily-limit lock doesn't apply (the demo, the platform owner). */
   limitBypass?: boolean;
-  /** Master-password session: the flow builder and templates are shown. */
-  staff?: boolean;
 }) {
   const [templates, setTemplates] = useState<TemplateItem[]>([]);
   // WhatsApp Flows open once the number may message FLOWS_MIN_LIMIT customers
@@ -2865,14 +2862,7 @@ export function FlowsPage({
         </div>
       ) : tab === 'flows' && !flowsPlan ? (
         <div className="page-body">
-          <FlowBuilderPage
-            api={api}
-            registerDirty={registerChildDirty}
-            vertical={vertical}
-            staff={staff}
-            businessName={_business?.name}
-            onNavigate={onNavigate}
-          />
+          <FlowBuilderPage api={api} registerDirty={registerChildDirty} vertical={vertical} />
         </div>
       ) : (
         <JourneyManager api={api} templates={templates} registerDirty={registerChildDirty} onNavigate={onNavigate} vertical={vertical} categoryNames={categoryNames} />

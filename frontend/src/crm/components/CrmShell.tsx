@@ -1023,9 +1023,6 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
   // (stripped from production builds): localStorage `__demoFlowsLock` = '1'
   // applies the daily-limit lock to the demo too (its number is on 250).
   const demoFlowsLock = demo && import.meta.env.DEV && typeof localStorage !== 'undefined' && localStorage.getItem('__demoFlowsLock') === '1';
-  // The demo is a business's view: Hyka AI, no builder. Dev-only test hook
-  // `__demoStaff` = '1' shows it as a master-password session would.
-  const demoStaff = demo && import.meta.env.DEV && typeof localStorage !== 'undefined' && localStorage.getItem('__demoStaff') === '1';
 
   // ---- Sound and desktop nudge for every notification ----------------------
   // Settings → Manage Notifications decides, per kind of event (the
@@ -1479,7 +1476,6 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                 api={api}
                 canUseFlows={canUseFlows}
                 limitBypass={staffSession || (demo && !demoFlowsLock)}
-                staff={staffSession || demoStaff}
                 registerDirty={registerDirty}
                 vertical={vertical}
                 business={business}
