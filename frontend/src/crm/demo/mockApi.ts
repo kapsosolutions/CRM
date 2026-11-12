@@ -4,7 +4,7 @@
 // and creating templates all work against the in-memory store and echo back
 // through a shared bus (so outbound messages appear live, like the real socket).
 // -----------------------------------------------------------------------------
-import { CrmApi } from '../api';
+import { CrmApi, type UpdateTemplateItem, type UpdateTemplateResult } from '../api';
 import { CrmSocket, type StatusUpdate, type ReactionUpdate, type TypingUpdate } from '../socket';
 import type { CrmConfig } from '../config';
 import type { AppNotification, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, Order, OrderStatus, Journey, Registration, RegistrationStatus, BusinessSettings, PaymentSettings, SandboxInfo, ChannelStatus, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, WhatsAppVertical, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, CampaignStats, CampaignRecipientResult, BillingSummary } from '../types';
@@ -1698,6 +1698,41 @@ export class MockCrmApi extends CrmApi {
       },
       900,
     );
+  }
+  // Demo: a short version of the server's plan (services/updateTemplates.js).
+  override getUpdateTemplates(id: string) {
+    const f = flows.find((x) => x._id === id);
+    const comps = (f?.screens || []).flatMap((s) => s.components || []);
+    const books = comps.some((c) => c.source === 'slots' || c.name === 'selected_slot');
+    const orders = !books && (f?.blocks || []).some((b) => ['orderconfirm', 'payment', 'paymethod', 'pdfdoc', 'catalog'].includes(b.kind));
+    const flowBtn = (text: string) => (f?.metaFlowId ? [{ type: 'FLOW' as const, text }] : []);
+    const talk = [{ type: 'QUICK_REPLY' as const, text: 'Talk to us' }];
+    const items: UpdateTemplateItem[] = [];
+    const add = (key: string, title: string, why: string, preview: string, buttons: UpdateTemplateItem['buttons']) =>
+      items.push({ key, name: key, title, why, bodyText: preview, preview, variables: [], buttons, exists: templates.some((t) => t.name === key), existingStatus: templates.find((t) => t.name === key)?.status || '' });
+    if (books) {
+      add('booking_confirmed', 'Booking confirmed', 'When you mark a booking Confirmed', 'Hi Riya, your booking on 18 Oct 2026 at 10:30 am is confirmed. Your reference number is ORD-1042. Please reply here if you need to change anything.', talk);
+      add('booking_completed', 'Booking completed', 'When you mark a booking Completed', 'Hi Riya, your booking is complete. Thank you for visiting. If you need a follow-up, tap below to book it.', flowBtn('Book follow-up'));
+      add('booking_cancelled', 'Booking cancelled', 'When you mark a booking Cancelled', 'Hi Riya, your booking on 18 Oct 2026 at 10:30 am has been cancelled. Tap below to pick a new time.', flowBtn('Pick a new time'));
+    } else if (orders) {
+      add('order_confirmed', 'Order confirmed', 'When you mark an order Confirmed', 'Hi Riya, your order ORD-1042 for ₹500 is confirmed. We’ll message you here as soon as it’s on its way.', talk);
+      add('order_delivered', 'Order delivered', 'When you mark an order Delivered', 'Hi Riya, your order ORD-1042 has been delivered. If anything is missing or not right, reply here and we’ll sort it out.', talk);
+    }
+    for (const p of [...new Set(comps.map((c) => c.preset).filter(Boolean) as string[])]) {
+      const title = p.replace(/_/g, ' ');
+      add(`${p}_confirmed`, `${title.charAt(0).toUpperCase()}${title.slice(1)} confirmed`, `When you mark a ${title} Confirmed on its page`, `Hi Riya, your ${title} is confirmed. Reply here if you have any questions.`, talk);
+    }
+    return delay({ success: true, data: { items, entryScreen: f?.screens?.[0]?.id || 'WELCOME', published: f?.status === 'PUBLISHED' } }, 300);
+  }
+  override createUpdateTemplates(id: string, keys: string[]) {
+    const out: UpdateTemplateResult[] = keys.map((key) => {
+      if (templates.some((t) => t.name === key)) return { key, name: key, ok: true, skipped: true };
+      const now = new Date().toISOString();
+      templates.unshift({ name: key, status: 'PENDING', language: 'en_US', category: 'UTILITY', components: [{ type: 'BODY', text: key }], createdAt: now, updatedAt: now });
+      return { key, name: key, ok: true, status: 'PENDING' };
+    });
+    void id;
+    return delay({ success: true, data: out }, 700);
   }
 
   // ---------- Media (demo: no backend, keep a local object URL) ----------

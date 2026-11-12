@@ -160,14 +160,16 @@ export async function resolveTemplateParams(template, ctx = {}) {
 
   // Only do the lookups the mapping actually asks for.
   const wanted = new Set(indexes.map((i) => byIndex.get(i)?.source).filter(Boolean));
-  const needsOrder = [...wanted].some((k) => k.startsWith('order_') || k.startsWith('payment_') || k === 'delivery_address');
+  // Appointment context is passed in by whoever triggered the send (a member
+  // going unavailable knows the booking). Without it, a booking's status
+  // change reads the doctor, day and time off the booking itself.
+  const appt = ctx.appointment || {};
+  const apptFromOrder = !ctx.appointment && ['member_name', 'appointment_date', 'appointment_slot'].some((k) => wanted.has(k));
+  const needsOrder = apptFromOrder || [...wanted].some((k) => k.startsWith('order_') || k.startsWith('payment_') || k === 'delivery_address');
 
   const order = needsOrder ? (ctx.order || (await latestOrder(phone, businessId))) : null;
   const ot = order ? orderTokens(order) : {};
   const name = wanted.has('customer_name') ? await resolveCustomerName(phone, businessId) : '';
-  // Appointment context is passed in by whoever triggered the send (a member
-  // going unavailable knows the booking); there's nothing to look up.
-  const appt = ctx.appointment || {};
 
   const values = {
     customer_name: name,
@@ -182,9 +184,9 @@ export async function resolveTemplateParams(template, ctx = {}) {
     payment_method: order?.paymentMethod || '',
     delivery_address: order?.deliveryAddress || '',
     today: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'numeric', year: 'numeric' }),
-    member_name: appt.memberName || '',
-    appointment_date: appt.dateLabel || appt.date || '',
-    appointment_slot: appt.slotLabel || '',
+    member_name: appt.memberName || ot.member || '',
+    appointment_date: appt.dateLabel || appt.date || ot.appointment_date || '',
+    appointment_slot: appt.slotLabel || ot.appointment_slot || '',
     unavailable_reason: appt.reason || '',
   };
 

@@ -30,6 +30,35 @@ import type {
 } from './types';
 import type { AdLeadsReport, BusinessSettings, PaymentSettings, BusinessProfile, SandboxInfo, ChannelStatus, ActivationResult, TwoStepPinResult, SignupActivation, WhatsAppProfile, WhatsAppProfileResponse, WhatsAppProfileUpdate, Campaign, CampaignDetail, CampaignInput, CampaignOverviewData, AppNotificationPage, Chat, ChatMessage, TemplateItem, ApiList, Product, Category, Member, Offer, WaFlowDef, FlowTemplate, Order, OrderStatus, Journey, Registration, RegistrationStatus, PlanSummary, BillingSummary, PlanState, PlanQuote, PlanCheckout, PlanPaymentLink, CatalogSync, CatalogSyncResult, TemplateSource, TemplateVariable, TriggerEvent, Slot } from './types';
 
+/** One update template a published flow needs (services/updateTemplates.js). */
+export interface UpdateTemplateItem {
+  key: string;
+  name: string;
+  title: string;
+  /** When it sends itself, e.g. "When you mark an appointment Completed". */
+  why: string;
+  bodyText: string;
+  /** The body with sample values. */
+  preview: string;
+  variables: TemplateVariable[];
+  buttons: { type: 'FLOW' | 'QUICK_REPLY' | 'PHONE_NUMBER'; text: string; phone?: string }[];
+  /** This business already has a template by this name. */
+  exists?: boolean;
+  existingStatus?: string;
+}
+export interface UpdateTemplatePlan {
+  items: UpdateTemplateItem[];
+  entryScreen: string;
+  published: boolean;
+}
+export interface UpdateTemplateResult {
+  key: string;
+  name: string;
+  ok: boolean;
+  status?: string;
+  skipped?: boolean;
+  error?: string;
+}
 /** An offer write: the saved offer plus how the catalog push went. */
 export interface OfferWrite {
   success: boolean;
@@ -1832,6 +1861,18 @@ export class CrmApi {
     return this.request(`/api/flows/${id}/publish`, {
       method: 'POST',
       headers: this.authHeaders(),
+    });
+  }
+  /** The update templates a published flow needs (booking confirmed, order out for delivery, a form's confirmed). */
+  getUpdateTemplates(id: string): Promise<{ success: boolean; data: UpdateTemplatePlan }> {
+    return this.request(`/api/flows/${id}/update-templates`, { headers: this.authHeaders() });
+  }
+  /** Submit the ticked update templates to Meta (UTILITY, English), auto-send on. */
+  createUpdateTemplates(id: string, keys: string[]): Promise<{ success: boolean; data: UpdateTemplateResult[] }> {
+    return this.request(`/api/flows/${id}/update-templates`, {
+      method: 'POST',
+      headers: this.authHeaders({ 'Content-Type': 'application/json' }),
+      body: JSON.stringify({ keys }),
     });
   }
 

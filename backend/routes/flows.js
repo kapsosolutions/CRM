@@ -10,6 +10,8 @@ import { normalizeScreenIds } from '../services/flowIds.js';
 import { ensureFlowKeys } from '../services/flowCrypto.js';
 import storage from '../services/storage.js';
 import logger from '../services/logger.js';
+import Template from '../models/Template.js';
+import { planUpdateTemplates, createUpdateTemplates } from '../services/updateTemplates.js';
 
 const ENDPOINT_URI = () =>
   `${(process.env.PUBLIC_BASE_URL || '').replace(/\/$/, '')}/api/whatsapp/flow-endpoint`;
@@ -535,6 +537,49 @@ router.post('/:id/publish', async (req, res) => {
     const detail = metaError(err);
     logger.error('publish flow failed', detail);
     res.status(500).json({ success: false, message: detail.message, detail });
+  }
+});
+
+// The update templates a published flow needs ("booking confirmed", "order
+// out for delivery", a form's "confirmed"), each marked when this business
+// already has a template by that name. See services/updateTemplates.js.
+router.get('/:id/update-templates', async (req, res) => {
+  try {
+    const flow = await Flow.findOne({ _id: req.params.id, ...owner(req) }).lean();
+    if (!flow) return res.status(404).json({ success: false, message: 'Not found' });
+    const plan = planUpdateTemplates(flow, req.business);
+    const names = plan.items.map((it) => it.name);
+    const have = names.length
+      ? await Template.find({ ...owner(req), name: { $in: names } }).select('name status').lean()
+      : [];
+    const byName = new Map(have.map((t) => [t.name, t.status || 'PENDING']));
+    const items = plan.items.map((it) => ({ ...it, exists: byName.has(it.name), existingStatus: byName.get(it.name) || '' }));
+    res.json({ success: true, data: { ...plan, items } });
+  } catch (err) {
+    logger.error('update templates plan failed', { error: err.message });
+    res.status(500).json({ success: false, message: err.message });
+  }
+});
+
+// Submit the ticked update templates to Meta. Only for a published flow: a
+// flow button needs the flow's Meta id, and a draft can still change.
+router.post('/:id/update-templates', async (req, res) => {
+  try {
+    const flow = await Flow.findOne({ _id: req.params.id, ...owner(req) }).lean();
+    if (!flow) return res.status(404).json({ success: false, message: 'Not found' });
+    if (flow.status !== 'PUBLISHED' || !flow.metaFlowId) {
+      return res.status(400).json({ success: false, message: 'Publish the flow first.' });
+    }
+    const keys = Array.isArray(req.body?.keys)
+      ? req.body.keys.filter((k) => typeof k === 'string' && /^[a-z0-9_]{1,80}$/.test(k)).slice(0, 40)
+      : [];
+    if (!keys.length) return res.status(400).json({ success: false, message: 'Pick at least one template.' });
+    const results = await createUpdateTemplates(client(req), req.business, flow, keys);
+    res.json({ success: true, data: results });
+  } catch (err) {
+    const detail = metaError(err);
+    logger.error('update templates create failed', detail);
+    res.status(500).json({ success: false, message: detail.message });
   }
 });
 

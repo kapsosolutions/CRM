@@ -105,6 +105,10 @@ const TemplateSchema = new Schema(
       // e.g. 'pre_arrival:confirmed' (a form page's New → Confirmed).
       formStatuses: [{ type: String }],
     },
+    // A FLOW button made from an Automation flow (services/updateTemplates.js):
+    // { index, flowId, prefill: [field names] }. Meta wants a flow token on
+    // every send, so the send builds one for the recipient from this.
+    flowButton: { type: Schema.Types.Mixed, default: null },
   },
   { timestamps: true },
 );

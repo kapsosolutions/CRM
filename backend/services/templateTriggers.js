@@ -16,6 +16,7 @@ import { renderTemplate, renderedPreview } from './templateRender.js';
 import { touchOutbound } from './conversationState.js';
 import { to12h } from './slots.js';
 import { isAuthTemplate, authSendOptions } from './authTemplate.js';
+import { makeFlowToken } from './flowRuntime.js';
 import logger from './logger.js';
 
 const scope = (businessId) => (businessId ? { businessId } : {});
@@ -48,6 +49,15 @@ export async function templateSendOptions(template, ctx = {}, overrides = {}) {
     // Older rows have no headerFormat; they were all images.
     opts.headerFormat = fmt || 'image';
     if (fmt === 'document') opts.headerFileName = template.headerFileName || 'Document.pdf';
+  }
+  // A flow button (an update template's "Book again"): each send carries a
+  // fresh token, so the answers reach this customer's chat and that flow.
+  const fb = template.flowButton;
+  const phone = String(ctx.phone || '').replace(/\D/g, '');
+  if (fb?.flowId && phone) {
+    const data = {};
+    for (const key of fb.prefill || []) data[key] = key === 'whatsapp_number' ? `+${phone}` : '';
+    opts.flowButton = { index: Number(fb.index) || 0, token: makeFlowToken(fb.flowId, phone), data };
   }
   if (template.kind === 'carousel' && template.cards?.length) {
     opts.cards = template.cards.map((c) => ({ mediaUrl: c.mediaUrl, mediaFormat: c.mediaFormat }));

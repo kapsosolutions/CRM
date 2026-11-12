@@ -879,6 +879,9 @@ export function createMetaClient(creds = {}) {
       // (index = the button's position in the template). A journey uses it
       // to know which block and button the tap belongs to.
       quickReplies = null,
+      // A template's flow button: { index, token, data? }. The token ties the
+      // answers back to this customer and flow; data prefills the first screen.
+      flowButton = null,
     } = {}) {
       const components = [];
       if (headerImageUrl) {
@@ -921,6 +924,14 @@ export function createMetaClient(creds = {}) {
             parameters: [{ type: 'payload', payload }],
           });
         }
+      }
+      if (flowButton?.token && Number.isInteger(Number(flowButton.index))) {
+        const action = { flow_token: String(flowButton.token) };
+        if (flowButton.data && Object.keys(flowButton.data).length) action.flow_action_data = flowButton.data;
+        components.push({
+          type: 'button', sub_type: 'flow', index: String(Number(flowButton.index)),
+          parameters: [{ type: 'action', action }],
+        });
       }
       // Carousel: every card's header media has to be sent again, in order.
       if (Array.isArray(cards) && cards.length) {

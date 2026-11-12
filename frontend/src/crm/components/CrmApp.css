@@ -13547,6 +13547,116 @@ button.pd-phone-chip:hover {
   padding: 2px 8px;
 }
 
+/* Update templates offered after a flow is published (UpdateTemplatesModal) */
+.modal-box.ut-box {
+  max-width: 620px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 48px);
+}
+.ut-body {
+  overflow-y: auto;
+}
+.ut-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.ut-item {
+  border: 1px solid var(--wa-hairline);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+.ut-item.have {
+  opacity: 0.7;
+}
+.ut-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+.ut-row input {
+  margin-top: 3px;
+  accent-color: var(--wa-green, #00a884);
+}
+.ut-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.ut-title {
+  font-weight: 600;
+  font-size: 14px;
+}
+.ut-why {
+  font-size: 12px;
+  color: var(--wa-muted, #667781);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.ut-why .material-icons {
+  font-size: 14px;
+  color: #f0a020;
+}
+.ut-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 999px;
+  background: #eef1f3;
+  color: #54656f;
+  white-space: nowrap;
+}
+.ut-tag.ok {
+  background: #e3f6ec;
+  color: #127a4a;
+}
+.ut-tag.bad {
+  background: #fdecec;
+  color: #b42318;
+}
+.ut-bubble {
+  margin: 8px 0 0 26px;
+  background: #e7fbe0;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.ut-bubble p {
+  margin: 0;
+}
+.ut-btns {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(0, 0, 0, 0.08);
+}
+.ut-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #027eb5;
+  font-weight: 600;
+  font-size: 12.5px;
+}
+.ut-btn .material-icons {
+  font-size: 15px;
+}
+.ut-err {
+  margin: 6px 0 0 26px;
+  font-size: 12px;
+}
+
 /* Validation issues reported by Meta on publish */
 .flow-issues {
   margin: 0 18px 12px;

@@ -26,7 +26,8 @@ import ReactFlow, {
   type NodeChange,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import type { CrmApi } from '../api';
+import type { CrmApi, UpdateTemplateItem } from '../api';
+import { UpdateTemplatesModal } from './UpdateTemplatesModal';
 import type {
   FlowBlock,
   FlowBlockKind,
@@ -855,6 +856,9 @@ function FlowEditor({
   const [error, setError] = useState('');
   // Meta's validation messages from the last publish attempt.
   const [issues, setIssues] = useState<string[]>([]);
+  // The update templates offered after a publish (see UpdateTemplatesModal).
+  const [updates, setUpdates] = useState<{ id: string; items: UpdateTemplateItem[] } | null>(null);
+  const [loadingUpdates, setLoadingUpdates] = useState(false);
   const [showJson, setShowJson] = useState(false);
   const [view, setView] = useState<'build' | 'map'>('build');
   // The "Forms" chip's menu of ready-made forms.
@@ -1882,9 +1886,29 @@ function FlowEditor({
       }
       setError('');
       onSaved(editing ? 'Flow republished to Meta.' : 'Flow published to Meta.');
+      // Offer the templates its later updates need, unless they're all there.
+      openUpdates(id, true);
     } catch {
       setBusy('');
     }
+  }
+  /** Load the flow's update templates and show them (afterPublish: only when one is missing). */
+  function openUpdates(id = savedId, afterPublish = false) {
+    if (!id) return;
+    setLoadingUpdates(true);
+    api
+      .getUpdateTemplates(id)
+      .then((r) => {
+        const items = r.data.items || [];
+        if (afterPublish && !items.some((i) => !i.exists)) return;
+        if (!items.length) {
+          onSaved('This flow sends no later updates, so it needs no templates.');
+          return;
+        }
+        setUpdates({ id, items });
+      })
+      .catch((e) => { if (!afterPublish) setError(e instanceof Error ? e.message : 'Could not load the templates.'); })
+      .finally(() => setLoadingUpdates(false));
   }
 
   const screenOptions: KOption[] = screens
@@ -1970,8 +1994,29 @@ function FlowEditor({
             <span className="material-icons">cloud_upload</span>
             {busy === 'publish' ? 'Publishing…' : uploading ? 'Uploading…' : status === 'PUBLISHED' ? 'Republish' : 'Publish'}
           </button>
+          {status === 'PUBLISHED' && savedId && (
+            <button
+              className="k-btn ghost sm"
+              onClick={() => openUpdates()}
+              disabled={!!busy || loadingUpdates}
+              title="Meta templates for this flow's later updates: confirmed, completed, cancelled"
+              data-testid="flow-update-templates"
+            >
+              <span className="material-icons">notifications_active</span> {loadingUpdates ? 'Loading…' : 'Update templates'}
+            </button>
+          )}
         </div>
       </header>
+      {updates && (
+        <UpdateTemplatesModal
+          api={api}
+          flowId={updates.id}
+          flowName={name.trim() || 'Untitled flow'}
+          items={updates.items}
+          onClose={() => setUpdates(null)}
+          onDone={(summary) => onSaved(summary)}
+        />
+      )}
 
       {error && <p className="err flow-err">{error}</p>}
       {issues.length > 0 && (
