@@ -5,7 +5,7 @@ import { CrmPageHero } from './CrmPageHero';
 import { LockRailSvg } from './NavRail';
 
 export function AutomationLockedPage({
-  label, form, ordersWord, onOpenAutomation,
+  label, form, ordersWord, onOpenAutomation, onOpenAnyway,
 }: {
   /** The page's name ("Job applications", "Appointments"). */
   label: string;
@@ -14,6 +14,8 @@ export function AutomationLockedPage({
   /** What the Orders page holds, lower-case ("appointments"). */
   ordersWord?: string;
   onOpenAutomation: () => void;
+  /** Platform owner (master password): look at the page anyway, this visit. */
+  onOpenAnyway?: () => void;
 }) {
   const subtitle = form
     ? `This page fills with the answers to the “${form}” WhatsApp form. It unlocks as soon as a published flow uses that form.`
@@ -32,6 +34,8 @@ export function AutomationLockedPage({
         actionLabel="Open Automation"
         actionIcon="hub"
         onAction={onOpenAutomation}
+        secondaryLabel={onOpenAnyway ? 'Open anyway (master)' : undefined}
+        onSecondary={onOpenAnyway}
         note={form ? 'WhatsApp forms are set up for you by our team. Message us to add this one.' : undefined}
         testId="automation-locked-hero"
       />

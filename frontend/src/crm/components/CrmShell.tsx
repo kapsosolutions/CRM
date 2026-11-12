@@ -1297,9 +1297,12 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
     () => pagesInUse(vertical, formIndex.flows, formIndex.regs, formIndex.journeys, badgeOrders.length > 0),
     [vertical, formIndex, badgeOrders],
   );
+  // The platform owner sees the same locks (it looks after the business as the
+  // business sees it), and can open a locked page anyway for this visit.
+  const [openedAnyway, setOpenedAnyway] = useState<Set<string>>(() => new Set());
   const usageLocks = useMemo(() => {
     const out: Partial<Record<CrmView, string>> = {};
-    if (staff || needsConnect || !formIndex.known) return out;
+    if (needsConnect || !formIndex.known) return out;
     for (const f of formRail) {
       const id = f.key.slice(5);
       const open = id === OTHER_FORMS ? inUse.other : inUse.forms.has(id);
@@ -1309,7 +1312,9 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
       out.orders = `Opens when your automation takes ${vertical.ordersLabel.toLowerCase()}: a journey with a Book or Order step, or a published flow`;
     }
     return out;
-  }, [staff, needsConnect, formIndex.known, formRail, inUse, vertical]);
+  }, [needsConnect, formIndex.known, formRail, inUse, vertical]);
+  /** Locked for this view right now (not opened anyway by the platform owner). */
+  const lockedNow = (v: CrmView) => !!usageLocks[v] && !(staff && openedAnyway.has(v));
   const railExtraLocks = useMemo(() => {
     if (!needsConnect) return usageLocks;
     const out: Partial<Record<CrmView, string>> = {};
@@ -1465,15 +1470,16 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
               <PlanLockedPage feature={featureOf(view) as PlanFeature} vertical={vertical} />
             )}
             {/* A form page or Orders the automation doesn't fill yet. */}
-            {usageLocks[view] && !planLocked(view) && (view === 'orders' ? show('orders') : !!openForm) && (
+            {lockedNow(view) && !planLocked(view) && (view === 'orders' ? show('orders') : !!openForm) && (
               <AutomationLockedPage
                 label={railLabels[view] || viewLabel(view, railLabels)}
                 form={openForm?.preset?.title}
                 ordersWord={vertical.ordersLabel.toLowerCase()}
                 onOpenAutomation={() => navigate('flows')}
+                onOpenAnyway={staff ? () => setOpenedAnyway((s) => new Set(s).add(view)) : undefined}
               />
             )}
-            {openForm && !planLocked(view) && !usageLocks[view] && (
+            {openForm && !planLocked(view) && !lockedNow(view) && (
               needsConnect ? (
                 <WhatsAppConnectRequired page="orders" api={api} business={business} onConnected={onConnected} />
               ) : (
@@ -1572,7 +1578,7 @@ export function CrmShell({ config, demo = false, onLogout }: Props) {
                 <OffersPage api={api} business={business} demo={demo} onConnected={onConnected} />
               )
             )}
-            {view === 'orders' && show('orders') && !planLocked('orders') && !usageLocks.orders && (
+            {view === 'orders' && show('orders') && !planLocked('orders') && !lockedNow('orders') && (
               needsConnect ? (
                 <WhatsAppConnectRequired page="orders" api={api} business={business} onConnected={onConnected} />
               ) : (
