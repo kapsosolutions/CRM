@@ -33,6 +33,32 @@ const CONFIRM_LABELS = {
   notify: { label: 'Confirmed', detailsLabel: 'Details' },
 };
 
+// The order / booking statuses each archetype offers, in its own words. The
+// stored values are always the same six (models/Order.js); only which are
+// offered and what they're called change. Mirrors STATUS_FLOWS in
+// frontend/src/crm/verticals.ts.
+const STATUS_FLOWS = {
+  catalog: [
+    ['pending', 'Pending'], ['confirmed', 'Confirmed'], ['preparing', 'Preparing'],
+    ['out_for_delivery', 'Out for delivery'], ['delivered', 'Delivered'], ['cancelled', 'Cancelled'],
+  ],
+  person: [['pending', 'Pending'], ['confirmed', 'Confirmed'], ['delivered', 'Completed'], ['cancelled', 'Cancelled']],
+  unit: [['pending', 'Pending'], ['confirmed', 'Confirmed'], ['delivered', 'Completed'], ['cancelled', 'Cancelled']],
+  lead: [['pending', 'New'], ['confirmed', 'In progress'], ['delivered', 'Closed'], ['cancelled', 'Cancelled']],
+  // No Orders page: nothing for a status to fire on.
+  notify: [],
+};
+const toOptions = (rows) => rows.map(([value, label]) => ({ value, label }));
+
+/** Every stored status, in shop words (an order) or booking words (a booking). */
+const SHOP_LABEL = Object.fromEntries(STATUS_FLOWS.catalog);
+const BOOKING_LABEL = { ...SHOP_LABEL, ...Object.fromEntries(STATUS_FLOWS.person) };
+/** What a customer reads for a record's status: a booking is "Completed", not "Delivered". */
+export function statusLabel(status, kind = 'order') {
+  const map = kind === 'booking' ? BOOKING_LABEL : SHOP_LABEL;
+  return map[status] || status || '';
+}
+
 export const ARCHETYPES = {
   catalog: {
     label: 'Catalog commerce',
@@ -223,6 +249,8 @@ export function verticalConfig(key, overrides = null) {
     customerLabel: ov(o.customerLabel) ?? cust.one,
     customerPlural: ov(o.customerPlural) ?? cust.many,
     ordersLabel: v.ordersLabel || a.ordersLabel,
+    // "Other / Generic" sells and books: the shop list, Completed for bookings.
+    orderStatuses: toOptions(STATUS_FLOWS[v.archetype] || STATUS_FLOWS.catalog),
     confirm: a.confirm,
     pages: v.allPages ? [...ALL_PAGES] : a.pages,
     memberFields: a.memberFields,
@@ -231,5 +259,5 @@ export function verticalConfig(key, overrides = null) {
 
 export default {
   ALL_PAGES, ARCHETYPES, VERTICALS, VERTICAL_KEYS, DEFAULT_VERTICAL,
-  getVertical, verticalConfig, customerTerm,
+  getVertical, verticalConfig, customerTerm, statusLabel,
 };

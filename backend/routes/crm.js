@@ -62,6 +62,11 @@ const triggerEventsFor = (v) => TRIGGER_EVENTS.map((e) => (e.key === 'member_una
   }
   : e));
 
+/** "Appointments" → "appointment", "Enquiries" → "enquiry", for "Or when an appointment becomes". */
+export const recordWordOf = (ordersLabel) => {
+  const w = String(ordersLabel || 'Orders').toLowerCase();
+  return w.endsWith('ies') ? `${w.slice(0, -3)}y` : w.replace(/s$/, '');
+};
 const router = express.Router();
 // Every route here reads or writes one tenant's data, so a business login is
 // required rather than "any authenticated user". That makes req.business
@@ -1122,7 +1127,11 @@ router.get('/template-sources', (req, res) => {
   res.json({
     success: true,
     data: templateSourcesFor(v.archetype, v.customerLabel, v.memberSingular),
-    statuses: ORDER_STATUSES,
+    // The statuses this business uses, in its own words ("Completed", not
+    // "Out for delivery", for a clinic), and what one record is called.
+    statuses: v.orderStatuses.map((s) => s.value),
+    statusLabels: Object.fromEntries(v.orderStatuses.map((s) => [s.value, s.label])),
+    recordWord: recordWordOf(v.ordersLabel),
     events: triggerEventsFor(v),
   });
 });

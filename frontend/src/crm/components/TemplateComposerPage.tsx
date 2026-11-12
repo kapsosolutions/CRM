@@ -451,6 +451,8 @@ export function TemplateComposerPage({
   const [savedTrigger, setSavedTrigger] = useState<TriggerDraft>(seed.trigger);
   const [orderStatuses, setOrderStatuses] = useState<string[]>([]);
   const [triggerEvents, setTriggerEvents] = useState<TriggerEvent[]>([]);
+  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
+  const [recordWord, setRecordWord] = useState('order');
   const [savingTrigger, setSavingTrigger] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -469,6 +471,8 @@ export function TemplateComposerPage({
         setSources(r.data || []);
         setOrderStatuses(r.statuses || []);
         setTriggerEvents(r.events || []);
+        setStatusLabels(r.statusLabels || {});
+        setRecordWord(r.recordWord || 'order');
       })
       .catch(() => setSources([]));
   }, [api]);
@@ -1613,6 +1617,8 @@ export function TemplateComposerPage({
                 onChange={setTrigger}
                 statuses={orderStatuses}
                 events={triggerEvents}
+                statusLabels={statusLabels}
+                recordWord={recordWord}
               />
             )}
             {!readOnly && trigger.enabled && !triggerHasRules(trigger) && (

@@ -13,6 +13,7 @@ import {
   unavailableDatesFor, toISODate, toMinutes, to12h,
 } from './slots.js';
 import logger from './logger.js';
+import { statusLabel } from './verticals.js';
 
 const SELECTION = new Set(['RadioButtonsGroup', 'CheckboxGroup', 'Dropdown']);
 
@@ -73,14 +74,9 @@ export async function buildMembers(businessId, categorySlug = '', limit = 20) {
   });
 }
 
-const STATUS_LABEL = {
-  pending: 'Pending',
-  confirmed: 'Confirmed',
-  preparing: 'Preparing',
-  out_for_delivery: 'Out for delivery',
-  delivered: 'Delivered',
-  cancelled: 'Cancelled',
-};
+// What the customer reads for a status: a booking that's done is "Completed",
+// an order "Delivered" (services/verticals.js).
+const statusText = (o) => statusLabel(o?.status, o?.kind);
 
 // Build the orders data-source rows for a given customer (by phone, if known).
 export async function buildOrders(businessId, phone, limit = 15) {
@@ -90,7 +86,7 @@ export async function buildOrders(businessId, phone, limit = 15) {
   return docs.map((o) => ({
     id: `ord_${o.reference || o._id}`,
     title: `${o.reference || 'Order'} — ₹${Number(o.total || 0).toLocaleString('en-IN')}`,
-    description: STATUS_LABEL[o.status] || o.status || '',
+    description: statusText(o),
   }));
 }
 
@@ -120,7 +116,7 @@ export async function buildActiveOrders(businessId, phone, limit = 15) {
     // Always key on _id so the runtime can resolve the exact order to cancel.
     id: `ord_${o._id}`,
     title: `${o.reference || 'Order'} - ${rupees(o.total)}`,
-    description: `${STATUS_LABEL[o.status] || o.status || ''} - ${orderDate(o.scheduledAt || o.createdAt)}`,
+    description: `${statusText(o)} - ${orderDate(o.scheduledAt || o.createdAt)}`,
   }));
 }
 
@@ -185,7 +181,7 @@ export function orderTokens(o) {
     order_id: o.reference || String(o._id),
     order_ref: o.reference || String(o._id),
     order_total: rupees(o.total),
-    order_status: STATUS_LABEL[o.status] || o.status || '',
+    order_status: statusText(o),
     order_date: orderDate(o.scheduledAt || o.createdAt),
     // When the booking was actually made, for the document's "Booked on" line.
     // Distinct from order_date (which prefers the appointment day) and from

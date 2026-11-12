@@ -1677,6 +1677,10 @@ export class CrmApi {
     success: boolean;
     data: TemplateSource[];
     statuses: string[];
+    /** The business's word for each status ("Completed" for a clinic). */
+    statusLabels?: Record<string, string>;
+    /** What one record is called: "order", "appointment", "enquiry"… */
+    recordWord?: string;
     events?: TriggerEvent[];
   }> {
     return this.request('/api/crm/template-sources', { headers: this.authHeaders() });

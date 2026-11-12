@@ -34,9 +34,14 @@ interface Props {
   onChange: (next: TriggerDraft) => void;
   statuses: string[];
   events: TriggerEvent[];
+  /** The business's own word for each status ("Completed" for a clinic). */
+  statusLabels?: Record<string, string>;
+  /** What one record is called: "order", "appointment", "enquiry"… */
+  recordWord?: string;
 }
 
-export function AutoSendFields({ value, onChange, statuses, events }: Props) {
+export function AutoSendFields({ value, onChange, statuses, events, statusLabels, recordWord = 'order' }: Props) {
+  const nameOf = (s: string) => statusLabels?.[s] || ORDER_STATUS_LABEL[s] || s;
   const [draft, setDraft] = useState('');
   const set = (patch: Partial<TriggerDraft>) => onChange({ ...value, ...patch });
 
@@ -95,7 +100,7 @@ export function AutoSendFields({ value, onChange, statuses, events }: Props) {
 
       {statuses.length > 0 && (
         <div className="tpl-auto-sec">
-          <span className="k-label sm">Or when an order becomes</span>
+          <span className="k-label sm">Or when {/^[aeiou]/i.test(recordWord) ? 'an' : 'a'} {recordWord} becomes</span>
           <div className="tpl-st-list">
             {statuses.map((s) => (
               <button
@@ -105,11 +110,11 @@ export function AutoSendFields({ value, onChange, statuses, events }: Props) {
                 className={`tpl-st${value.statuses.includes(s) ? ' on' : ''}`}
                 onClick={() => set({ statuses: toggle(value.statuses, s) })}
               >
-                {ORDER_STATUS_LABEL[s] || s}
+                {nameOf(s)}
               </button>
             ))}
           </div>
-          <p className="k-hint">Sent to the customer who placed that order, on the change only.</p>
+          <p className="k-hint">Sent to the customer whose {recordWord} it is, on the change only.</p>
         </div>
       )}
 
@@ -140,10 +145,10 @@ export function AutoSendFields({ value, onChange, statuses, events }: Props) {
 }
 
 /** One-line summary of what fires a template ("price · Delivered"). */
-export function triggerSummary(t: TriggerDraft, events: TriggerEvent[] = []): string {
+export function triggerSummary(t: TriggerDraft, events: TriggerEvent[] = [], statusLabels?: Record<string, string>): string {
   return [
     ...t.keywords,
-    ...t.statuses.map((s) => ORDER_STATUS_LABEL[s] || s),
+    ...t.statuses.map((s) => statusLabels?.[s] || ORDER_STATUS_LABEL[s] || s),
     ...t.events.map((e) => events.find((x) => x.key === e)?.label || e),
   ].join(' · ');
 }

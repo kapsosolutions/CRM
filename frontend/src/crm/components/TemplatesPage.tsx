@@ -98,6 +98,7 @@ export function TemplatesPage({
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('');
   const [events, setEvents] = useState<TriggerEvent[]>([]);
+  const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
   // A shared sample template opened for a look (phone preview, read-only).
   const [samplePreview, setSamplePreview] = useState<TemplateItem | null>(null);
   // "Use from your apps": one template's API (or just the keys, when null).
@@ -156,7 +157,10 @@ export function TemplatesPage({
     load();
     api
       .getTemplateSources()
-      .then((r) => setEvents(r.events || []))
+      .then((r) => {
+        setEvents(r.events || []);
+        setStatusLabels(r.statusLabels || {});
+      })
       .catch(() => setEvents([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -463,6 +467,7 @@ export function TemplatesPage({
                           title={`Auto-send on: ${triggerSummary(
                             { enabled: true, keywords: trig?.keywords || [], statuses: trig?.statuses || [], events: trig?.events || [] },
                             events,
+                            statusLabels,
                           )}`}
                           aria-label="Auto-send on"
                         >
