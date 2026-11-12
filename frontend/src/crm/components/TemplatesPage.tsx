@@ -465,7 +465,7 @@ export function TemplatesPage({
                         <span
                           className="tl-auto material-icons"
                           title={`Auto-send on: ${triggerSummary(
-                            { enabled: true, keywords: trig?.keywords || [], statuses: trig?.statuses || [], events: trig?.events || [] },
+                            { enabled: true, keywords: trig?.keywords || [], statuses: trig?.statuses || [], events: trig?.events || [], formStatuses: trig?.formStatuses || [] },
                             events,
                             statusLabels,
                           )}`}

@@ -5,6 +5,9 @@ import { requireBusiness } from '../middleware/auth.js';
 import Registration from '../models/Registration.js';
 import Flow from '../models/Flow.js';
 import { rowsForFields } from '../services/flowSubmission.js';
+import { formOfSubmission, runFormStatusTrigger } from '../services/templateTriggers.js';
+import { getClientForBusiness } from '../services/metaCloud.js';
+import logger from '../services/logger.js';
 
 const router = express.Router();
 router.use(requireBusiness);
@@ -59,13 +62,27 @@ router.post('/:id/status', async (req, res) => {
   if (!STATUSES.includes(status)) {
     return res.status(400).json({ success: false, message: 'invalid status' });
   }
+  const before = await Registration.findOne({ _id: req.params.id, ...scope(req) }).select('status').lean();
   const doc = await Registration.findOneAndUpdate(
     { _id: req.params.id, ...scope(req) },
     { $set: { status } },
     { new: true },
   );
   if (!doc) return res.status(404).json({ success: false, message: 'Not found' });
-  res.json({ success: true, data: doc });
+  // Tell the customer, if a template waits on this form's status. Only on an
+  // actual change, like an order's status.
+  let notified = 0;
+  if (before?.status !== status) {
+    try {
+      const reg = doc.toObject ? doc.toObject() : doc;
+      const flow = reg.flowId ? await Flow.findOne({ _id: reg.flowId, ...scope(req) }).select('screens').lean().catch(() => null) : null;
+      const form = formOfSubmission(reg, flow);
+      if (form) notified = await runFormStatusTrigger(getClientForBusiness(req.business), req.business, reg, form);
+    } catch (err) {
+      logger.error('form status trigger failed', { registration: String(doc._id), error: err.message });
+    }
+  }
+  res.json({ success: true, data: doc, notified });
 });
 
 router.delete('/:id', async (req, res) => {

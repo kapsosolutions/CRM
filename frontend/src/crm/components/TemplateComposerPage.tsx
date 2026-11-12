@@ -13,6 +13,8 @@ import { KIND_NAMES, TIER_NAMES, kindsOf, tierFor } from '../plans';
 import { CrownIcon } from './PlanLocked';
 import type { PlanTierKey } from '../types';
 import { TemplatePhonePreview, type PreviewHeader } from './TemplatePhonePreview';
+import { formsFor } from '../flowForms';
+import { verticalConfig, type LabelOverrides } from '../verticals';
 import { AutoSendFields, triggerHasRules, type TriggerDraft } from './TemplateAutoSend';
 import { useConfirm, useNotify } from './Dialogs';
 import { useBackHandler } from '../useBackHandler';
@@ -378,6 +380,7 @@ function seedFrom(t: TemplateItem | null | undefined, duplicate: boolean) {
       keywords: t?.trigger?.keywords || [],
       statuses: t?.trigger?.statuses || [],
       events: t?.trigger?.events || [],
+      formStatuses: t?.trigger?.formStatuses || [],
     } as TriggerDraft,
   };
 }
@@ -453,6 +456,12 @@ export function TemplateComposerPage({
   const [triggerEvents, setTriggerEvents] = useState<TriggerEvent[]>([]);
   const [statusLabels, setStatusLabels] = useState<Record<string, string>>({});
   const [recordWord, setRecordWord] = useState('order');
+  // The business's forms (its own, then the common ones): each form page has
+  // its own statuses a template can follow.
+  const triggerForms = useMemo(() => {
+    const { own, common } = formsFor(verticalConfig(business?.category, business?.labels as LabelOverrides | undefined));
+    return [...own, ...common].map((p) => ({ id: p.id, label: p.title, icon: p.icon }));
+  }, [business?.category, business?.labels]);
   const [savingTrigger, setSavingTrigger] = useState(false);
 
   const [saving, setSaving] = useState(false);
@@ -1619,6 +1628,7 @@ export function TemplateComposerPage({
                 events={triggerEvents}
                 statusLabels={statusLabels}
                 recordWord={recordWord}
+                forms={triggerForms}
               />
             )}
             {!readOnly && trigger.enabled && !triggerHasRules(trigger) && (

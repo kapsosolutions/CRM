@@ -1693,6 +1693,7 @@ export class CrmApi {
       keywords: string[];
       statuses: string[];
       events?: string[];
+      formStatuses?: string[];
       variables?: TemplateVariable[];
     },
   ): Promise<{ success: boolean; data: TemplateItem }> {

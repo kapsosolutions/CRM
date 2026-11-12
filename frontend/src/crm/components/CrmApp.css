@@ -22835,3 +22835,13 @@ label.k-label,
 .ftg-card.locked {
   opacity: 0.8;
 }
+
+/* Auto-send: one row per form, with its statuses */
+.as-form-rows { display: flex; flex-direction: column; gap: 6px; }
+.as-form-row { display: flex; align-items: center; flex-wrap: wrap; gap: 6px 12px; padding: 6px 0; border-top: 1px solid var(--wa-hairline); }
+.as-form-row:first-child { border-top: 0; }
+.as-form-name { display: inline-flex; align-items: center; gap: 6px; min-width: 190px; font-size: 13px; font-weight: 500; color: var(--wa-ink); }
+.as-form-name .material-icons { font-size: 17px; color: var(--wa-ink-muted); }
+.as-form-row .tpl-st-list { margin: 0; }
+
+

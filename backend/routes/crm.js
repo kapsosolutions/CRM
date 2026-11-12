@@ -48,6 +48,9 @@ const TRIGGER_EVENTS = [
   },
 ];
 const EVENT_KEYS = new Set(TRIGGER_EVENTS.map((e) => e.key));
+// A form answer's statuses a template can fire on (models/Registration.js).
+export const FORM_TRIGGER_STATUSES = ['contacted', 'confirmed', 'done', 'cancelled'];
+const FORM_STATUS_RE = new RegExp(`^[a-z0-9_]{1,48}:(${FORM_TRIGGER_STATUSES.join('|')})$`);
 /**
  * The events in this business's words: a garage marks a service unavailable
  * and its clients are told, not a doctor and patients.
@@ -731,7 +734,7 @@ router.get('/templates', async (req, res) => {
               ? { auth: local?.auth?.otpType ? local.auth : authFromComponents(r.components) }
               : {}),
             variables: local?.variables || [],
-            trigger: local?.trigger || { enabled: false, keywords: [], statuses: [], events: [] },
+            trigger: local?.trigger || { enabled: false, keywords: [], statuses: [], events: [], formStatuses: [] },
             // Meta doesn't report when a template last changed; our row does.
             createdAt: local?.createdAt || null,
             updatedAt: local?.updatedAt || null,
@@ -762,14 +765,19 @@ function parseTrigger(b = {}) {
   const statuses = (Array.isArray(b.statuses) ? b.statuses : [])
     .map((s) => String(s || '').trim())
     .filter((s) => ORDER_STATUSES.includes(s));
+  // '<form id>:<status>' (a form page's statuses; New is the submission itself).
+  const formStatuses = [...new Set((Array.isArray(b.formStatuses) ? b.formStatuses : [])
+    .map((s) => String(s || '').trim())
+    .filter((s) => FORM_STATUS_RE.test(s)))].slice(0, 60);
   const events = (Array.isArray(b.events) ? b.events : [])
     .map((e) => String(e || '').trim())
     .filter((e) => EVENT_KEYS.has(e));
   return {
-    enabled: !!b.enabled && (keywords.length > 0 || statuses.length > 0 || events.length > 0),
+    enabled: !!b.enabled && (keywords.length > 0 || statuses.length > 0 || events.length > 0 || formStatuses.length > 0),
     keywords,
     statuses,
     events,
+    formStatuses,
   };
 }
 

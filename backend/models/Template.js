@@ -101,6 +101,9 @@ const TemplateSchema = new Schema(
       // Named events that fire it. Currently 'member_unavailable' — sent to
       // every patient whose appointment a doctor's absence affects.
       events: [{ type: String }],
+      // Form answers that fire it when one moves to a status: '<form id>:<status>',
+      // e.g. 'pre_arrival:confirmed' (a form page's New → Confirmed).
+      formStatuses: [{ type: String }],
     },
   },
   { timestamps: true },

@@ -6,15 +6,21 @@
 // view page (changed any time). Triggers only ever fire APPROVED templates.
 import { useState } from 'react';
 import type { TriggerEvent } from '../types';
+import { presetById } from '../flowForms';
 
 export interface TriggerDraft {
   enabled: boolean;
   keywords: string[];
   statuses: string[];
   events: string[];
+  /** Form answers that fire it: '<form id>:<status>', e.g. 'pre_arrival:confirmed'. */
+  formStatuses: string[];
 }
 
-export const EMPTY_TRIGGER: TriggerDraft = { enabled: false, keywords: [], statuses: [], events: [] };
+export const EMPTY_TRIGGER: TriggerDraft = { enabled: false, keywords: [], statuses: [], events: [], formStatuses: [] };
+
+/** A form answer's statuses a template can fire on (New is the submission itself). */
+export const FORM_STATUS_LABEL: Record<string, string> = { contacted: 'Contacted', confirmed: 'Confirmed', done: 'Done', cancelled: 'Cancelled' };
 
 export const ORDER_STATUS_LABEL: Record<string, string> = {
   pending: 'Pending',
@@ -27,7 +33,7 @@ export const ORDER_STATUS_LABEL: Record<string, string> = {
 
 /** Is there anything for the trigger to match on? */
 export const triggerHasRules = (t: TriggerDraft) =>
-  t.keywords.length > 0 || t.statuses.length > 0 || t.events.length > 0;
+  t.keywords.length > 0 || t.statuses.length > 0 || t.events.length > 0 || (t.formStatuses?.length ?? 0) > 0;
 
 interface Props {
   value: TriggerDraft;
@@ -38,9 +44,11 @@ interface Props {
   statusLabels?: Record<string, string>;
   /** What one record is called: "order", "appointment", "enquiry"… */
   recordWord?: string;
+  /** The business's forms, each with its own statuses (Pre-arrival check-in, Airport transfer…). */
+  forms?: { id: string; label: string; icon?: string }[];
 }
 
-export function AutoSendFields({ value, onChange, statuses, events, statusLabels, recordWord = 'order' }: Props) {
+export function AutoSendFields({ value, onChange, statuses, events, statusLabels, recordWord = 'order', forms = [] }: Props) {
   const nameOf = (s: string) => statusLabels?.[s] || ORDER_STATUS_LABEL[s] || s;
   const [draft, setDraft] = useState('');
   const set = (patch: Partial<TriggerDraft>) => onChange({ ...value, ...patch });
@@ -118,6 +126,41 @@ export function AutoSendFields({ value, onChange, statuses, events, statusLabels
         </div>
       )}
 
+      {forms.length > 0 && (
+        <div className="tpl-auto-sec" data-testid="as-forms">
+          <span className="k-label sm">Or when a form answer becomes</span>
+          <div className="as-form-rows">
+            {forms.map((f) => (
+              <div className="as-form-row" key={f.id} data-form={f.id}>
+                <span className="as-form-name">
+                  {f.icon && <span className="material-icons" aria-hidden="true">{f.icon}</span>}
+                  {f.label}
+                </span>
+                <div className="tpl-st-list">
+                  {Object.entries(FORM_STATUS_LABEL).map(([st, label]) => {
+                    const k = `${f.id}:${st}`;
+                    const on = (value.formStatuses || []).includes(k);
+                    return (
+                      <button
+                        type="button"
+                        key={k}
+                        aria-pressed={on}
+                        className={`tpl-st${on ? ' on' : ''}`}
+                        onClick={() => set({ formStatuses: toggle(value.formStatuses || [], k) })}
+                        data-key={k}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="k-hint">Sent to the customer who filled in that form, when you change its status on the form’s page.</p>
+        </div>
+      )}
+
       {events.length > 0 && (
         <div className="tpl-auto-sec">
           <span className="k-label sm">Or when this happens</span>
@@ -150,5 +193,9 @@ export function triggerSummary(t: TriggerDraft, events: TriggerEvent[] = [], sta
     ...t.keywords,
     ...t.statuses.map((s) => statusLabels?.[s] || ORDER_STATUS_LABEL[s] || s),
     ...t.events.map((e) => events.find((x) => x.key === e)?.label || e),
+    ...(t.formStatuses || []).map((k) => {
+      const [form, st] = k.split(':');
+      return `${presetById(form)?.title || form}: ${FORM_STATUS_LABEL[st] || st}`;
+    }),
   ].join(' · ');
 }

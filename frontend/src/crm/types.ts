@@ -2485,6 +2485,8 @@ export interface TemplateTrigger {
   statuses: string[];
   /** Named events that fire it, e.g. 'member_unavailable'. */
   events?: string[];
+  /** Form answers that fire it: '<form id>:<status>'. */
+  formStatuses?: string[];
 }
 
 /** A named event a template can subscribe to. */

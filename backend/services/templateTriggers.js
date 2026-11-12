@@ -167,6 +167,69 @@ export async function runOrderStatusTrigger(meta, business, order) {
   return sent;
 }
 
+// Every form asks these, so they say nothing about which form it was.
+const SHARED_FIELDS = new Set(['name', 'whatsapp_number']);
+/**
+ * Which ready-made form a submission came from: the form most of its answered
+ * fields belong to in the flow that sent it (fields added from the Forms menu
+ * carry the form's id, `preset`). '' when it was built by hand.
+ * Mirrors the first rule of presetOfSubmission (frontend crm/flowForms.ts).
+ */
+export function formOfSubmission(reg, flow) {
+  const answered = new Set(Object.keys(reg?.fields || {}).filter((k) => !k.endsWith('_label') && !SHARED_FIELDS.has(k)));
+  const votes = new Map();
+  for (const s of flow?.screens || []) {
+    for (const c of s.components || []) {
+      if (c.preset && c.name && answered.has(c.name)) votes.set(c.preset, (votes.get(c.preset) || 0) + 1);
+    }
+  }
+  let best = '';
+  let most = 0;
+  for (const [id, n] of votes) if (n > most) [best, most] = [id, n];
+  return best;
+}
+
+/**
+ * A form answer moved to a status some template is waiting on ("when a
+ * Pre-arrival check-in becomes Confirmed") → send it to whoever filled it in.
+ *
+ * @param {object} reg  the Registration after the change
+ * @param {string} form its ready-made form id (formOfSubmission)
+ * @returns the number of templates sent
+ */
+export async function runFormStatusTrigger(meta, business, reg, form) {
+  if (!reg?.phone || !reg?.status || !form) return 0;
+  const businessId = business?._id ? String(business._id) : (reg.businessId ? String(reg.businessId) : '');
+  const key = `${form}:${reg.status}`;
+  let templates = [];
+  try {
+    templates = await Template.find({
+      ...scope(businessId),
+      status: 'APPROVED',
+      'trigger.enabled': true,
+      'trigger.formStatuses': key,
+    }).lean();
+  } catch (err) {
+    logger.warn('form-status trigger lookup failed', { error: err.message });
+    return 0;
+  }
+  if (!templates.length) return 0;
+  // What the answer was for, so {{member}}, the date and the time can be quoted.
+  const appointment = {
+    memberName: reg.memberName || '',
+    date: reg.date || '',
+    dateLabel: reg.date || '',
+    slotLabel: reg.slot ? to12h(reg.slot) : '',
+  };
+  let sent = 0;
+  for (const t of templates) {
+    // eslint-disable-next-line no-await-in-loop
+    const okSend = await sendTemplateTo(meta, reg.phone, t, { business, appointment, reason: `form:${key}` });
+    if (okSend) sent += 1;
+  }
+  return sent;
+}
+
 /**
  * A member was marked unavailable → tell the patients it affects.
  *
@@ -241,5 +304,7 @@ export default {
   sendTemplateTo,
   runKeywordTrigger,
   runOrderStatusTrigger,
+  runFormStatusTrigger,
+  formOfSubmission,
   runMemberUnavailableTrigger,
 };
