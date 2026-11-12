@@ -41,7 +41,8 @@ export interface UpdateTemplateItem {
   /** The body with sample values. */
   preview: string;
   variables: TemplateVariable[];
-  buttons: { type: 'FLOW' | 'QUICK_REPLY' | 'PHONE_NUMBER'; text: string; phone?: string }[];
+  /** `does`: what a tap does, already set up (open the flow, answer and alert the team, call). */
+  buttons: { type: 'FLOW' | 'QUICK_REPLY' | 'PHONE_NUMBER'; text: string; phone?: string; action?: string; does?: string }[];
   /** This business already has a template by this name. */
   exists?: boolean;
   existingStatus?: string;

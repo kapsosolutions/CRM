@@ -120,6 +120,15 @@ export function UpdateTemplatesModal({
                       </div>
                     )}
                   </div>
+                  {!r && it.buttons.some((b) => b.does) && (
+                    <ul className="ut-does">
+                      {it.buttons.filter((b) => b.does).map((b) => (
+                        <li key={b.text} data-testid={`ut-does-${it.key}`}>
+                          <b>{b.text}:</b> {b.does}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {r && !r.ok && r.error && <p className="err ut-err">{r.error}</p>}
                   {r && r.ok && !r.skipped && r.name !== it.name && (
                     <p className="k-hint ut-err">Saved as {r.name}: Meta still holds the name {it.name}.</p>

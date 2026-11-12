@@ -109,6 +109,9 @@ const TemplateSchema = new Schema(
     // { index, flowId, prefill: [field names] }. Meta wants a flow token on
     // every send, so the send builds one for the recipient from this.
     flowButton: { type: Schema.Types.Mixed, default: null },
+    // Reply buttons that act on their own when tapped: [{ index, action }],
+    // action 'talk' = "Talk to us" (services/talkToUs.js). Set by update templates.
+    buttonActions: { type: Schema.Types.Mixed, default: null },
   },
   { timestamps: true },
 );

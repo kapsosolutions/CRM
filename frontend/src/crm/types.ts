@@ -3115,7 +3115,7 @@ export type AppNotificationType =
   // Ads Manager
   | 'ad_campaign_created' | 'ad_rejected' | 'ad_audience_ready' | 'ad_rule_triggered' | 'ad_test_winner'
   // Chats and campaigns
-  | 'chat_new' | 'campaign_created' | 'campaign_started' | 'campaign_failed' | 'campaign_cancelled';
+  | 'chat_new' | 'talk_request' | 'campaign_created' | 'campaign_started' | 'campaign_failed' | 'campaign_cancelled';
 
 export interface AppNotification {
   _id: string;

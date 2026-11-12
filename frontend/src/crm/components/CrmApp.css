@@ -13656,6 +13656,18 @@ button.pd-phone-chip:hover {
   margin: 6px 0 0 26px;
   font-size: 12px;
 }
+.ut-does {
+  list-style: none;
+  margin: 6px 0 0 26px;
+  padding: 0;
+  font-size: 12px;
+  color: var(--wa-muted, #667781);
+  line-height: 1.4;
+}
+.ut-does b {
+  color: var(--wa-ink, #111b21);
+  font-weight: 600;
+}
 
 /* Validation issues reported by Meta on publish */
 .flow-issues {

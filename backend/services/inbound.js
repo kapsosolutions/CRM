@@ -283,6 +283,8 @@ export function parseIncoming(message) {
       const payload = String(b.payload || '');
       // Only our own encoded ids are routed by id; anything else is matched by text.
       out.selectedId = /^[nf]:/.test(payload) ? payload : null;
+      // Kept as sent: an update template's "Talk to us" is u:talk (talkToUs.js).
+      out.buttonPayload = payload;
       out.logBody = out.text;
       break;
     }

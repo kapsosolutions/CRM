@@ -18,6 +18,7 @@ import Template from '../models/Template.js';
 import { verticalConfig } from './verticals.js';
 import { assertTemplateAllowed } from './planGate.js';
 import { prefillKeysOf } from './flowJson.js';
+import { TALK_TEXT, HANDOFF_HOURS, talkReplyText } from './talkToUs.js';
 import logger from './logger.js';
 
 const ORDER_BLOCKS = new Set(['orderconfirm', 'payment', 'paymethod', 'pdfdoc', 'catalog']);
@@ -148,9 +149,17 @@ export function planUpdateTemplates(flow, business) {
   const statusWord = new Map((v.orderStatuses || []).map((o) => [o.value, o.label]));
   const hasStatus = (s) => statusWord.has(s);
   const phone = String(business?.meta?.displayPhoneNumber || '').replace(/[^\d+]/g, '');
-  const flowBtn = (text) => (flow?.metaFlowId ? [{ type: 'FLOW', text }] : []);
-  const talk = [{ type: 'QUICK_REPLY', text: 'Talk to us' }];
-  const call = phone ? [{ type: 'PHONE_NUMBER', text: 'Call us', phone: phone.startsWith('+') ? phone : `+${phone}` }] : talk;
+  // Every button says what a tap does, and each one is set up here: nothing is
+  // left for the business to wire. A flow button opens this flow; "Talk to us"
+  // answers, alerts the team and hands them the chat (talkToUs.js).
+  const flowBtn = (text) => (flow?.metaFlowId
+    ? [{ type: 'FLOW', text, does: `Opens “${flow.name || 'this flow'}” again, so they can do it in a tap.` }] : []);
+  const talk = [{
+    type: 'QUICK_REPLY', text: TALK_TEXT, action: 'talk',
+    does: `Replies “${talkReplyText('Riya', business?.name)}”, alerts your team and pauses the bot in that chat for ${HANDOFF_HOURS} hours so you can answer.`,
+  }];
+  const tel = phone.startsWith('+') ? phone : `+${phone}`;
+  const call = phone ? [{ type: 'PHONE_NUMBER', text: 'Call us', phone: tel, does: `Calls ${tel}.` }] : talk;
   const items = [];
   const add = (key, title, why, bodyText, sources, buttons, trigger) => items.push({
     key, name: key, title, why, bodyText,
@@ -281,6 +290,7 @@ export async function createUpdateTemplates(meta, business, flow, keys = []) {
       continue;
     }
     const flowIndex = it.buttons.findIndex((b) => b.type === 'FLOW');
+    const actions = it.buttons.map((b, index) => (b.action ? { index, action: b.action } : null)).filter(Boolean);
     // eslint-disable-next-line no-await-in-loop
     await Template.findOneAndUpdate(
       { businessId: business._id, name },
@@ -291,6 +301,8 @@ export async function createUpdateTemplates(meta, business, flow, keys = []) {
           bodyText: it.bodyText, footerText: '', components, cards: [], variables: it.variables, trigger: it.trigger,
           // The flow its flow button opens: each send carries a fresh flow token.
           flowButton: flowIndex >= 0 ? { index: flowIndex, flowId: String(flow._id), prefill: prefill(flow) } : null,
+          // "Talk to us": each send tags it u:talk, and the tap is answered.
+          buttonActions: actions.length ? actions : null,
         },
       },
       { upsert: true },

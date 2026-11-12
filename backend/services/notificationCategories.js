@@ -10,6 +10,8 @@ const BY_TYPE = {
   // A missed WhatsApp call nudges like a new message.
   call_missed: 'message',
   chat_new: 'chatNew',
+  // "Talk to us" on an update template: someone wants a person.
+  talk_request: 'message',
   order_new: 'order',
   payment_received: 'payment',
   payment_failed: 'payment',

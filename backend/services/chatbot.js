@@ -25,6 +25,8 @@ import { to12h } from './slots.js';
 import { addressFor, mapImageFor } from './geocode.js';
 import { statusesBelow, parkStatus, takeParkedStatus, statusError } from './messageStatus.js';
 import { notifyChatMessage } from './notifications.js';
+import { isTalkTap, runTalkToUs } from './talkToUs.js';
+import Conversation from '../models/Conversation.js';
 import { noteServiceDelivered } from './serviceQuota.js';
 import { noteLimitActivity } from './messagingLimit.js';
 
@@ -269,8 +271,18 @@ export async function handleMessage(msg, ctx = {}) {
 
   const convo = await getConversation(phone, ctx.tenantId);
   if (convo?.botPaused) {
-    logger.debug('automation paused, skipping auto-reply', { phone });
-    return;
+    // A timed pause ("Talk to us") that has run out: automation is back.
+    const until = convo.botPausedUntil ? new Date(convo.botPausedUntil) : null;
+    if (until && until.getTime() <= Date.now()) {
+      await Conversation.findOneAndUpdate(
+        { businessId: ctx.tenantId || null, phone },
+        { $set: { botPaused: false, botPausedUntil: null } },
+      ).catch(() => {});
+      convo.botPaused = false;
+    } else {
+      logger.debug('automation paused, skipping auto-reply', { phone });
+      return;
+    }
   }
   // Automation is a plan feature (services/plans.js): journeys and keyword
   // replies on every plan, native WhatsApp Flows (flow maps, finished Flow
@@ -367,6 +379,14 @@ export async function handleMessage(msg, ctx = {}) {
   // limit on every reply. The messages are already filed for an agent.
   if (!automationAllowed(ctx.tenantId, phone, { name: ctx.tenantName })) return;
 
+  // "Talk to us" on an update template (it carries u:talk): answer it, alert
+  // the team and hand them the chat. Nothing below would reply to it.
+  const talk = { businessId: ctx.tenantId, businessName: ctx.tenantName, phone, name: convo?.name };
+  if (ctx.tenantId && !ctx.sandbox && isTalkTap(msg)) {
+    await runTalkToUs(meta, talk);
+    return;
+  }
+
   // On the shared test number (ctx.sandbox) only journeys run: keyword
   // templates and native Flows belong to the business's own WABA.
   //
@@ -424,6 +444,13 @@ export async function handleMessage(msg, ctx = {}) {
           : undefined,
       });
     }
+  }
+
+  // A "Talk to us" tap with no payload of ours (sent before update templates
+  // tagged it) that no journey claimed: the same answer and hand-over.
+  if (ctx.tenantId && !ctx.sandbox && isTalkTap(msg, { byText: true })) {
+    await runTalkToUs(meta, talk);
+    return;
   }
 
   // Media nobody claimed is logged for the agent and left alone. (With a flow

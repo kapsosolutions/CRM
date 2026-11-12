@@ -27,6 +27,7 @@ interface Props {
 const LOOK: Record<string, { icon: string; tone: string; label: string }> = {
   message: { icon: 'chat', tone: 'blue', label: 'New message' },
   chat_new: { icon: 'mark_chat_unread', tone: 'green', label: 'New chat' },
+  talk_request: { icon: 'support_agent', tone: 'amber', label: 'Wants to talk' },
   campaign_created: { icon: 'campaign', tone: 'blue', label: 'Campaign' },
   campaign_started: { icon: 'send', tone: 'blue', label: 'Campaign started' },
   campaign_failed: { icon: 'error', tone: 'red', label: 'Campaign failed' },

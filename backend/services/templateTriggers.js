@@ -17,6 +17,7 @@ import { touchOutbound } from './conversationState.js';
 import { to12h } from './slots.js';
 import { isAuthTemplate, authSendOptions } from './authTemplate.js';
 import { makeFlowToken } from './flowRuntime.js';
+import { TALK_PAYLOAD } from './talkToUs.js';
 import logger from './logger.js';
 
 const scope = (businessId) => (businessId ? { businessId } : {});
@@ -59,6 +60,11 @@ export async function templateSendOptions(template, ctx = {}, overrides = {}) {
     for (const key of fb.prefill || []) data[key] = key === 'whatsapp_number' ? `+${phone}` : '';
     opts.flowButton = { index: Number(fb.index) || 0, token: makeFlowToken(fb.flowId, phone), data };
   }
+  // Reply buttons that do something themselves ("Talk to us" → u:talk, see
+  // talkToUs.js). A journey sending the template sets its own payloads instead.
+  const acts = (Array.isArray(template.buttonActions) ? template.buttonActions : [])
+    .filter((a) => a?.action === 'talk' && Number.isInteger(Number(a.index)));
+  if (acts.length) opts.quickReplies = acts.map((a) => ({ index: Number(a.index), payload: TALK_PAYLOAD }));
   if (template.kind === 'carousel' && template.cards?.length) {
     opts.cards = template.cards.map((c) => ({ mediaUrl: c.mediaUrl, mediaFormat: c.mediaFormat }));
   }

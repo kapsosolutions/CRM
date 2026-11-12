@@ -30,6 +30,9 @@ const ConversationSchema = new Schema(
     unread: { type: Number, default: 0 },
     // When true, the bot stops auto-replying so an agent can chat manually.
     botPaused: { type: Boolean, default: false },
+    // A pause that ends by itself ("Talk to us" hands the chat to the team for
+    // a day). null = until someone switches it back in Chats.
+    botPausedUntil: { type: Date, default: null },
     // Where the customer writes from: 'whatsapp' (empty on older rows, read as
     // WhatsApp), 'messenger' or 'instagram'. For Messenger / Instagram,
     // `phone` holds the sender's Page-scoped / Instagram-scoped id (PSID /

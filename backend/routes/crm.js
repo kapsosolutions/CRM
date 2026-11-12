@@ -142,7 +142,8 @@ router.post('/pause', async (req, res) => {
     const clean = String(phone).replace(/\D/g, '');
     const convo = await Conversation.findOneAndUpdate(
       { ...owner(req), phone: clean },
-      { $set: { botPaused: !!paused } },
+      // Set by hand: no timer (a "Talk to us" pause had one).
+      { $set: { botPaused: !!paused, botPausedUntil: null } },
       { upsert: true, new: true },
     );
     res.json({ success: true, botPaused: convo.botPaused });

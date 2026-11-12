@@ -1706,7 +1706,7 @@ export class MockCrmApi extends CrmApi {
     const books = comps.some((c) => c.source === 'slots' || c.name === 'selected_slot');
     const orders = !books && (f?.blocks || []).some((b) => ['orderconfirm', 'payment', 'paymethod', 'pdfdoc', 'catalog'].includes(b.kind));
     const flowBtn = (text: string) => (f?.metaFlowId ? [{ type: 'FLOW' as const, text }] : []);
-    const talk = [{ type: 'QUICK_REPLY' as const, text: 'Talk to us' }];
+    const talk = [{ type: 'QUICK_REPLY' as const, text: 'Talk to us', action: 'talk', does: 'Replies “Sure, Riya. Someone from our team will reply to you here shortly.”, alerts your team and pauses the bot in that chat for 24 hours so you can answer.' }];
     const items: UpdateTemplateItem[] = [];
     const add = (key: string, title: string, why: string, preview: string, buttons: UpdateTemplateItem['buttons']) =>
       items.push({ key, name: key, title, why, bodyText: preview, preview, variables: [], buttons, exists: templates.some((t) => t.name === key), existingStatus: templates.find((t) => t.name === key)?.status || '' });
