@@ -6,7 +6,7 @@
 // would have to supply before a delivery address was visible; OSM's embed is
 // keyless, documented, and pans/zooms on its own. Google still gets used for
 // the two deep links, since that's what a rider will have on their phone.
-import { DownloadIcon } from './AppIcons';
+import { DownloadIcon, WhatsAppIcon } from './AppIcons';
 import { useEffect, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { Order, OrderStatus } from '../types';
@@ -239,9 +239,9 @@ export function OrderDetailsPage({
                 {/* Opens the thread inside the CRM rather than handing the agent
                     off to WhatsApp Web, so replies stay logged against the chat. */}
                 {onOpenChat && o.phone && (
-                  <button className="k-btn primary sm" onClick={() => onOpenChat(o.phone)}>
-                    <span className="material-icons">forum</span>
-                    Open chat
+                  <button className="fsd-wa-btn" onClick={() => onOpenChat(o.phone)}>
+                    <WhatsAppIcon size={16} />
+                    <span>WhatsApp chat</span>
                   </button>
                 )}
               </div>

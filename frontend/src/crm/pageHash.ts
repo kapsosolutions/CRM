@@ -34,11 +34,31 @@ export function viewFromHash(hash: string, demo: boolean): CrmView | null {
   return (CRM_PAGES as readonly string[]).includes(page) ? (page as CrmView) : null;
 }
 
-/** The hash for a CRM page. */
-export function hashForView(view: CrmView, demo: boolean): string {
+const SUBMISSION_ID = /^[A-Za-z0-9_-]{1,64}$/;
+
+/** The form submission a hash opens (#/app/form/<form>/<submission id>), or null. */
+export function formSubmissionFromHash(hash: string, demo: boolean): string | null {
+  const prefix = crmPrefix(demo);
+  if (!hash.startsWith(prefix)) return null;
+  const [page, , sub] = hash.slice(prefix.length).split(/[?#]/)[0].split('/');
+  if (page !== 'form' || !sub) return null;
+  let id = '';
+  try {
+    id = decodeURIComponent(sub);
+  } catch {
+    return null;
+  }
+  return SUBMISSION_ID.test(id) ? id : null;
+}
+
+/** The hash for a CRM page (and, on a form page, the submission open on it). */
+export function hashForView(view: CrmView, demo: boolean, submissionId?: string | null): string {
   if (view === 'chats') return crmBase(demo);
-  const path = view.startsWith('form:') ? `form/${encodeURIComponent(view.slice(5))}` : encodeURIComponent(view);
-  return `${crmPrefix(demo)}${path}`;
+  if (view.startsWith('form:')) {
+    const sub = submissionId && SUBMISSION_ID.test(submissionId) ? `/${encodeURIComponent(submissionId)}` : '';
+    return `${crmPrefix(demo)}form/${encodeURIComponent(view.slice(5))}${sub}`;
+  }
+  return `${crmPrefix(demo)}${encodeURIComponent(view)}`;
 }
 
 /**
@@ -68,8 +88,8 @@ export function useHashSync(target: string, home: boolean, prefix: string) {
 }
 
 /** The CRM's current page → the URL hash. */
-export function useCrmPageHash(view: CrmView, demo: boolean) {
-  useHashSync(hashForView(view, demo), view === 'chats', crmPrefix(demo));
+export function useCrmPageHash(view: CrmView, demo: boolean, submissionId?: string | null) {
+  useHashSync(hashForView(view, demo, submissionId), view === 'chats', crmPrefix(demo));
 }
 
 // ---- Admin panel ----------------------------------------------------------

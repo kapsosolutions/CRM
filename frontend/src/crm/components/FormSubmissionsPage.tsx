@@ -1,18 +1,26 @@
 // One ready-made form's answers on a page of its own ("Pickup requests",
 // "Delivery issues"), opened from the Forms section of the sidebar. The
 // submissions are the same records as Orders → Form submissions, narrowed to
-// the form they came from (flowForms.ts presetOfSubmission).
+// the form they came from (flowForms.ts presetOfSubmission). Clicking a row
+// opens the submission's details page (FormSubmissionDetails); the status tab
+// and search stay where you left them when you go back.
 import { useEffect, useMemo, useState } from 'react';
 import type { CrmApi } from '../api';
 import type { Registration, RegistrationStatus, WaFlowDef } from '../types';
 import { OTHER_FORMS, presetOfSubmission, type FormPage } from '../flowForms';
-import { REG_STATUS, RegistrationsList } from './OrdersPage';
+import type { VerticalConfig } from '../verticals';
+import { REG_STATUS, RegistrationsList, useRegistrationActions } from './OrdersPage';
+import { FormSubmissionDetails } from './FormSubmissionDetails';
 import { CrmPageHero } from './CrmPageHero';
 import { formPageHero } from '../emptyPages';
 
 interface Props {
   api: CrmApi;
   page: FormPage;
+  vertical?: VerticalConfig;
+  /** The submission open on the page (in the URL hash, so refresh keeps it). */
+  openId?: string | null;
+  onOpenChange?: (id: string | null) => void;
   onOpenChat?: (phone: string) => void;
   /** Go to Automation, to put the form in a flow. */
   onOpenFlows?: () => void;
@@ -30,12 +38,27 @@ function searchText(r: Registration): string {
   return parts.filter(Boolean).join(' ').toLowerCase();
 }
 
-export function FormSubmissionsPage({ api, page, onOpenChat, onOpenFlows, onChanged }: Props) {
+export function FormSubmissionsPage({
+  api,
+  page,
+  vertical,
+  openId: controlledOpenId,
+  onOpenChange,
+  onOpenChat,
+  onOpenFlows,
+  onChanged,
+}: Props) {
   const [all, setAll] = useState<Registration[]>([]);
   const [flows, setFlows] = useState<WaFlowDef[]>([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState<StatusFilter>('');
   const [query, setQuery] = useState('');
+  const [localOpenId, setLocalOpenId] = useState('');
+  const openId = controlledOpenId !== undefined ? controlledOpenId || '' : localOpenId;
+  const setOpenId = (id: string) => {
+    setLocalOpenId(id);
+    onOpenChange?.(id || null);
+  };
 
   function load() {
     setLoading(true);
@@ -53,6 +76,7 @@ export function FormSubmissionsPage({ api, page, onOpenChat, onOpenFlows, onChan
     load();
     setStatus('');
     setQuery('');
+    setLocalOpenId('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page.id]);
 
@@ -95,6 +119,34 @@ export function FormSubmissionsPage({ api, page, onOpenChat, onOpenFlows, onChan
     });
     onChanged?.();
   };
+  const actions = useRegistrationActions({
+    api,
+    setItems,
+    onChanged: () => {
+      load();
+      onChanged?.();
+    },
+  });
+
+  // Read from `mine` so a status change on the details page updates straight away.
+  const open = openId ? mine.find((r) => r._id === openId) : null;
+  if (open) {
+    return (
+      <FormSubmissionDetails
+        registration={open}
+        preset={page.preset}
+        vertical={vertical}
+        onBack={() => setOpenId('')}
+        onStatusChange={actions.changeStatus}
+        onDelete={(r) => {
+          actions.remove(r).then((gone) => {
+            if (gone) setOpenId('');
+          });
+        }}
+        onOpenChat={onOpenChat}
+      />
+    );
+  }
 
   const formName = page.preset?.title || 'form';
   const filtered = mine.length > 0 && shown.length === 0;
@@ -186,6 +238,8 @@ export function FormSubmissionsPage({ api, page, onOpenChat, onOpenFlows, onChan
         empty={empty}
         emptyHero={mine.length === 0 ? emptyHero : undefined}
         onOpenChat={onOpenChat}
+        onOpen={(r) => setOpenId(r._id)}
+        presetFor={() => page.preset}
         pagerKey={`form-page-${page.id}`}
       />
     </div>

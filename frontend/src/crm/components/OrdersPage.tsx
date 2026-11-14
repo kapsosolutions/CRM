@@ -3,7 +3,7 @@
 // status dropdown to advance the order.
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import type { CrmApi } from '../api';
-import type { FormRow, Order, OrderStatus, Registration, RegistrationStatus } from '../types';
+import type { Order, OrderStatus, Registration, RegistrationStatus } from '../types';
 import type { VerticalConfig } from '../verticals';
 import { verticalConfig } from '../verticals';
 import { Dropdown, type KOption } from './Dropdown';
@@ -16,9 +16,10 @@ import { ordersHero, submissionsHero } from '../emptyPages';
 import { BladeSpinner } from './BladeSpinner';
 import { Pager, usePaged } from './Pager';
 import { WhatsAppConnectRequired } from './WhatsAppConnectRequired';
-import { FormAnswer } from './FormAnswer';
-import { Lightbox, type ViewMedia } from './Lightbox';
-import { rawAnswer } from '../utils';
+import { FormSubmissionDetails } from './FormSubmissionDetails';
+import { WhatsAppIcon } from './AppIcons';
+import { REG_STATUS, presetOf, submissionSummary } from '../formSubmission';
+import type { FormPreset } from '../flowForms';
 import type { BusinessProfile } from '../types';
 
 interface Props {
@@ -119,6 +120,8 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
   const [apptDate, setApptDate] = useState('');
   // The order whose details page is open, if any.
   const [openId, setOpenId] = useState('');
+  // The form submission whose details page is open (Form submissions tab).
+  const [openRegId, setOpenRegId] = useState('');
 
   // Status options + labels follow the business type: a clinic sees
   // Pending / Confirmed / Completed / Cancelled, a shop the full delivery flow.
@@ -175,6 +178,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
         setOpenId(focusRequest.id);
       } else if (showForms) {
         setOpenId('');
+        setOpenRegId('');
         setTab('forms');
       }
       if (focusMounted.current) load();
@@ -187,6 +191,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
     setOrders((list) => list.map((x) => (x._id === o._id ? { ...x, status } : x)));
     api.setOrderStatus(o._id, status).catch(load);
   }
+  const regActions = useRegistrationActions({ api, setItems: setRegistrations, onChanged: load });
 
   // Narrow by kind first, so the lifecycle counts reflect what's actually in
   // view (a restaurant filtered to "Bookings" would otherwise count orders).
@@ -280,6 +285,26 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
     );
   }
 
+  // A form submission's details page (Form submissions tab).
+  const openReg = tab === 'forms' && openRegId ? registrations.find((r) => r._id === openRegId) : null;
+  if (openReg) {
+    return (
+      <FormSubmissionDetails
+        registration={openReg}
+        preset={presetOf(openReg)}
+        vertical={v}
+        onBack={() => setOpenRegId('')}
+        onStatusChange={regActions.changeStatus}
+        onDelete={(r) => {
+          regActions.remove(r).then((gone) => {
+            if (gone) setOpenRegId('');
+          });
+        }}
+        onOpenChat={onOpenChat}
+      />
+    );
+  }
+
   const hasNoOrders = !loading && orders.length === 0 && !searching;
 
   return (
@@ -330,6 +355,7 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
           loading={loading}
           onChanged={load}
           setItems={setRegistrations}
+          onOpen={(r) => setOpenRegId(r._id)}
           emptyHero={(
             <CrmPageHero
               icon="assignment"
@@ -551,46 +577,49 @@ export function OrdersPage({ api, vertical, business, demo, onConnected, onOpenC
 }
 
 // ---------------------------------------------------------------------------
-// Form submissions — whatever fields the tenant put on the flow's Register
-// screen. The field set is tenant-defined, so every answer is rendered
-// generically rather than against a fixed schema.
+// Form submissions — whatever fields the tenant put on the flow's screens.
+// The list keeps every submission on one line (contact, a short summary of
+// the answers, status, when); the whole row opens the submission's details
+// page (FormSubmissionDetails), where every answer is drawn in full.
 // ---------------------------------------------------------------------------
-export const REG_STATUS: KOption[] = [
-  { value: 'new', label: 'New' },
-  { value: 'contacted', label: 'Contacted' },
-  { value: 'confirmed', label: 'Confirmed' },
-  { value: 'done', label: 'Done' },
-  { value: 'cancelled', label: 'Cancelled' },
-];
+export { REG_STATUS };
 
-const pretty = (k: string) => k.replace(/[_-]+/g, ' ').replace(/\b\w/g, (m) => m.toUpperCase());
-
-// The name is already the Contact column, and category/member are shown as
-// chips, so they aren't repeated among the answers.
-const SKIP_ANSWER_KEYS = new Set(['name', 'full_name', 'fullname', 'your_name', 'customer_name']);
-
-/**
- * The question/answer pairs to show for a submission.
- *
- * The server resolves these against the flow definition — only it knows that
- * "field_11" was the question "Choose one" and "opt_1" was "Order Food". The
- * fallback covers a server that hasn't resolved them: it at least prefers the
- * runtime's "<field>_label" twin over the raw option id.
- */
-function answerRows(r: Registration): FormRow[] {
-  const rows: FormRow[] = r.rows?.length
-    ? r.rows
-    : Object.entries(r.fields || {})
-        .filter(([k]) => !k.endsWith('_label'))
-        .map(([k, v]) => ({ key: k, label: pretty(k), ...rawAnswer(v, (r.fields || {})[`${k}_label`]) }));
-
-  return rows.filter(
-    (row) =>
-      !SKIP_ANSWER_KEYS.has(row.key.toLowerCase()) &&
-      !row.key.toLowerCase().includes('category') &&
-      !String(row.value).startsWith('mem_') &&
-      String(row.value).trim() !== '',
-  );
+/** Change a submission's status, or delete it (after asking). */
+export function useRegistrationActions({
+  api,
+  setItems,
+  onChanged,
+}: {
+  api: CrmApi;
+  setItems: (f: (list: Registration[]) => Registration[]) => void;
+  onChanged: () => void;
+}) {
+  const confirm = useConfirm();
+  const notify = useNotify();
+  function changeStatus(r: Registration, status: RegistrationStatus) {
+    setItems((list) => list.map((x) => (x._id === r._id ? { ...x, status } : x)));
+    api.setRegistrationStatus(r._id, status).catch(onChanged);
+  }
+  /** Resolves true once the submission is gone from the list. */
+  async function remove(r: Registration): Promise<boolean> {
+    const who = r.name || (r.phone ? `+${r.phone}` : 'this contact');
+    const ok = await confirm({
+      title: 'Delete submission?',
+      message: `The form submission from ${who} will be deleted.`,
+      confirmLabel: 'Delete submission',
+    });
+    if (!ok) return false;
+    setItems((list) => list.filter((x) => x._id !== r._id));
+    try {
+      await api.deleteRegistration(r._id);
+      notify('success', 'Submission deleted', `The entry from ${who} was removed.`);
+    } catch (e) {
+      notify('error', 'Delete failed', e instanceof Error ? e.message : 'Could not delete the submission.');
+      onChanged(); // put the list back the way the server has it
+    }
+    return true;
+  }
+  return { changeStatus, remove };
 }
 
 export function RegistrationsList({
@@ -601,6 +630,8 @@ export function RegistrationsList({
   setItems,
   empty,
   onOpenChat,
+  onOpen,
+  presetFor = presetOf,
   pagerKey = 'form-submissions',
   emptyHero,
 }: {
@@ -613,16 +644,18 @@ export function RegistrationsList({
   empty?: { icon?: string; title: string; description: string };
   /** A chat button on each row, to reply to the customer. */
   onOpenChat?: (phone: string) => void;
+  /** Open a submission's details page (the whole row is the button). */
+  onOpen?: (r: Registration) => void;
+  /** The ready-made form a submission came from, for its summary's order. */
+  presetFor?: (r: Registration) => FormPreset | null;
   /** Where the page size is remembered. */
   pagerKey?: string;
   /** Shown instead of the plain empty state when there's nothing at all. */
   emptyHero?: ReactNode;
 }) {
-  const confirm = useConfirm();
-  const notify = useNotify();
+  const { changeStatus, remove } = useRegistrationActions({ api, setItems, onChanged });
   // Narrow to one form ("Patient registration") when several are in use.
   const [formFilter, setFormFilter] = useState('');
-  const [viewing, setViewing] = useState<ViewMedia | null>(null);
   const formNames = useMemo(
     () => [...new Set(items.map((r) => r.flowName || 'Form'))].sort((a, b) => a.localeCompare(b)),
     [items],
@@ -632,31 +665,46 @@ export function RegistrationsList({
     [items, formFilter],
   );
   const paged = usePaged(shown, formFilter, { key: pagerKey, noun: ['submission', 'submissions'] });
-  function changeStatus(r: Registration, status: RegistrationStatus) {
-    setItems((list) => list.map((x) => (x._id === r._id ? { ...x, status } : x)));
-    api.setRegistrationStatus(r._id, status).catch(onChanged);
-  }
-  async function remove(r: Registration) {
-    const who = r.name || (r.phone ? `+${r.phone}` : 'this contact');
-    const ok = await confirm({
-      title: 'Delete submission?',
-      message: `The form submission from ${who} will be deleted.`,
-      confirmLabel: 'Delete submission',
-    });
-    if (!ok) return;
-    setItems((list) => list.filter((x) => x._id !== r._id));
-    try {
-      await api.deleteRegistration(r._id);
-      notify('success', 'Submission deleted', `The entry from ${who} was removed.`);
-    } catch (e) {
-      notify('error', 'Delete failed', e instanceof Error ? e.message : 'Could not delete the submission.');
-      onChanged(); // put the list back the way the server has it
-    }
-  }
 
   return (
     <div className="page-body">
-      {loading && <BladeSpinner center={true} containerHeight={200} />}
+      {loading && (
+        <div className="ord-list reg-list reg-skeleton" aria-busy="true" aria-label="Loading submissions">
+          <div className="ord-row reg-row-grid head" aria-hidden="true">
+            <span>Contact</span>
+            <span>Summary</span>
+            <span>Status</span>
+            <span className="h-when">Received</span>
+            <span />
+          </div>
+          {[0, 1, 2, 3, 4].map((i) => (
+            <div className="ord-row reg-row-grid reg-skel-row" key={i} aria-hidden="true">
+              <span className="ord-cell reg-contact">
+                <span className="reg-skel-avatar" />
+                <span className="reg-contact-text">
+                  <span className="reg-skel-bar w-name" />
+                  <span className="reg-skel-bar w-phone" />
+                </span>
+              </span>
+              <span className="ord-cell reg-summary">
+                <span className="reg-skel-pill w-1" />
+                <span className="reg-skel-pill w-2" />
+                <span className="reg-skel-pill w-3" />
+              </span>
+              <span className="ord-cell">
+                <span className="reg-skel-status" />
+              </span>
+              <span className="ord-cell when">
+                <span className="reg-skel-bar w-date" />
+              </span>
+              <span className="ord-cell reg-acts">
+                <span className="reg-skel-ico" />
+                <span className="reg-skel-ico" />
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
       {!loading && items.length === 0 && emptyHero}
       {!loading && items.length === 0 && !emptyHero && (
         <CrmEmptyState
@@ -666,7 +714,7 @@ export function RegistrationsList({
           description={empty?.description || 'Add a form to a WhatsApp flow (Automation → Flows → Build → Forms). When customers fill it in on WhatsApp, their answers land here.'}
         />
       )}
-      {formNames.length > 1 && (
+      {!loading && formNames.length > 1 && (
         <div className="reg-form-filter" data-testid="reg-form-filter">
           <Dropdown
             options={[{ value: '', label: `All forms (${items.length})` }, ...formNames.map((n) => ({
@@ -678,85 +726,117 @@ export function RegistrationsList({
           />
         </div>
       )}
-      {items.length > 0 && (
+      {!loading && items.length > 0 && (
         <div className={`ord-list reg-list${onOpenChat ? ' reg-chat' : ''}`}>
           <div className="ord-row reg-row-grid head" aria-hidden="true">
             <span>Contact</span>
-            <span>Form</span>
-            <span>Answers</span>
+            <span>Summary</span>
             <span>Status</span>
-            <span>Received</span>
-            <span />
+            <span className="h-when">Received</span>
+            <span className="h-acts">Actions</span>
           </div>
 
-          {paged.items.map((r) => (
-            <div className={`ord-row reg-row-grid reg-${r.status}`} key={r._id}>
-              <span className="ord-cell cust">
-                <span className="ord-cust-name">{r.name || `+${r.phone}` || 'Unknown'}</span>
-                {r.name && r.phone && <span className="ord-cust-phone">+{r.phone}</span>}
-              </span>
-
-              <span className="ord-cell reg-flow">
-                <span className="material-icons">how_to_reg</span>
-                <span className="ord-ref-text">{r.flowName || 'Form'}</span>
-              </span>
-
-              {/* The resolved question/answer pairs, plus whatever the customer
-                  picked on the way in. The server does the resolving: only the
-                  flow definition knows "field_11" was "Choose one" and
-                  "opt_1" was "Order Food". */}
-              <span className="ord-cell reg-answers">
-                {r.category && (
-                  <span className="reg-pick-chip">
-                    <span className="material-icons">category</span>
-                    {r.category}
-                  </span>
-                )}
-                {r.memberName && (
-                  <span className="reg-pick-chip member">
-                    <span className="material-icons">person</span>
-                    {r.memberName}
-                  </span>
-                )}
-                {answerRows(r).map((row) => (
-                  <span className={`reg-answer${row.type ? ` t-${row.type}` : ''}`} key={row.key}>
-                    <span className="reg-answer-q">{row.label}</span>
-                    <span className="reg-answer-a"><FormAnswer row={row} onView={setViewing} compact /></span>
-                  </span>
-                ))}
-                {!r.category && !r.memberName && answerRows(r).length === 0 && (
-                  <em className="reg-none">no answers</em>
-                )}
-              </span>
-
-              <span className="ord-cell status">
-                <div className="ord-status-sel">
-                  <Dropdown
-                    options={REG_STATUS}
-                    value={r.status}
-                    onChange={(v) => changeStatus(r, v as RegistrationStatus)}
+          {paged.items.map((r) => {
+            const who = r.name || (r.phone ? `+${r.phone}` : 'Unknown');
+            const initials = (r.name || r.phone || '?').replace(/^\+/, '').slice(0, 2).toUpperCase();
+            const { text, items: summaryItems, extra, files } = submissionSummary(r, presetFor(r));
+            return (
+              <div
+                className={`ord-row reg-row-grid reg-${r.status}${onOpen ? ' reg-open' : ''}`}
+                key={r._id}
+                data-testid="reg-row"
+              >
+                {/* The row's button sits under the cells; the status dropdown
+                    and the chat / delete buttons sit above it. */}
+                {onOpen && (
+                  <button
+                    type="button"
+                    className="ord-row-open"
+                    onClick={() => onOpen(r)}
+                    aria-label={`Open the submission from ${who}`}
+                    data-testid="reg-row-open"
                   />
-                </div>
-              </span>
-
-              <span className="ord-cell when">{fmtWhen(r.createdAt)}</span>
-
-              <span className="ord-cell status reg-acts">
-                {onOpenChat && r.phone && (
-                  <button className="prod-act" onClick={() => onOpenChat(r.phone || '')} title="Open the chat" data-testid="reg-open-chat">
-                    <span className="material-icons">chat</span>
-                  </button>
                 )}
-                <button className="prod-act danger" onClick={() => remove(r)} title="Delete">
-                  <span className="material-icons">delete</span>
-                </button>
-              </span>
-            </div>
-          ))}
+                <span className="ord-cell reg-contact">
+                  <span className={`reg-avatar reg-av-${r.status}`} aria-hidden="true">{initials}</span>
+                  <span className="reg-contact-text">
+                    <span className="ord-cust-name">{who}</span>
+                    {r.name && r.phone && <span className="ord-cust-phone">+{r.phone}</span>}
+                  </span>
+                </span>
+
+                <span className="ord-cell reg-summary" title={text}>
+                  {summaryItems.length > 0 ? (
+                    <span className="reg-kv-strip">
+                      {summaryItems.map((it, idx) => (
+                        <span className="reg-kv" key={`${it.label}-${idx}`}>
+                          <span className="reg-kv-k">{it.label}</span>
+                          <span className="reg-kv-v">{it.value}</span>
+                        </span>
+                      ))}
+                    </span>
+                  ) : (
+                    !files && <em className="reg-none">No details</em>
+                  )}
+                  {extra > 0 && (
+                    <span className="reg-more" title={`${extra} more ${extra === 1 ? 'answer' : 'answers'}`}>
+                      +{extra}
+                    </span>
+                  )}
+                  {files > 0 && (
+                    <span className="reg-files" title={`${files} ${files === 1 ? 'attachment' : 'attachments'}`}>
+                      <span className="material-icons">attach_file</span>
+                      {files}
+                    </span>
+                  )}
+                </span>
+
+                <span className="ord-cell status">
+                  <div className="ord-status-sel">
+                    <Dropdown
+                      options={REG_STATUS}
+                      value={r.status}
+                      onChange={(v) => changeStatus(r, v as RegistrationStatus)}
+                    />
+                  </div>
+                </span>
+
+                <span className="ord-cell when">{fmtWhen(r.createdAt)}</span>
+
+                <span className="ord-cell status reg-acts">
+                  {onOpenChat && r.phone && (
+                    <button
+                      type="button"
+                      className="prod-act reg-wa-act"
+                      onClick={() => onOpenChat(r.phone || '')}
+                      title="Chat on WhatsApp"
+                      aria-label={`Chat with ${who} on WhatsApp`}
+                      data-testid="reg-open-chat"
+                    >
+                      <WhatsAppIcon size={17} />
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="prod-act danger"
+                    onClick={() => remove(r)}
+                    title="Delete submission"
+                    aria-label={`Delete submission from ${who}`}
+                  >
+                    <span className="material-icons">delete_outline</span>
+                  </button>
+                  {onOpen && (
+                    <span className="reg-row-chev" aria-hidden="true">
+                      <span className="material-icons">chevron_right</span>
+                    </span>
+                  )}
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
-      {shown.length > 0 && <Pager {...paged.pager} />}
-      {viewing && <Lightbox media={viewing} onClose={() => setViewing(null)} />}
+      {!loading && shown.length > 0 && <Pager {...paged.pager} />}
     </div>
   );
 }
